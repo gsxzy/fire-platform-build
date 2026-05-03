@@ -1,0 +1,8 @@
+Database
+information_schema
+fire_platform
+mysql
+performance_schema
+smart_fire
+sys
+xzyzh_top

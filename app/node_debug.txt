@@ -1,0 +1,51 @@
+DOTENV TEST:
+[eval]:1
+require(dotenv).config(); console.log(SOCKET:, process.env.DB_SOCKET_PATH); console.log(HOST:, process.env.DB_HOST);
+                                      ^^^^^^
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:185:14)
+    at node:internal/process/execution:107:22
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:133:3)
+    at node:internal/main/eval_string:51:3
+
+Node.js v20.20.0
+
+ERR:
+
+---
+MYSQL2 TEST:
+[eval]:1
+const mysql=require(mysql2/promise); const c={socketPath:/tmp/mysql.sock,user:root,password:,database:fire_platform}; mysql.createConnection(c).then(conn=>conn.query(SELECT
+                                                         ^
+
+SyntaxError: Invalid regular expression flags
+    at makeContextifyScript (node:internal/vm:185:14)
+    at node:internal/process/execution:107:22
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:133:3)
+    at node:internal/main/eval_string:51:3
+
+Node.js v20.20.0
+
+ERR:
+
+---
+MODULES:
+SEP
+index.d.ts
+index.js
+lib
+License
+package.json
+promise.d.ts
+promise.js
+README.md
+typings
+
+---
+ENV PERM:
+-rw-r--r-- 1 root root 121 Apr 27 10:35 /opt/my-fire-api/.env

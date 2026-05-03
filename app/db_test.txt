@@ -1,0 +1,26 @@
+NO PASSWORD:
+1
+1
+
+ERR:
+
+---
+TCP LOCALHOST:
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1' (111)
+
+ERR:
+
+---
+PORT LISTEN:
+SEP
+
+---
+ENV FILE:
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=fire_platform
+DB_SOCKET_PATH=/tmp/mysql.sock
+PORT=5003
+

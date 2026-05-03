@@ -1,0 +1,27 @@
+CMD: mysql -u root -D fire_platform -e "SHOW TABLES LIKE 'fscn8001%';"
+OUT:
+
+ERR:
+
+==================================================
+CMD: mysql -u root -D fire_platform -e "DESCRIBE fscn8001_alarm;" 2>/dev/null || echo 'TABLE_NOT_FOUND'
+OUT:
+TABLE_NOT_FOUND
+
+ERR:
+
+==================================================
+CMD: mysql -u root -D fire_platform -e "DESCRIBE fscn8001_device;" 2>/dev/null || echo 'TABLE_NOT_FOUND'
+OUT:
+TABLE_NOT_FOUND
+
+ERR:
+
+==================================================
+CMD: mysql -u root -D fire_platform -e "DESCRIBE fscn8001_raw_log;" 2>/dev/null || echo 'TABLE_NOT_FOUND'
+OUT:
+TABLE_NOT_FOUND
+
+ERR:
+
+==================================================

@@ -1,0 +1,62 @@
+SEP
+SEP2
+/**
+ * 远程控制路由
+ */
+
+const express = require('express');
+const router = express.Router();
+
+// 发送远程控制指令
+router.post('/send', (req, res) => {
+  const db = req.app.get('db');
+  const { device_id, control_type, control_params, operator } = req.body;
+
+  if (!device_id || !control_type || !operator) {
+    return res.status(400).json({
+      success: false,
+      message: '缺少必要参数'
+    });
+  }
+
+  try {
+    // 检查设备是否存在
+    const device = db.prepare('SELECT * FROM devices WHERE id = ?').get(device_id);
+
+    if (!device) {
+      return res.status(404).json({
+        success: false,
+        message: '设备不存在'
+      });
+    }
+
+    if (device.status !== 'online') {
+      return res.status(400).json({
+        success: false,
+        message: '设备离线,无法控制'
+      });
+    }
+
+    // 执行控制指令
+    const result = executeControl(device, control_type, control_params);
+
+    // 记录控制日志
+    const stmt = db.prepare(`
+      INSERT INTO control_logs (device_id, control_type, control_params, operator, result)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(device_id, control_type, JSON.stringify(control_params), operator, JSON.stringify(result));
+
+    // 广播控制事件
+    const broadcast = req.app.get('broadcast');
+    if (broadcast) {
+      broadcast({
+        type: 'control_executed',
+        data: {
+          device_id,
+          device_name: device.name,
+          control_type,
+          operator,
+          result
+        }
+      });

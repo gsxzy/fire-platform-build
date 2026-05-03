@@ -1,0 +1,17 @@
+total 22708
+drwxr-xr-x 2 root root     4096 Apr 12 19:57 .
+drwxr-xr-x 5 root root     4096 Apr 27 10:48 ..
+-rw-r--r-- 1 root root    50711 Apr 16 16:42 fire-safety-platform-error-0.log
+-rw-r--r-- 1 root root        0 Apr 12 19:22 fire-safety-platform-error-3.log
+-rw-r--r-- 1 root root    41568 Apr 12 19:33 fire-safety-platform-error-4.log
+-rw-r--r-- 1 root root    86794 Apr 12 19:18 fire-safety-platform-error.log
+-rw-r--r-- 1 root root     3190 Apr 16 16:42 fire-safety-platform-out-0.log
+-rw-r--r-- 1 root root        0 Apr 12 19:22 fire-safety-platform-out-3.log
+-rw-r--r-- 1 root root        0 Apr 12 19:27 fire-safety-platform-out-4.log
+-rw-r--r-- 1 root root     6327 Apr 12 19:15 fire-safety-platform-out.log
+-rw-r--r-- 1 root root 19061745 Apr 12 17:29 maintenance-backend-error.log
+-rw-r--r-- 1 root root  3933068 Apr 12 19:37 maintenance-backend-out.log
+-rw-r--r-- 1 root root        0 Mar 25 15:41 maintenance-error.log
+-rw-r--r-- 1 root root    27966 Apr 12 19:15 maintenance-frontend-error.log
+-rw-r--r-- 1 root root    14076 Apr 12 17:29 maintenance-frontend-out.log
+-rw-r--r-- 1 root root        0 Mar 25 15:41 maintenance-out.log

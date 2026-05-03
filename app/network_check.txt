@@ -1,0 +1,47 @@
+=== iptables rules for 5200 ===
+1    ACCEPT     tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:5200
+
+=== firewalld ports ===
+firewalld not active
+
+=== ufw status ===
+ufw not active
+
+=== All listening ports ===
+State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                                                                                                                   
+LISTEN 0      511        127.0.0.1:6379       0.0.0.0:*    users:(("redis-server",pid=1080,fd=6))                                                                                                   
+LISTEN 0      100        127.0.0.1:25         0.0.0.0:*    users:(("master",pid=1840,fd=13))                                                                                                        
+LISTEN 0      128          0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=1084,fd=3))                                                                                                           
+LISTEN 0      511          0.0.0.0:80         0.0.0.0:*    users:(("nginx",pid=801807,fd=7),("nginx",pid=238571,fd=7),("nginx",pid=238570,fd=7),("nginx",pid=238569,fd=7),("nginx",pid=238568,fd=7))
+LISTEN 0      65535        0.0.0.0:6380       0.0.0.0:*    users:(("docker-proxy",pid=184277,fd=8))                                                                                                 
+LISTEN 0      128          0.0.0.0:5002       0.0.0.0:*    users:(("python3",pid=804301,fd=3))                                                                                                      
+LISTEN 0      511          0.0.0.0:5003       0.0.0.0:*    users:(("node /opt/my-fi",pid=245910,fd=21))                                                                                             
+LISTEN 0      511          0.0.0.0:5001       0.0.0.0:*    users:(("node",pid=2071082,fd=18))                                                                                                       
+LISTEN 0      511          0.0.0.0:8889       0.0.0.0:*    users:(("nginx",pid=801807,fd=6),("nginx",pid=238571,fd=6),("nginx",pid=238570,fd=6),("nginx",pid=238569,fd=6),("nginx",pid=238568,fd=6))
+LISTEN 0      511          0.0.0.0:5400       0.0.0.0:*    users:(("node",pid=2071054,fd=18))                                                                                                       
+LISTEN 0      65535        0.0.0.0:5432       0.0.0.0:*    users:(("docker-proxy",pid=282832,fd=8))                                                                                                 
+LISTEN 0      65535        0.0.0.0:5433       0.0.0.0:*    users:(("docker-proxy",pid=184306,fd=8))                                                                                                 
+LISTEN 0      511          0.0.0.0:5200       0.0.0.0:*    users:(("node /opt/my-fi",pid=245910,fd=22))                                                                                             
+LISTEN 0      65535        0.0.0.0:3307       0.0.0.0:*    users:(("docker-proxy",pid=2043847,fd=8))                                                                                                
+LISTEN 0      5            0.0.0.0:8080       0.0.0.0:*    users:(("python3",pid=1896035,fd=5))                                                                                                     
+LISTEN 0      1024               *:443              *:*    users:(("MediaServer",pid=850381,fd=20))                                                                                                 
+LISTEN 0      128             [::]:22            [::]:*    users:(("sshd",pid=1084,fd=4))                                                                                                           
+LISTEN 0      65535           [::]:6380          [::]:*    users:(("docker-proxy",pid=184286,fd=8))                                                                                                 
+LISTEN 0      1024               *:3000             *:*    users:(("MediaServer",pid=850381,fd=33))                                                                                                 
+LISTEN 0      1024               *:3001             *:*    users:(("MediaServer",pid=850381,fd=34))                                                                                                 
+LISTEN 0      50                 *:5060             *:*    users:(("java",pid=850833,fd=45))                                                                                                        
+LISTEN 0      1024               *:554              *:*    users:(("MediaServer",pid=850381,fd=17))                                                                                                 
+LISTEN 0      65535           [::]:5432          [::]:*    users:(("docker-proxy",pid=282840,fd=8))                                                                                                 
+LISTEN 0      65535           [::]:5433          [::]:*    users:(("docker-proxy",pid=184314,fd=8))                                                                                                 
+LISTEN 0      1024               *:3478             *:*    users:(("MediaServer",pid=850381,fd=39))                                                                                                 
+LISTEN 0      65535           [::]:3307          [::]:*    users:(("docker-proxy",pid=2043854,fd=8))                                                                                                
+LISTEN 0      1024               *:10000            *:*    users:(("MediaServer",pid=850381,fd=27))                                                                                                 
+LISTEN 0      1024               *:8000             *:*    users:(("MediaServer",pid=850381,fd=32))                                                                                                 
+LISTEN 0      1024               *:8081             *:*    users:(("MediaServer",pid=850381,fd=19))                                                                                                 
+LISTEN 0      1024               *:1935             *:*    users:(("MediaServer",pid=850381,fd=18))                                                                                                 
+LISTEN 0      100            [::1]:25            [::]:*    users:(("master",pid=1840,fd=14))                                                                                                        
+LISTEN 0      511            [::1]:6379          [::]:*    users:(("redis-server",pid=1080,fd=7))                                                                                                   
+LISTEN 0      100                *:18080            *:*    users:(("java",pid=850833,fd=21))                                                                                                        
+
+=== Public IP ===
+124.223.35.58

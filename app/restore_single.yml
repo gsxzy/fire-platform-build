@@ -1,0 +1,55 @@
+server:
+  port: 18080
+
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3307/wvp?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: wvp@2024
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: 
+      database: 0
+      timeout: 10000
+
+sip:
+  ip: 124.223.35.58
+  port: 5060
+  domain: 3402000000
+  id: 34020000002000000001
+  show-ip: 124.223.35.58
+  password: 12345678
+  keepaliveTimeOut: 60
+  alarm: false
+
+media:
+  id: zlm-local
+  ip: 124.223.35.58
+  http-port: 8081
+  secret: clKwNbLRJ1LgJ6xPcmd767mVX5xn5tgz
+  sdp-ip: 124.223.35.58
+  rtp:
+    enable: false
+    port-range: 30000,30500
+    send-port-range: 50000,55000
+
+user-settings:
+  play-timeout: 30000
+  wait-track: false
+  sip-log: true
+  ip: 124.223.35.58
+  log-media-item-status: false
+  device-status-notify: false
+  device-position-interval: 30
+  record-path: ./www/record
+  record-day: 7
+
+logging:
+  file:
+    name: /opt/wvp/logs/wvp.log
+  level:
+    root: info

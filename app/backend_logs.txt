@@ -1,0 +1,105 @@
+[TAILING] Tailing last 50 lines for [fire-api] process (change the value with --lines option)
+/opt/my-fire-api/logs/out.log last 50 lines:
+0|fire-api | 2026-04-28 16:44:40 +08:00: [2026-04-28T08:44:40.951Z] a0e7c8ea GET /api/control-rooms/hosts?roomId=CR-001 404 1ms
+0|fire-api | 2026-04-28 16:44:45 +08:00: [2026-04-28T08:44:45.480Z] df84fead GET /api/alarms/list?pageSize=50 404 0ms
+0|fire-api | 2026-04-28 16:44:58 +08:00: [2026-04-28T08:44:58.978Z] 4a5fd688 GET /api/control-rooms/realtime?roomId=CR-001&hostId=1777356791617 200 1ms
+0|fire-api | 2026-04-28 16:45:06 +08:00: [GB26875][2026-04-28T08:45:06.078Z][RX] <- 42.91.142.229:53595 收到 33 字节: 404003000105122E101C041A8C0000000000000000000000030002BE0100E32323
+0|fire-api | 2026-04-28 16:45:06 +08:00: [GB26875][2026-04-28T08:45:06.078Z][HANDLER] 登录请求 seq=768 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:45:06 +08:00: [GB26875][2026-04-28T08:45:06.089Z][TX] -> 应答 cmd=0x81 seq=768 len=9
+0|fire-api | 2026-04-28 16:45:07 +08:00: [GB26875][2026-04-28T08:45:07.089Z][QUERY] 下发系统状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:45:07 +08:00: [GB26875][2026-04-28T08:45:07.090Z][TX] -> 查询 cmd=0x42 seq=580 len=8
+0|fire-api | 2026-04-28 16:45:08 +08:00: [GB26875][2026-04-28T08:45:08.089Z][QUERY] 下发部件状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:45:08 +08:00: [GB26875][2026-04-28T08:45:08.089Z][TX] -> 查询 cmd=0x43 seq=581 len=8
+0|fire-api | 2026-04-28 16:45:09 +08:00: [GB26875][2026-04-28T08:45:09.089Z][QUERY] 下发传输装置状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:45:09 +08:00: [GB26875][2026-04-28T08:45:09.089Z][TX] -> 查询 cmd=0x41 seq=582 len=8
+0|fire-api | 2026-04-28 16:45:10 +08:00: [2026-04-28T08:45:10.591Z] e6529c08 GET /api/control-rooms/command-logs?roomId=CR-001&hostId=1777356791617&limit=50 200 2ms
+0|fire-api | 2026-04-28 16:45:36 +08:00: [2026-04-28T08:45:36.684Z] 86d32a2c GET /api/alarms/list?pageSize=50 404 1ms
+0|fire-api | 2026-04-28 16:45:45 +08:00: [2026-04-28T08:45:45.655Z] 67342e48 GET /api/control-rooms/videos?roomId=CR-001 200 1ms
+0|fire-api | 2026-04-28 16:46:06 +08:00: [GB26875][2026-04-28T08:46:06.577Z][RX] <- 42.91.142.229:53595 收到 33 字节: 404004000105122F101C041A8C0000000000000000000000030002BE0100E52323
+0|fire-api | 2026-04-28 16:46:06 +08:00: [GB26875][2026-04-28T08:46:06.577Z][HANDLER] 登录请求 seq=1024 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:46:06 +08:00: [GB26875][2026-04-28T08:46:06.586Z][TX] -> 应答 cmd=0x81 seq=1024 len=9
+0|fire-api | 2026-04-28 16:46:07 +08:00: [GB26875][2026-04-28T08:46:07.587Z][QUERY] 下发系统状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:46:07 +08:00: [GB26875][2026-04-28T08:46:07.587Z][TX] -> 查询 cmd=0x42 seq=583 len=8
+0|fire-api | 2026-04-28 16:46:08 +08:00: [GB26875][2026-04-28T08:46:08.586Z][QUERY] 下发部件状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:46:08 +08:00: [GB26875][2026-04-28T08:46:08.587Z][TX] -> 查询 cmd=0x43 seq=584 len=8
+0|fire-api | 2026-04-28 16:46:09 +08:00: [GB26875][2026-04-28T08:46:09.586Z][QUERY] 下发传输装置状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:46:09 +08:00: [GB26875][2026-04-28T08:46:09.587Z][TX] -> 查询 cmd=0x41 seq=585 len=8
+0|fire-api | 2026-04-28 16:46:27 +08:00: [2026-04-28T08:46:27.891Z] cf8924ac GET /api/alarms/list?pageSize=50 404 0ms
+0|fire-api | 2026-04-28 16:46:51 +08:00: [2026-04-28T08:46:51.581Z] d8df0610 GET /api/control-rooms/shields?roomId=CR-001&hostId=1777356791617 200 2ms
+0|fire-api | 2026-04-28 16:47:07 +08:00: [GB26875][2026-04-28T08:47:07.075Z][RX] <- 42.91.142.229:53595 收到 33 字节: 4040050001051330101C041A8C0000000000000000000000030002BE0100E82323
+0|fire-api | 2026-04-28 16:47:07 +08:00: [GB26875][2026-04-28T08:47:07.075Z][HANDLER] 登录请求 seq=1280 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:47:07 +08:00: [GB26875][2026-04-28T08:47:07.085Z][TX] -> 应答 cmd=0x81 seq=1280 len=9
+0|fire-api | 2026-04-28 16:47:08 +08:00: [GB26875][2026-04-28T08:47:08.086Z][QUERY] 下发系统状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:47:08 +08:00: [GB26875][2026-04-28T08:47:08.086Z][TX] -> 查询 cmd=0x42 seq=586 len=8
+0|fire-api | 2026-04-28 16:47:09 +08:00: [GB26875][2026-04-28T08:47:09.086Z][QUERY] 下发部件状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:47:09 +08:00: [GB26875][2026-04-28T08:47:09.086Z][TX] -> 查询 cmd=0x43 seq=587 len=8
+0|fire-api | 2026-04-28 16:47:10 +08:00: [GB26875][2026-04-28T08:47:10.086Z][QUERY] 下发传输装置状态查询 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:47:10 +08:00: [GB26875][2026-04-28T08:47:10.087Z][TX] -> 查询 cmd=0x41 seq=588 len=8
+0|fire-api | 2026-04-28 16:47:19 +08:00: [2026-04-28T08:47:19.101Z] 6e5bdeb8 GET /api/alarms/list?pageSize=50 404 0ms
+0|fire-api | 2026-04-28 16:48:07 +08:00: [GB26875][2026-04-28T08:48:07.574Z][RX] <- 42.91.142.229:53595 收到 33 字节: 4040060001051331101C041A8C0000000000000000000000030002BE0100EA2323
+0|fire-api | 2026-04-28 16:48:07 +08:00: [GB26875][2026-04-28T08:48:07.574Z][HANDLER] 登录请求 seq=1536 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:48:10 +08:00: [2026-04-28T08:48:10.306Z] 35542d99 GET /api/alarms/list?pageSize=50 404 1ms
+0|fire-api | 2026-04-28 16:49:01 +08:00: [2026-04-28T08:49:01.514Z] 6f1cf53e GET /api/alarms/list?pageSize=50 404 0ms
+0|fire-api | 2026-04-28 16:49:08 +08:00: [GB26875][2026-04-28T08:49:08.072Z][RX] <- 42.91.142.229:53595 收到 33 字节: 4040070001051432101C041A8C0000000000000000000000030002BE0100ED2323
+0|fire-api | 2026-04-28 16:49:08 +08:00: [GB26875][2026-04-28T08:49:08.073Z][HANDLER] 登录请求 seq=1792 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:49:08 +08:00: [GB26875][2026-04-28T08:49:08.082Z][ERROR] 连接异常 42.91.142.229:53595: read ECONNRESET
+0|fire-api | 2026-04-28 16:49:08 +08:00: [GB26875][2026-04-28T08:49:08.082Z][CONN] 连接关闭: 42.91.142.229:53595 deviceId=1C041A8C0000
+0|fire-api | 2026-04-28 16:49:08 +08:00: [GB26875][2026-04-28T08:49:08.647Z][CONN] 新连接: 42.91.142.229:51131
+0|fire-api | 2026-04-28 16:49:41 +08:00: [2026-04-28T08:49:41.011Z] 56ec657a GET /api/control-rooms/multiline?hostId=1777357092293 200 1ms
+0|fire-api | 2026-04-28 16:49:52 +08:00: [2026-04-28T08:49:52.722Z] 564f6600 GET /api/alarms/list?pageSize=50 404 1ms
+0|fire-api | 2026-04-28 16:49:59 +08:00: [GB26875][2026-04-28T08:49:59.093Z][DB] 更新设备状态失败: Lock wait timeout exceeded; try restarting transaction
+0|fire-api | 2026-04-28 16:49:59 +08:00: [GB26875][2026-04-28T08:49:59.093Z][DB] 更新设备状态失败: Lock wait timeout exceeded; try restarting transaction
+0|fire-api | 2026-04-28 16:50:08 +08:00: [GB26875][2026-04-28T08:50:08.271Z][RX] <- 42.91.142.229:51131 收到 33 字节: 4040010001051433101C041A8C0000000000000000000000030002BE0100E82323
+
+/opt/my-fire-api/logs/err.log last 50 lines:
+0|fire-api | 2026-04-29 11:19:54 +08:00:   requireStack: [ '/opt/my-fire-api/server.js' ]
+0|fire-api | 2026-04-29 11:19:54 +08:00: }
+0|fire-api | 2026-04-29 11:19:57 +08:00: Error: Cannot find module './fscn8001Server'
+0|fire-api | 2026-04-29 11:19:57 +08:00: Require stack:
+0|fire-api | 2026-04-29 11:19:57 +08:00: - /opt/my-fire-api/server.js
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Hook._require.Module.require (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at require (node:internal/modules/helpers:182:18)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Object.<anonymous> (/opt/my-fire-api/server.js:8:46)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module.load (node:internal/modules/cjs/loader:1266:32)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module._load (node:internal/modules/cjs/loader:1091:12)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Object.<anonymous> (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+0|fire-api | 2026-04-29 11:19:57 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14) {
+0|fire-api | 2026-04-29 11:19:57 +08:00:   code: 'MODULE_NOT_FOUND',
+0|fire-api | 2026-04-29 11:19:57 +08:00:   requireStack: [ '/opt/my-fire-api/server.js' ]
+0|fire-api | 2026-04-29 11:19:57 +08:00: }
+0|fire-api | 2026-04-29 11:20:01 +08:00: Error: Cannot find module './fscn8001Server'
+0|fire-api | 2026-04-29 11:20:01 +08:00: Require stack:
+0|fire-api | 2026-04-29 11:20:01 +08:00: - /opt/my-fire-api/server.js
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Hook._require.Module.require (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at require (node:internal/modules/helpers:182:18)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Object.<anonymous> (/opt/my-fire-api/server.js:8:46)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module.load (node:internal/modules/cjs/loader:1266:32)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module._load (node:internal/modules/cjs/loader:1091:12)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Object.<anonymous> (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+0|fire-api | 2026-04-29 11:20:01 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14) {
+0|fire-api | 2026-04-29 11:20:01 +08:00:   code: 'MODULE_NOT_FOUND',
+0|fire-api | 2026-04-29 11:20:01 +08:00:   requireStack: [ '/opt/my-fire-api/server.js' ]
+0|fire-api | 2026-04-29 11:20:01 +08:00: }
+0|fire-api | 2026-04-29 11:20:04 +08:00: Error: Cannot find module './fscn8001Server'
+0|fire-api | 2026-04-29 11:20:04 +08:00: Require stack:
+0|fire-api | 2026-04-29 11:20:04 +08:00: - /opt/my-fire-api/server.js
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Hook._require.Module.require (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at require (node:internal/modules/helpers:182:18)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Object.<anonymous> (/opt/my-fire-api/server.js:8:46)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module.load (node:internal/modules/cjs/loader:1266:32)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module._load (node:internal/modules/cjs/loader:1091:12)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Object.<anonymous> (/www/server/nodejs/v20.20.0/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+0|fire-api | 2026-04-29 11:20:04 +08:00:     at Module._compile (node:internal/modules/cjs/loader:1521:14) {
+0|fire-api | 2026-04-29 11:20:04 +08:00:   code: 'MODULE_NOT_FOUND',
+0|fire-api | 2026-04-29 11:20:04 +08:00:   requireStack: [ '/opt/my-fire-api/server.js' ]
+0|fire-api | 2026-04-29 11:20:04 +08:00: }
+

@@ -1,0 +1,219 @@
+:root {
+    --background: 222.2 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 215 28% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 33% 22%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 33% 22%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 217.2 33% 22%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 35%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 20% 35%;
+    --input: 215 20% 35%;
+    --ring: 212.7 26.8% 83.9%;
+    --radius: 0.5rem;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 217.2 33% 17%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217.2 91.2% 59.8%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 33% 22%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 20% 30%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
+
+    /* Fire Platform Design Tokens v3 - Enhanced */
+    --fp-bg-primary: #0b0f1a;
+    --fp-bg-secondary: #111827;
+    --fp-bg-card: #151d2e;
+    --fp-bg-panel: #1e293b;
+    --fp-bg-hover: rgba(59, 130, 246, 0.12);
+    --fp-bg-active: rgba(59, 130, 246, 0.18);
+
+    --fp-border-default: rgba(71, 85, 105, 0.45);
+    --fp-border-subtle: rgba(71, 85, 105, 0.25);
+    --fp-border-focus: rgba(96, 165, 250, 0.5);
+
+    --fp-text-primary: #f1f5f9;
+    --fp-text-secondary: #cbd5e1;
+    --fp-text-tertiary: #94a3b8;
+    --fp-text-disabled: #64748b;
+
+    --fp-accent-blue: #3b82f6;
+    --fp-accent-cyan: #06b6d4;
+    --fp-accent-emerald: #10b981;
+    --fp-accent-amber: #f59e0b;
+    --fp-accent-orange: #f97316;
+    --fp-accent-red: #ef4444;
+    --fp-accent-purple: #8b5cf6;
+    --fp-accent-rose: #f43f5e;
+
+    --fp-status-online: #10b981;
+    --fp-status-offline: #ef4444;
+    --fp-status-warning: #f59e0b;
+    --fp-status-danger: #dc2626;
+    --fp-status-info: #3b82f6;
+
+    --fp-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --fp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+    --fp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --fp-shadow-glow-blue: 0 0 20px rgba(96, 165, 250, 0.22);
+    --fp-shadow-glow-emerald: 0 0 20px rgba(52, 211, 153, 0.2);
+    --fp-shadow-glow-amber: 0 0 20px rgba(251, 191, 36, 0.2);
+    --fp-shadow-glow-red: 0 0 20px rgba(248, 113, 113, 0.2);
+  }
+
+* {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+
+  /* Logo blend: 消除深色圆角背景边框，与页面背景融合 */
+  .logo-blend {
+    mix-blend-mode: lighten;
+    filter: brightness(1.05) contrast(1.02);
+    opacity: 0.95;
+  }
+
+/* Fire platform dark theme - unified */
+.fire-dark {
+  background-color: var(--fp-bg-primary);
+  color: var(--fp-text-primary);
+}
+
+/* Status colors using design tokens */
+.fire-status-online { color: var(--fp-status-online); }
+.fire-status-offline { color: var(--fp-status-offline); }
+.fire-status-warning { color: var(--fp-status-warning); }
+.fire-status-danger { color: var(--fp-status-danger); }
+.fire-status-info { color: var(--fp-status-info); }
+
+/* Gradient backgrounds */
+.fire-gradient-header {
+  background: linear-gradient(135deg, var(--fp-bg-secondary) 0%, var(--fp-bg-panel) 100%);
+}
+
+.fire-gradient-card {
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.8) 0%, rgba(19, 28, 46, 0.6) 100%);
+}
+
+/* Scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+/* Focus ring */
+.focus-ring {
+  outline: none;
+  ring: 2px;
+  ring-offset: 2px;
+  ring-offset-color: var(--fp-bg-primary);
+  ring-color: var(--fp-accent-blue);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(30, 41, 59, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.glass-strong {
+  background: rgba(30, 41, 59, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.glass-subtle {
+  background: rgba(30, 41, 59, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+/* Typography scale */
+.text-label { font-size: 0.625rem; line-height: 1; }
+.text-caption { font-size: 0.6875rem; line-height: 1.25; }
+.text-body-sm { font-size: 0.75rem; line-height: 1.4; }
+.text-body { font-size: 0.8125rem; line-height: 1.5; }
+.text-subhead { font-size: 0.875rem; line-height: 1.5; }
+.text-title { font-size: 1rem; line-height: 1.5; }
+.text-headline { font-size: 1.125rem; line-height: 1.4; }
+
+/* Spacing scale */
+.gap-card { gap: 0.75rem; }
+.gap-section { gap: 1rem; }
+.p-card { padding: 0.875rem 1rem; }
+.p-section { padding: 1rem; }
+
+/* Shadow & Elevation System */
+.shadow-fire-sm { box-shadow: var(--fp-shadow-sm); }
+.shadow-fire-md { box-shadow: var(--fp-shadow-md); }
+.shadow-fire-lg { box-shadow: var(--fp-shadow-lg); }
+.shadow-fire-glow { box-shadow: var(--fp-shadow-glow-blue); }
+.shadow-fire-glow-red { box-shadow: var(--fp-shadow-glow-red); }
+.shadow-fire-glow-emerald { box-shadow: var(--fp-shadow-glow-emerald); }
+
+/* Elevation levels */
+.z-dropdown { z-index: 1000; }
+.z-sticky { z-index: 1020; }
+.z-fixed { z-index: 1030; }
+.z-modal-backdrop { z-index: 1040; }
+.z-modal { z-index: 1050; }
+.z-popover { z-index: 1060; }
+.z-tooltip { z-index: 1070; }
+.z-toast { z-index: 1080; }
+
+/* Interactive Feedback */
+.active-press {
+  transition: transform 0.1s ease;
+}
+.active-press:active {
+  transform: scale(0.97);
+}
+
+/* Ripple container for click feedback */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
+}

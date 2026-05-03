@@ -1,0 +1,24 @@
+ls: cannot access '/opt/my-fire-api/node_modules/dotenv': No such file or directory
+SEP
+-rw-r--r-- 1 root root 33254 Apr 27 10:35 /opt/my-fire-api/node_modules/.package-lock.json
+
+DOTENV REQUIRE TEST:
+[eval]:1
+try { require(dotenv); console.log(dotenv
+                                   ^^^^^^
+
+SyntaxError: missing ) after argument list
+    at makeContextifyScript (node:internal/vm:185:14)
+    at node:internal/process/execution:107:22
+    at [eval]-wrapper:6:24
+    at runScript (node:internal/process/execution:101:62)
+    at evalScript (node:internal/process/execution:133:3)
+    at node:internal/main/eval_string:51:3
+
+Node.js v20.20.0
+
+ERR:
+
+ERR LOG:
+2026-04-27 10:48:59 +08:00: [DB.healthCheck] failed: 
+2026-04-27 10:49:54 +08:00: [DB.healthCheck] failed: 

@@ -1,0 +1,830 @@
+================================================================================
+MySQL Schema Audit Report for `fire_platform`
+Generated: 2026-04-30T16:59:14.378158
+Server: 124.223.35.58
+================================================================================
+
+## SUMMARY
+- Total tables: 30
+- Missing primary keys: 30
+- Wrong charset (not utf8mb4): 0
+- Tables with no indexes at all: 3
+- Missing updated_at triggers: 15
+- Missing recommended indexes: 44
+
+## PER-TABLE DETAILS
+
+### Table: `bus_panel`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 32
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'PRIMARY', 'uk_host_loop_point']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `cameras`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 3
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'idx_type', 'idx_unit_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: name, device_id, created_at, updated_at; Columns without FK constraints: unit_id, device_id, channel_id
+
+### Table: `control_command_log`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 4
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_command_type', 'idx_created_at', 'idx_host_id', 'idx_room_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Columns without FK constraints: host_id, room_id, point_id
+
+### Table: `control_room_command_log`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 6
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_command_time', 'idx_command_type', 'idx_host_id', 'idx_room_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Columns without FK constraints: host_id, room_id
+
+### Table: `control_room_realtime`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 5
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_host_id', 'idx_room_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: updated_at; Columns without FK constraints: room_id, host_id
+
+### Table: `control_room_shield`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 2
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_created_at', 'idx_host_id', 'idx_room_id', 'idx_status', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Columns without FK constraints: room_id, host_id
+
+### Table: `control_room_video`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 5
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_room_id', 'idx_status', 'PRIMARY', 'uk_room_camera_no']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: room_id
+
+### Table: `devices`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 0
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_online_status', 'idx_status', 'idx_type', 'idx_unit_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: name, created_at, updated_at; Columns without FK constraints: unit_id
+
+### Table: `feedback_record`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 4
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_created_at', 'idx_feedback_type', 'idx_host_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing indexes on: status; Columns without FK constraints: host_id
+
+### Table: `fire_device`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 14
+- Data Length: 16,384 bytes
+- Index Length: 81,920 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_device_type', 'idx_host_loop', 'idx_location', 'idx_status', 'PRIMARY', 'uk_host_loop_addr']
+- Triggers: ['trg_fire_device_updated_at']
+- Issues: Missing primary key; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `fire_host`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 5
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_brand', 'idx_created_at', 'idx_status', 'PRIMARY', 'uk_host_code']
+- Triggers: ['trg_fire_host_updated_at']
+- Issues: Missing primary key; Missing indexes on: updated_at
+
+### Table: `fire_loop`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 10
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_host_id', 'idx_status', 'PRIMARY', 'uk_host_loop']
+- Triggers: ['trg_fire_loop_updated_at']
+- Issues: Missing primary key; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `fscn8001_alarm`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 172
+- Data Length: 49,152 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_alarm_time', 'idx_device_sn', 'idx_status', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing indexes on: address
+
+### Table: `fscn8001_device`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 3
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['device_sn', 'idx_device_sn', 'idx_status', 'idx_updated_at', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at
+
+### Table: `fscn8001_raw_log`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 145866
+- Data Length: 37,306,368 bytes
+- Index Length: 9,469,952 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_created_at', 'idx_device_sn', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key
+
+### Table: `gb26875_alarm`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 0
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_alarm_time', 'idx_device_id', 'idx_status', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing indexes on: address; Columns without FK constraints: device_id
+
+### Table: `gb26875_device`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 3
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'PRIMARY', 'uk_device_id']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: device_id, building_id
+
+### Table: `gb26875_raw_log`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 21148
+- Data Length: 7,880,704 bytes
+- Index Length: 2,015,232 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_created_at', 'idx_device_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Columns without FK constraints: device_id
+
+### Table: `gb28181_devices`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 0
+- Data Length: 16,384 bytes
+- Index Length: 65,536 bytes
+- Foreign Keys: 0
+- Indexes: ['device_id', 'idx_device_id', 'idx_status', 'idx_unit_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: name, created_at, updated_at; Columns without FK constraints: device_id, unit_id
+
+### Table: `host_bus_point`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 32
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'PRIMARY', 'uk_host_loop_point']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `host_multiline`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 25
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'PRIMARY', 'uk_host_point']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `iot_devices`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 0
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_category', 'idx_status', 'idx_unit_id', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: name, created_at, updated_at; Columns without FK constraints: unit_id
+
+### Table: `iot_sensor`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 12
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_sensor_type', 'idx_status', 'PRIMARY', 'uk_host_sensor']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `iot_sensor_data`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 0
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_sensor_time', 'idx_status', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Columns without FK constraints: sensor_id
+
+### Table: `multiline_panel`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 25
+- Data Length: 16,384 bytes
+- Index Length: 32,768 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_status', 'PRIMARY', 'uk_host_point']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `shield_record`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 2
+- Data Length: 16,384 bytes
+- Index Length: 49,152 bytes
+- Foreign Keys: 0
+- Indexes: ['idx_host_id', 'idx_shield_time', 'idx_status', 'PRIMARY']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: created_at, updated_at; Columns without FK constraints: host_id
+
+### Table: `users`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: 2
+- Data Length: 16,384 bytes
+- Index Length: 16,384 bytes
+- Foreign Keys: 0
+- Indexes: ['PRIMARY', 'uk_username']
+- Triggers: None
+- Issues: Missing primary key; Missing updated_at trigger; Missing indexes on: phone, email, status, created_at, updated_at
+
+### Table: `v_fire_device_stats`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: N/A
+- Data Length: 0 bytes
+- Index Length: 0 bytes
+- Foreign Keys: 0
+- Indexes: **NONE**
+- Triggers: None
+- Issues: Missing primary key; No indexes at all; Columns without FK constraints: host_id
+
+### Table: `v_fire_host_stats`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: N/A
+- Data Length: 0 bytes
+- Index Length: 0 bytes
+- Foreign Keys: 0
+- Indexes: **NONE**
+- Triggers: None
+- Issues: Missing primary key; No indexes at all
+
+### Table: `v_fire_loop_stats`
+- Engine: N/A
+- Charset: N/A
+- Collation: N/A
+- Primary Key: **MISSING**
+- Rows: N/A
+- Data Length: 0 bytes
+- Index Length: 0 bytes
+- Foreign Keys: 0
+- Indexes: **NONE**
+- Triggers: None
+- Issues: Missing primary key; No indexes at all; Columns without FK constraints: host_id
+
+## RAW SCHEMA DUMP
+
+### `bus_panel`
+```sql
+-- Unable to retrieve
+```
+
+### `cameras`
+```sql
+-- Unable to retrieve
+```
+
+### `control_command_log`
+```sql
+-- Unable to retrieve
+```
+
+### `control_room_command_log`
+```sql
+-- Unable to retrieve
+```
+
+### `control_room_realtime`
+```sql
+-- Unable to retrieve
+```
+
+### `control_room_shield`
+```sql
+-- Unable to retrieve
+```
+
+### `control_room_video`
+```sql
+-- Unable to retrieve
+```
+
+### `devices`
+```sql
+-- Unable to retrieve
+```
+
+### `feedback_record`
+```sql
+-- Unable to retrieve
+```
+
+### `fire_device`
+```sql
+-- Unable to retrieve
+```
+
+### `fire_host`
+```sql
+-- Unable to retrieve
+```
+
+### `fire_loop`
+```sql
+-- Unable to retrieve
+```
+
+### `fscn8001_alarm`
+```sql
+-- Unable to retrieve
+```
+
+### `fscn8001_device`
+```sql
+-- Unable to retrieve
+```
+
+### `fscn8001_raw_log`
+```sql
+-- Unable to retrieve
+```
+
+### `gb26875_alarm`
+```sql
+-- Unable to retrieve
+```
+
+### `gb26875_device`
+```sql
+-- Unable to retrieve
+```
+
+### `gb26875_raw_log`
+```sql
+-- Unable to retrieve
+```
+
+### `gb28181_devices`
+```sql
+-- Unable to retrieve
+```
+
+### `host_bus_point`
+```sql
+-- Unable to retrieve
+```
+
+### `host_multiline`
+```sql
+-- Unable to retrieve
+```
+
+### `iot_devices`
+```sql
+-- Unable to retrieve
+```
+
+### `iot_sensor`
+```sql
+-- Unable to retrieve
+```
+
+### `iot_sensor_data`
+```sql
+-- Unable to retrieve
+```
+
+### `multiline_panel`
+```sql
+-- Unable to retrieve
+```
+
+### `shield_record`
+```sql
+-- Unable to retrieve
+```
+
+### `users`
+```sql
+-- Unable to retrieve
+```
+
+### `v_fire_device_stats`
+```sql
+-- Unable to retrieve
+```
+
+### `v_fire_host_stats`
+```sql
+-- Unable to retrieve
+```
+
+### `v_fire_loop_stats`
+```sql
+-- Unable to retrieve
+```
+
+## ALTER TABLE RECOMMENDATIONS
+
+```sql
+ALTER TABLE `bus_panel` ADD PRIMARY KEY (`id`);
+ALTER TABLE `bus_panel` ADD INDEX `idx_bus_panel_created_at` (`created_at`);
+ALTER TABLE `bus_panel` ADD INDEX `idx_bus_panel_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_bus_panel_updated_at` BEFORE UPDATE ON `bus_panel` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `bus_panel`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `bus_panel` ADD CONSTRAINT `fk_bus_panel_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `cameras` ADD PRIMARY KEY (`id`);
+ALTER TABLE `cameras` ADD INDEX `idx_cameras_name` (`name`);
+ALTER TABLE `cameras` ADD INDEX `idx_cameras_device_id` (`device_id`);
+ALTER TABLE `cameras` ADD INDEX `idx_cameras_created_at` (`created_at`);
+ALTER TABLE `cameras` ADD INDEX `idx_cameras_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_cameras_updated_at` BEFORE UPDATE ON `cameras` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `cameras`: Consider adding FK on `unit_id` referencing `unit`(id): ALTER TABLE `cameras` ADD CONSTRAINT `fk_cameras_unit_id` FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`);
+-- `cameras`: Consider adding FK on `device_id` referencing `device`(id): ALTER TABLE `cameras` ADD CONSTRAINT `fk_cameras_device_id` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`);
+-- `cameras`: Consider adding FK on `channel_id` referencing `channel`(id): ALTER TABLE `cameras` ADD CONSTRAINT `fk_cameras_channel_id` FOREIGN KEY (`channel_id`) REFERENCES `channel`(`id`);
+ALTER TABLE `control_command_log` ADD PRIMARY KEY (`id`);
+-- `control_command_log`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `control_command_log` ADD CONSTRAINT `fk_control_command_log_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+-- `control_command_log`: Consider adding FK on `room_id` referencing `room`(id): ALTER TABLE `control_command_log` ADD CONSTRAINT `fk_control_command_log_room_id` FOREIGN KEY (`room_id`) REFERENCES `room`(`id`);
+-- `control_command_log`: Consider adding FK on `point_id` referencing `point`(id): ALTER TABLE `control_command_log` ADD CONSTRAINT `fk_control_command_log_point_id` FOREIGN KEY (`point_id`) REFERENCES `point`(`id`);
+ALTER TABLE `control_room_command_log` ADD PRIMARY KEY (`id`);
+-- `control_room_command_log`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `control_room_command_log` ADD CONSTRAINT `fk_control_room_command_log_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+-- `control_room_command_log`: Consider adding FK on `room_id` referencing `room`(id): ALTER TABLE `control_room_command_log` ADD CONSTRAINT `fk_control_room_command_log_room_id` FOREIGN KEY (`room_id`) REFERENCES `room`(`id`);
+ALTER TABLE `control_room_realtime` ADD PRIMARY KEY (`id`);
+ALTER TABLE `control_room_realtime` ADD INDEX `idx_control_room_realtime_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_control_room_realtime_updated_at` BEFORE UPDATE ON `control_room_realtime` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `control_room_realtime`: Consider adding FK on `room_id` referencing `room`(id): ALTER TABLE `control_room_realtime` ADD CONSTRAINT `fk_control_room_realtime_room_id` FOREIGN KEY (`room_id`) REFERENCES `room`(`id`);
+-- `control_room_realtime`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `control_room_realtime` ADD CONSTRAINT `fk_control_room_realtime_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `control_room_shield` ADD PRIMARY KEY (`id`);
+-- `control_room_shield`: Consider adding FK on `room_id` referencing `room`(id): ALTER TABLE `control_room_shield` ADD CONSTRAINT `fk_control_room_shield_room_id` FOREIGN KEY (`room_id`) REFERENCES `room`(`id`);
+-- `control_room_shield`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `control_room_shield` ADD CONSTRAINT `fk_control_room_shield_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `control_room_video` ADD PRIMARY KEY (`id`);
+ALTER TABLE `control_room_video` ADD INDEX `idx_control_room_video_created_at` (`created_at`);
+ALTER TABLE `control_room_video` ADD INDEX `idx_control_room_video_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_control_room_video_updated_at` BEFORE UPDATE ON `control_room_video` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `control_room_video`: Consider adding FK on `room_id` referencing `room`(id): ALTER TABLE `control_room_video` ADD CONSTRAINT `fk_control_room_video_room_id` FOREIGN KEY (`room_id`) REFERENCES `room`(`id`);
+ALTER TABLE `devices` ADD PRIMARY KEY (`id`);
+ALTER TABLE `devices` ADD INDEX `idx_devices_name` (`name`);
+ALTER TABLE `devices` ADD INDEX `idx_devices_created_at` (`created_at`);
+ALTER TABLE `devices` ADD INDEX `idx_devices_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_devices_updated_at` BEFORE UPDATE ON `devices` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `devices`: Consider adding FK on `unit_id` referencing `unit`(id): ALTER TABLE `devices` ADD CONSTRAINT `fk_devices_unit_id` FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`);
+ALTER TABLE `feedback_record` ADD PRIMARY KEY (`id`);
+ALTER TABLE `feedback_record` ADD INDEX `idx_feedback_record_status` (`status`);
+-- `feedback_record`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `feedback_record` ADD CONSTRAINT `fk_feedback_record_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `fire_device` ADD PRIMARY KEY (`id`);
+ALTER TABLE `fire_device` ADD INDEX `idx_fire_device_created_at` (`created_at`);
+ALTER TABLE `fire_device` ADD INDEX `idx_fire_device_updated_at` (`updated_at`);
+-- `fire_device`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `fire_device` ADD CONSTRAINT `fk_fire_device_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `fire_host` ADD PRIMARY KEY (`id`);
+ALTER TABLE `fire_host` ADD INDEX `idx_fire_host_updated_at` (`updated_at`);
+ALTER TABLE `fire_loop` ADD PRIMARY KEY (`id`);
+ALTER TABLE `fire_loop` ADD INDEX `idx_fire_loop_created_at` (`created_at`);
+ALTER TABLE `fire_loop` ADD INDEX `idx_fire_loop_updated_at` (`updated_at`);
+-- `fire_loop`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `fire_loop` ADD CONSTRAINT `fk_fire_loop_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `fscn8001_alarm` ADD PRIMARY KEY (`id`);
+ALTER TABLE `fscn8001_alarm` ADD INDEX `idx_fscn8001_alarm_address` (`address`);
+ALTER TABLE `fscn8001_device` ADD PRIMARY KEY (`id`);
+ALTER TABLE `fscn8001_device` ADD INDEX `idx_fscn8001_device_created_at` (`created_at`);
+CREATE TRIGGER `trg_fscn8001_device_updated_at` BEFORE UPDATE ON `fscn8001_device` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+ALTER TABLE `fscn8001_raw_log` ADD PRIMARY KEY (`id`);
+ALTER TABLE `gb26875_alarm` ADD PRIMARY KEY (`id`);
+ALTER TABLE `gb26875_alarm` ADD INDEX `idx_gb26875_alarm_address` (`address`);
+-- `gb26875_alarm`: Consider adding FK on `device_id` referencing `device`(id): ALTER TABLE `gb26875_alarm` ADD CONSTRAINT `fk_gb26875_alarm_device_id` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`);
+ALTER TABLE `gb26875_device` ADD PRIMARY KEY (`id`);
+ALTER TABLE `gb26875_device` ADD INDEX `idx_gb26875_device_created_at` (`created_at`);
+ALTER TABLE `gb26875_device` ADD INDEX `idx_gb26875_device_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_gb26875_device_updated_at` BEFORE UPDATE ON `gb26875_device` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `gb26875_device`: Consider adding FK on `device_id` referencing `device`(id): ALTER TABLE `gb26875_device` ADD CONSTRAINT `fk_gb26875_device_device_id` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`);
+-- `gb26875_device`: Consider adding FK on `building_id` referencing `building`(id): ALTER TABLE `gb26875_device` ADD CONSTRAINT `fk_gb26875_device_building_id` FOREIGN KEY (`building_id`) REFERENCES `building`(`id`);
+ALTER TABLE `gb26875_raw_log` ADD PRIMARY KEY (`id`);
+-- `gb26875_raw_log`: Consider adding FK on `device_id` referencing `device`(id): ALTER TABLE `gb26875_raw_log` ADD CONSTRAINT `fk_gb26875_raw_log_device_id` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`);
+ALTER TABLE `gb28181_devices` ADD PRIMARY KEY (`id`);
+ALTER TABLE `gb28181_devices` ADD INDEX `idx_gb28181_devices_name` (`name`);
+ALTER TABLE `gb28181_devices` ADD INDEX `idx_gb28181_devices_created_at` (`created_at`);
+ALTER TABLE `gb28181_devices` ADD INDEX `idx_gb28181_devices_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_gb28181_devices_updated_at` BEFORE UPDATE ON `gb28181_devices` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `gb28181_devices`: Consider adding FK on `device_id` referencing `device`(id): ALTER TABLE `gb28181_devices` ADD CONSTRAINT `fk_gb28181_devices_device_id` FOREIGN KEY (`device_id`) REFERENCES `device`(`id`);
+-- `gb28181_devices`: Consider adding FK on `unit_id` referencing `unit`(id): ALTER TABLE `gb28181_devices` ADD CONSTRAINT `fk_gb28181_devices_unit_id` FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`);
+ALTER TABLE `host_bus_point` ADD PRIMARY KEY (`id`);
+ALTER TABLE `host_bus_point` ADD INDEX `idx_host_bus_point_created_at` (`created_at`);
+ALTER TABLE `host_bus_point` ADD INDEX `idx_host_bus_point_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_host_bus_point_updated_at` BEFORE UPDATE ON `host_bus_point` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `host_bus_point`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `host_bus_point` ADD CONSTRAINT `fk_host_bus_point_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `host_multiline` ADD PRIMARY KEY (`id`);
+ALTER TABLE `host_multiline` ADD INDEX `idx_host_multiline_created_at` (`created_at`);
+ALTER TABLE `host_multiline` ADD INDEX `idx_host_multiline_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_host_multiline_updated_at` BEFORE UPDATE ON `host_multiline` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `host_multiline`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `host_multiline` ADD CONSTRAINT `fk_host_multiline_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `iot_devices` ADD PRIMARY KEY (`id`);
+ALTER TABLE `iot_devices` ADD INDEX `idx_iot_devices_name` (`name`);
+ALTER TABLE `iot_devices` ADD INDEX `idx_iot_devices_created_at` (`created_at`);
+ALTER TABLE `iot_devices` ADD INDEX `idx_iot_devices_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_iot_devices_updated_at` BEFORE UPDATE ON `iot_devices` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `iot_devices`: Consider adding FK on `unit_id` referencing `unit`(id): ALTER TABLE `iot_devices` ADD CONSTRAINT `fk_iot_devices_unit_id` FOREIGN KEY (`unit_id`) REFERENCES `unit`(`id`);
+ALTER TABLE `iot_sensor` ADD PRIMARY KEY (`id`);
+ALTER TABLE `iot_sensor` ADD INDEX `idx_iot_sensor_created_at` (`created_at`);
+ALTER TABLE `iot_sensor` ADD INDEX `idx_iot_sensor_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_iot_sensor_updated_at` BEFORE UPDATE ON `iot_sensor` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `iot_sensor`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `iot_sensor` ADD CONSTRAINT `fk_iot_sensor_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `iot_sensor_data` ADD PRIMARY KEY (`id`);
+-- `iot_sensor_data`: Consider adding FK on `sensor_id` referencing `sensor`(id): ALTER TABLE `iot_sensor_data` ADD CONSTRAINT `fk_iot_sensor_data_sensor_id` FOREIGN KEY (`sensor_id`) REFERENCES `sensor`(`id`);
+ALTER TABLE `multiline_panel` ADD PRIMARY KEY (`id`);
+ALTER TABLE `multiline_panel` ADD INDEX `idx_multiline_panel_created_at` (`created_at`);
+ALTER TABLE `multiline_panel` ADD INDEX `idx_multiline_panel_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_multiline_panel_updated_at` BEFORE UPDATE ON `multiline_panel` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `multiline_panel`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `multiline_panel` ADD CONSTRAINT `fk_multiline_panel_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `shield_record` ADD PRIMARY KEY (`id`);
+ALTER TABLE `shield_record` ADD INDEX `idx_shield_record_created_at` (`created_at`);
+ALTER TABLE `shield_record` ADD INDEX `idx_shield_record_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_shield_record_updated_at` BEFORE UPDATE ON `shield_record` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+-- `shield_record`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `shield_record` ADD CONSTRAINT `fk_shield_record_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+ALTER TABLE `users` ADD PRIMARY KEY (`id`);
+ALTER TABLE `users` ADD INDEX `idx_users_phone` (`phone`);
+ALTER TABLE `users` ADD INDEX `idx_users_email` (`email`);
+ALTER TABLE `users` ADD INDEX `idx_users_status` (`status`);
+ALTER TABLE `users` ADD INDEX `idx_users_created_at` (`created_at`);
+ALTER TABLE `users` ADD INDEX `idx_users_updated_at` (`updated_at`);
+CREATE TRIGGER `trg_users_updated_at` BEFORE UPDATE ON `users` FOR EACH ROW SET NEW.`updated_at` = CURRENT_TIMESTAMP;
+ALTER TABLE `v_fire_device_stats` ADD PRIMARY KEY (`host_id`);
+-- `v_fire_device_stats`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `v_fire_device_stats` ADD CONSTRAINT `fk_v_fire_device_stats_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+-- `v_fire_host_stats`: Missing primary key. No obvious ID column found. Consider adding an AUTO_INCREMENT id.
+ALTER TABLE `v_fire_loop_stats` ADD PRIMARY KEY (`host_id`);
+-- `v_fire_loop_stats`: Consider adding FK on `host_id` referencing `host`(id): ALTER TABLE `v_fire_loop_stats` ADD CONSTRAINT `fk_v_fire_loop_stats_host_id` FOREIGN KEY (`host_id`) REFERENCES `host`(`id`);
+```
+
+## INDEX LIST
+
+| Table | Index Name | Columns |
+|-------|-----------|---------|
+| bus_panel | idx_status | status |
+| bus_panel | PRIMARY | id |
+| bus_panel | uk_host_loop_point | host_id, loop_no, point_no |
+| cameras | idx_status | status |
+| cameras | idx_type | type |
+| cameras | idx_unit_id | unit_id |
+| cameras | PRIMARY | id |
+| control_command_log | idx_command_type | command_type |
+| control_command_log | idx_created_at | created_at |
+| control_command_log | idx_host_id | host_id |
+| control_command_log | idx_room_id | room_id |
+| control_command_log | PRIMARY | id |
+| control_room_command_log | idx_command_time | command_time |
+| control_room_command_log | idx_command_type | command_type |
+| control_room_command_log | idx_host_id | host_id |
+| control_room_command_log | idx_room_id | room_id |
+| control_room_command_log | PRIMARY | id |
+| control_room_realtime | idx_host_id | host_id |
+| control_room_realtime | idx_room_id | room_id |
+| control_room_realtime | PRIMARY | id |
+| control_room_shield | idx_created_at | created_at |
+| control_room_shield | idx_host_id | host_id |
+| control_room_shield | idx_room_id | room_id |
+| control_room_shield | idx_status | status |
+| control_room_shield | PRIMARY | id |
+| control_room_video | idx_room_id | room_id |
+| control_room_video | idx_status | status |
+| control_room_video | PRIMARY | id |
+| control_room_video | uk_room_camera_no | room_id, camera_no |
+| devices | idx_online_status | online_status |
+| devices | idx_status | status |
+| devices | idx_type | type |
+| devices | idx_unit_id | unit_id |
+| devices | PRIMARY | id |
+| feedback_record | idx_created_at | created_at |
+| feedback_record | idx_feedback_type | feedback_type |
+| feedback_record | idx_host_id | host_id |
+| feedback_record | PRIMARY | id |
+| fire_device | idx_device_type | device_type |
+| fire_device | idx_host_loop | host_id, loop_no |
+| fire_device | idx_location | location |
+| fire_device | idx_status | status |
+| fire_device | PRIMARY | id |
+| fire_device | uk_host_loop_addr | host_id, loop_no, address |
+| fire_host | idx_brand | brand |
+| fire_host | idx_created_at | created_at |
+| fire_host | idx_status | status |
+| fire_host | PRIMARY | id |
+| fire_host | uk_host_code | host_code |
+| fire_loop | idx_host_id | host_id |
+| fire_loop | idx_status | status |
+| fire_loop | PRIMARY | id |
+| fire_loop | uk_host_loop | host_id, loop_no |
+| fscn8001_alarm | idx_alarm_time | alarm_time |
+| fscn8001_alarm | idx_device_sn | device_sn |
+| fscn8001_alarm | idx_status | status |
+| fscn8001_alarm | PRIMARY | id |
+| fscn8001_device | device_sn | device_sn |
+| fscn8001_device | idx_device_sn | device_sn |
+| fscn8001_device | idx_status | status |
+| fscn8001_device | idx_updated_at | updated_at |
+| fscn8001_device | PRIMARY | id |
+| fscn8001_raw_log | idx_created_at | created_at |
+| fscn8001_raw_log | idx_device_sn | device_sn |
+| fscn8001_raw_log | PRIMARY | id |
+| gb26875_alarm | idx_alarm_time | alarm_time |
+| gb26875_alarm | idx_device_id | device_id |
+| gb26875_alarm | idx_status | status |
+| gb26875_alarm | PRIMARY | id |
+| gb26875_device | idx_status | status |
+| gb26875_device | PRIMARY | id |
+| gb26875_device | uk_device_id | device_id |
+| gb26875_raw_log | idx_created_at | created_at |
+| gb26875_raw_log | idx_device_id | device_id |
+| gb26875_raw_log | PRIMARY | id |
+| gb28181_devices | device_id | device_id |
+| gb28181_devices | idx_device_id | device_id |
+| gb28181_devices | idx_status | status |
+| gb28181_devices | idx_unit_id | unit_id |
+| gb28181_devices | PRIMARY | id |
+| host_bus_point | idx_status | status |
+| host_bus_point | PRIMARY | id |
+| host_bus_point | uk_host_loop_point | host_id, loop_no, point_no |
+| host_multiline | idx_status | status |
+| host_multiline | PRIMARY | id |
+| host_multiline | uk_host_point | host_id, point_no |
+| iot_devices | idx_category | category |
+| iot_devices | idx_status | status |
+| iot_devices | idx_unit_id | unit_id |
+| iot_devices | PRIMARY | id |
+| iot_sensor | idx_sensor_type | sensor_type |
+| iot_sensor | idx_status | status |
+| iot_sensor | PRIMARY | id |
+| iot_sensor | uk_host_sensor | host_id, sensor_code |
+| iot_sensor_data | idx_sensor_time | sensor_id, record_time |
+| iot_sensor_data | idx_status | status |
+| iot_sensor_data | PRIMARY | id |
+| multiline_panel | idx_status | status |
+| multiline_panel | PRIMARY | id |
+| multiline_panel | uk_host_point | host_id, point_no |
+| shield_record | idx_host_id | host_id |
+| shield_record | idx_shield_time | shield_time |
+| shield_record | idx_status | status |
+| shield_record | PRIMARY | id |
+| users | PRIMARY | id |
+| users | uk_username | username |
+
+## TABLE SIZES
+
+| Table | Rows | Data Length | Index Length | Total |
+|-------|------|-------------|--------------|-------|
+| bus_panel | 32 | 16,384 | 32,768 | 49,152 |
+| cameras | 3 | 16,384 | 49,152 | 65,536 |
+| control_command_log | 4 | 16,384 | 65,536 | 81,920 |
+| control_room_command_log | 6 | 16,384 | 65,536 | 81,920 |
+| control_room_realtime | 5 | 16,384 | 32,768 | 49,152 |
+| control_room_shield | 2 | 16,384 | 65,536 | 81,920 |
+| control_room_video | 5 | 16,384 | 49,152 | 65,536 |
+| devices | 0 | 16,384 | 65,536 | 81,920 |
+| feedback_record | 4 | 16,384 | 49,152 | 65,536 |
+| fire_device | 14 | 16,384 | 81,920 | 98,304 |
+| fire_host | 5 | 16,384 | 65,536 | 81,920 |
+| fire_loop | 10 | 16,384 | 49,152 | 65,536 |
+| fscn8001_alarm | 172 | 49,152 | 49,152 | 98,304 |
+| fscn8001_device | 3 | 16,384 | 65,536 | 81,920 |
+| fscn8001_raw_log | 145866 | 37,306,368 | 9,469,952 | 46,776,320 |
+| gb26875_alarm | 0 | 16,384 | 49,152 | 65,536 |
+| gb26875_device | 3 | 16,384 | 32,768 | 49,152 |
+| gb26875_raw_log | 21148 | 7,880,704 | 2,015,232 | 9,895,936 |
+| gb28181_devices | 0 | 16,384 | 65,536 | 81,920 |
+| host_bus_point | 32 | 16,384 | 32,768 | 49,152 |
+| host_multiline | 25 | 16,384 | 32,768 | 49,152 |
+| iot_devices | 0 | 16,384 | 49,152 | 65,536 |
+| iot_sensor | 12 | 16,384 | 49,152 | 65,536 |
+| iot_sensor_data | 0 | 16,384 | 32,768 | 49,152 |
+| multiline_panel | 25 | 16,384 | 32,768 | 49,152 |
+| shield_record | 2 | 16,384 | 49,152 | 65,536 |
+| users | 2 | 16,384 | 16,384 | 32,768 |
+| v_fire_device_stats | N/A | 0 | 0 | 0 |
+| v_fire_host_stats | N/A | 0 | 0 | 0 |
+| v_fire_loop_stats | N/A | 0 | 0 | 0 |

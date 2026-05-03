@@ -1,0 +1,82 @@
+module.exports = {
+  apps: [{
+    name: 'fire-api',
+    script: './server.js',
+    cwd: '/opt/my-fire-api',
+    instances: 1,
+    exec_mode: 'fork',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 5003
+    },
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    error_file: '/opt/my-fire-api/logs/err.log',
+    out_file: '/opt/my-fire-api/logs/out.log',
+    merge_logs: true,
+    max_memory_restart: '512M',
+    restart_delay: 3000,
+    max_restarts: 5,
+    min_uptime: '10s',
+    watch: false,
+    autorestart: true
+  }]
+};SEP
+ Describing process with id 0 - name fire-api 
+┌───────────────────┬────────────────────────────────┐
+│ status            │ online                         │
+│ name              │ fire-api                       │
+│ namespace         │ default                        │
+│ version           │ 1.0.0                          │
+│ restarts          │ 5                              │
+│ uptime            │ 23m                            │
+│ script path       │ /opt/my-fire-api/server.js     │
+│ script args       │ N/A                            │
+│ error log path    │ /opt/my-fire-api/logs/err.log  │
+│ out log path      │ /opt/my-fire-api/logs/out.log  │
+│ pid path          │ /root/.pm2/pids/fire-api-0.pid │
+│ interpreter       │ node                           │
+│ interpreter args  │ N/A                            │
+│ script id         │ 0                              │
+│ exec cwd          │ /opt/my-fire-api               │
+│ exec mode         │ fork_mode                      │
+│ node.js version   │ 20.20.0                        │
+│ node env          │ production                     │
+│ watch & reload    │ ✘                              │
+│ unstable restarts │ 0                              │
+│ created at        │ 2026-04-27T02:49:52.630Z       │
+└───────────────────┴────────────────────────────────┘
+ Actions available 
+┌────────────────────────┐
+│ km:heapdump            │
+│ km:cpu:profiling:start │
+│ km:cpu:profiling:stop  │
+│ km:heap:sampling:start │
+│ km:heap:sampling:stop  │
+└────────────────────────┘
+ Trigger via: pm2 trigger fire-api <action_name>
+
+ Code metrics value 
+┌────────────────────────┬───────────┐
+│ Used Heap Size         │ 9.91 MiB  │
+│ Heap Usage             │ 85.23 %   │
+│ Heap Size              │ 11.63 MiB │
+│ Event Loop Latency p95 │ 1.13 ms   │
+│ Event Loop Latency     │ 0.25 ms   │
+│ Active handles         │ 4         │
+│ Active requests        │ 0         │
+│ HTTP                   │ 0 req/min │
+│ HTTP P95 Latency       │ 16 ms     │
+│ HTTP Mean Latency      │ 16 ms     │
+└────────────────────────┴───────────┘
+ Divergent env variables from local env 
+┌────────────────┬─────────────────────────────────┐
+│ PWD            │ /opt/my-fire-api                │
+│ SSH_CONNECTION │ 42.91.142.229 51432 10.0.0.3 22 │
+│ XDG_SESSION_ID │ 28654                           │
+│ SSH_CLIENT     │ 42.91.142.229 51432 22          │
+└────────────────┴─────────────────────────────────┘
+
+ Add your own code metrics: http://bit.ly/code-metrics
+ Use `pm2 logs fire-api [--lines 1000]` to display logs
+ Use `pm2 env 0` to display environment variables
+ Use `pm2 monit` to monitor CPU and Memory usage fire-api

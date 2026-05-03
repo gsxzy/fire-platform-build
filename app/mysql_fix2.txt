@@ -1,0 +1,6 @@
+Shutting down MySQL......................... SUCCESS! 
+Starting MySQL.. SUCCESS! 
+SEP
+srwxrwxrwx 1 mysql mysql 0 Apr 27 10:32 /tmp/mysql.sock
+SEP2
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: NO)

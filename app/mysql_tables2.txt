@@ -1,0 +1,12 @@
+Tables_in_smart_fire
+alarms
+device_data
+devices
+gis_devices
+gis_fences
+inspection_tasks
+maintenance_plans
+operation_logs
+repair_records
+system_metrics
+users

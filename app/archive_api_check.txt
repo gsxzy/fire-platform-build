@@ -1,0 +1,8 @@
+=== GET /api/devices ===
+{"code":401,"msg":"未授权","data":null}
+=== GET /api/iot-devices ===
+{"code":401,"msg":"未授权","data":null}
+=== GET /api/cameras ===
+{"code":401,"msg":"未授权","data":null}
+=== GET /api/gb28181-devices ===
+{"code":401,"msg":"未授权","data":null}

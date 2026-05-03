@@ -1,0 +1,63 @@
+{
+  "name": "xzy-fire-platform-backend",
+  "version": "2.0.0",
+  "description": "新致远智慧消防云平台 - 完整后端服务",
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "seed": "tsx src/seeders/index.ts",
+    "db:sync": "tsx src/utils/syncDb.ts",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "dotenv": "^16.4.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "joi": "^17.12.2",
+    "mysql2": "^3.9.3",
+    "sequelize": "^6.37.1",
+    "sequelize-typescript": "^2.1.6",
+    "reflect-metadata": "^0.2.2",
+    "ws": "^8.16.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1",
+    "dayjs": "^1.11.10",
+    "nodemailer": "^6.9.13",
+    "node-cron": "^3.0.3",
+    "winston": "^3.13.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "ioredis": "^5.3.2",
+    "mqtt": "^5.5.0",
+    "modbus-serial": "^8.0.25",
+    "net-snmp": "^3.12.0",
+    "iconv-lite": "^0.6.3",
+    "crc": "^4.3.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/ws": "^8.5.10",
+    "@types/multer": "^1.4.11",
+    "@types/uuid": "^9.0.8",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^6.4.14",
+    "@types/crc": "^4.0.0",
+    "typescript": "^5.4.3",
+    "tsx": "^4.7.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["智慧消防", "消防云平台", "IoT", "消防监控"],
+  "author": "新致远科技",
+  "license": "COMMERCIAL"
+}

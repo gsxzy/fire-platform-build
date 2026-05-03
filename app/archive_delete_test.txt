@@ -1,0 +1,11 @@
+=== Login ===
+{"code":200,"msg":"登录成功","data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ZTg0NWVmOS00MWUzLTExZjEtYjQxNi01MjU0MDBkYmVmYmYiLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZXMiOiJhZG1pbiIsImlhdCI6MTc3NzQzNDQ1OSwiZXhwIjoxNzc3NTIwODU5fQ.LUeLRRnKrDz-pGowe03eMdlhUm14DoWT-mb3Xb2dOa8","user":{"id":"6e845ef9-41e3-11f1-b416-525400dbefbf","username":"admin","realName":"系统管理员","roles":"admin","status":1,"createdAt":"2026-04-27T02:47:29.000Z"}}}
+Token: eyJhbGciOiJIUzI1NiIsInR5cCI6Ik...
+=== Create Device ===
+{"code":200,"msg":"新增成功","data":{"id":"TEST-DEV-001"}}
+=== List Devices ===
+{"code":200,"msg":"success","data":{"list":[{"id":"TEST-DEV-001","name":"测试设备001","type":"detector","unitId":"UNIT-001","unitName":"测试单位","location":"1F大厅","status":"normal","onlineStatus":"online","manufacturer":null,"model":null,"firmware":null,"ip":null,"installDate":null,"lastMaintDate":null,"nextMaintDate":null,"heartbeatInterval":30,"createdAt":"2026-04-29T03:47:40.000Z","updatedAt":"2026-04-29T03:47:40.000Z"}],"total":1,"page":1,"pageSize":5,"totalPages":1}}
+=== Delete Device ===
+{"code":200,"msg":"删除成功","data":null}
+=== List After Delete ===
+{"code":200,"msg":"success","data":{"list":[],"total":0,"page":1,"pageSize":5,"totalPages":0}}

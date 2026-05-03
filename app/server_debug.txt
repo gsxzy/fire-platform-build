@@ -1,0 +1,4 @@
+STDOUT:
+[Server] 智慧消防平台 API 服务已启动: http://0.0.0.0:5003
+
+STDERR:
