@@ -14,13 +14,13 @@ declare global {
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) return res.status(401).json(fail('未登录，请先登录', 401));
+    if (!token) return res.status(401).json(fail('未登录，请先登录', 401, req.reqId));
 
     const decoded = verifyToken(token) as { userId: number; username: string };
     const user = await User.findByPk(decoded.userId, {
       include: [{ model: Role, include: [Permission] }]
     });
-    if (!user || (user as any).status === 0) return res.status(401).json(fail('用户不存在或已被禁用', 401));
+    if (!user || (user as any).status === 0) return res.status(401).json(fail('用户不存在或已被禁用', 401, req.reqId));
 
     const roles = (user as any).roles?.map((r: any) => r.role_code) || [];
     const permissions = new Set<string>();
@@ -36,16 +36,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     };
     next();
   } catch (err) {
-    return res.status(401).json(fail('登录已过期，请重新登录', 401));
+    return res.status(401).json(fail('登录已过期，请重新登录', 401, req.reqId));
   }
-}
-
-export function requirePermission(...codes: string[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) return res.status(401).json(fail('未登录', 401));
-    if (req.user.roles.includes('admin')) return next();
-    const hasPerm = codes.some(c => req.user!.permissions.includes(c));
-    if (!hasPerm) return res.status(403).json(fail('无权操作', 403));
-    next();
-  };
 }

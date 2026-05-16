@@ -1,0 +1,1 @@
+{"version":3,"file":"role.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/role.controller.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAKjD,eAAO,MAAM,cAAc;cACT,OAAO,OAAO,QAAQ;gBAUpB,OAAO,OAAO,QAAQ;gBAUtB,OAAO,OAAO,QAAQ;gBAgBtB,OAAO,OAAO,QAAQ;CASzC,CAAC"}

@@ -7,6 +7,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { alarmService } from '@/api/services';
 import { useToast } from '@/core/ToastContext';
 import type { Alarm } from '@/types/db';
+import { getErrorMessage } from '@/types/api';
 
 export interface AlarmPopupData {
   alarm: Alarm;
@@ -20,6 +21,7 @@ export interface AlarmPopupData {
   safetyOfficerPhone?: string;
   snapshots: { imageUrl?: string; cameraName?: string }[];
   relatedCameras: { id: string; name: string; streamUrl?: string }[];
+  floorPlan?: { image_url?: string; x?: number; y?: number };
 }
 
 interface AlarmPopupContextValue {
@@ -86,12 +88,12 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
         setConfirmedIds(newIds);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newIds));
         setIsOpen(false);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('确认报警失败', err);
-        showError('确认报警失败', err.message || '请检查网络或稍后重试');
+        showError('确认报警失败', getErrorMessage(err, '请检查网络或稍后重试'));
       }
     }
-  }, [currentAlarm, confirmedIds]);
+  }, [currentAlarm, confirmedIds, showError]);
 
   /* 报警自动弹窗（仅开发/演示环境） */
   useEffect(() => {
@@ -115,18 +117,21 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
 
         openAlarm({
           alarm,
-          unitName: detail.unitName || alarm.unitName || '未知单位',
-          unitAddress: detail.unitAddress,
-          managerName: detail.controlRoom?.managerName,
-          managerPhone: detail.controlRoom?.managerPhone,
-          dutyOfficerName: detail.controlRoom?.dutyOfficerName,
-          dutyOfficerPhone: detail.controlRoom?.dutyOfficerPhone,
-          safetyOfficerName: detail.controlRoom?.safetyOfficerName,
-          safetyOfficerPhone: detail.controlRoom?.safetyOfficerPhone,
+          unitName: detail.unit_name || detail.unitName || alarm.unitName || '未知单位',
+          unitAddress: detail.unit?.address || detail.unitAddress,
+          managerName: detail.controlRoom?.managerName || detail.controlRoom?.dutyPerson || detail.controlRoom?.duty_person,
+          managerPhone: detail.controlRoom?.managerPhone || detail.controlRoom?.dutyPhone || detail.controlRoom?.duty_phone,
+          dutyOfficerName: detail.controlRoom?.dutyOfficerName || detail.controlRoom?.dutyPerson || detail.controlRoom?.duty_person,
+          dutyOfficerPhone: detail.controlRoom?.dutyOfficerPhone || detail.controlRoom?.dutyPhone || detail.controlRoom?.duty_phone,
+          safetyOfficerName: detail.controlRoom?.safetyOfficerName || detail.controlRoom?.dutyPerson || detail.controlRoom?.duty_person,
+          safetyOfficerPhone: detail.controlRoom?.safetyOfficerPhone || detail.controlRoom?.dutyPhone || detail.controlRoom?.duty_phone,
           snapshots: detail.snapshots || [],
           relatedCameras: detail.relatedCameras || [],
+          floorPlan: detail.floorPlan,
         });
-      } catch { /* ignore */ }
+      } catch (e: any) {
+        console.error('[AlarmPopupContext] 轮询触发失败:', e?.message || e);
+      }
     };
 
     timerRef.current = setInterval(tryTrigger, 45000 + Math.random() * 30000);

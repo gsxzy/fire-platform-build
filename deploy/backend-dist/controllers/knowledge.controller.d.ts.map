@@ -1,0 +1,1 @@
+{"version":3,"file":"knowledge.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/knowledge.controller.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAuBjD,eAAO,MAAM,mBAAmB;cACd,OAAO,OAAO,QAAQ;gBAcpB,OAAO,OAAO,QAAQ;gBAStB,OAAO,OAAO,QAAQ;gBAStB,OAAO,OAAO,QAAQ;oBASlB,OAAO,OAAO,QAAQ;CAS7C,CAAC"}

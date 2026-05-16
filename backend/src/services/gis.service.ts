@@ -18,7 +18,7 @@ export class GISService {
 
     const activeAlarms = await Alarm.findAll({
       where: { status: 0 },
-      attributes: ['id', 'alarm_type', 'alarm_level', 'device_name', 'unit_name', 'location', 'lng', 'lat'],
+      attributes: ['id', 'alarm_type', 'alarm_level', 'device_name', 'unit_name', 'location'],
       raw: true,
     });
 
@@ -47,7 +47,7 @@ export class GISService {
   static async getAlarmPoints() {
     return Alarm.findAll({
       where: { status: { [Op.in]: [0, 1] } },
-      attributes: ['id', 'alarm_no', 'alarm_type', 'alarm_level', 'device_name', 'unit_name', 'location', 'alarm_desc', 'lng', 'lat', 'created_at'],
+      attributes: ['id', 'alarm_no', 'alarm_type', 'alarm_level', 'device_name', 'unit_name', 'location', 'alarm_desc', 'created_at'],
       order: [['created_at', 'DESC']],
       limit: 100, raw: true,
     });

@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import PageTemplate from '@/sections/PageTemplate';
-import { deviceService, iotService, gb28181Service, cameraService } from '@/api/services';
+import { DeviceManagementFlowHint } from '@/sections/device/DeviceManagementFlowHint';
+import { deviceService } from '@/api/services';
 import { Cpu } from 'lucide-react';
-import type { QueryParams, Device, IoTDevice, GB28181Device, Camera } from '@/types/db';
+import { useNavigate, useSearchParams } from 'react-router';
+import type { QueryParams, Device } from '@/types/db';
+import { useToast } from '@/core/ToastContext';
+import { getErrorMessage } from '@/types/api';
 
 const typeMap: Record<string, string> = {
   detector: '探测器',
@@ -39,16 +44,20 @@ const statusMap: Record<string, string> = {
 };
 
 const archiveStatusMap: Record<string, string> = {
-  unallocated: '未分配',
-  allocated: '已分配',
+  draft: '草稿',
+  registered: '已入库',
   accessed: '已接入',
+  assigned: '已分配',
+  maintenance: '维护中',
   scrapped: '报废',
 };
 
 const archiveStatusColorMap: Record<string, string> = {
-  unallocated: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
-  allocated: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  draft: 'text-gray-400 bg-gray-500/10 border-gray-500/20',
+  registered: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
   accessed: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  assigned: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  maintenance: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
   scrapped: 'text-red-400 bg-red-500/10 border-red-500/20',
 };
 
@@ -100,8 +109,9 @@ const onlineStatusColorMap: Record<string, string> = {
 };
 
 const COLUMNS = [
-  { key: 'id', label: '设备编码', width: '120px' },
-  { key: 'name', label: '设备名称', width: '180px' },
+  { key: 'deviceNo', label: '设备编号', width: '110px' },
+  { key: 'id', label: '档案ID', width: '72px' },
+  { key: 'name', label: '设备名称', width: '160px' },
   { key: 'type', label: '设备类型', width: '120px', render: (v: unknown) => {
     const type = String(v);
     const label = typeMap[type] || type;
@@ -115,8 +125,12 @@ const COLUMNS = [
     return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
   }},
   { key: 'unitName', label: '所属单位', width: '160px' },
+  { key: 'manufacturer', label: '生产厂家', width: '100px' },
   { key: 'location', label: '安装位置', width: '130px' },
   { key: 'ip', label: 'IP地址', width: '110px' },
+  { key: 'installDate', label: '安装日期', width: '95px' },
+  { key: 'warrantyExpire', label: '质保到期', width: '95px' },
+  { key: 'maintenanceExpire', label: '维保到期', width: '95px' },
   { key: 'status', label: '运行状态', width: '80px', render: (v: unknown) => {
     const status = String(v);
     const label = statusMap[status] || status;
@@ -167,7 +181,12 @@ const FIELDS = [
   { key: 'gatewayId', label: '传输装置ID', type: 'text' as const },
   { key: 'manufacturer', label: '生产厂家', type: 'text' as const },
   { key: 'model', label: '设备型号', type: 'text' as const },
-  { key: 'serialNo', label: '出厂序列号', type: 'text' as const },
+  { key: 'serialNo', label: '出厂序列号(SN)', type: 'text' as const, required: true },
+  { key: 'productionDate', label: '生产日期', type: 'date' as const },
+  { key: 'installDate', label: '安装日期', type: 'date' as const },
+  { key: 'warrantyPeriod', label: '质保期(月)', type: 'number' as const },
+  { key: 'warrantyExpire', label: '质保到期日', type: 'date' as const },
+  { key: 'maintenanceExpire', label: '维保到期日', type: 'date' as const },
   { key: 'calibrationCycle', label: '校准周期(月)', type: 'number' as const },
   { key: 'scrapYear', label: '报废年限(年)', type: 'number' as const },
   { key: 'location', label: '安装位置', type: 'text' as const },
@@ -207,380 +226,254 @@ const FILTER_FIELDS = [
     ],
   },
   {
-    key: 'archive_status',
-    label: '档案状态',
+    key: 'lifecycleStatus',
+    label: '流程状态',
     options: [
-      { label: '未分配', value: 'unallocated' },
-      { label: '已分配', value: 'allocated' },
-      { label: '已接入', value: 'accessed' },
-      { label: '报废', value: 'scrapped' },
+      { label: '草稿', value: '0' },
+      { label: '已入库', value: '1' },
+      { label: '已接入', value: '2' },
+      { label: '已分配', value: '3' },
+      { label: '维护中', value: '4' },
+      { label: '报废', value: '5' },
     ],
   },
 ];
 
-function mapIoTToDevice(d: IoTDevice): Device {
+function mapLifecycleToArchiveStatus(ls: number | undefined): NonNullable<Device['archiveStatus']> {
+  const n = ls ?? 1;
+  if (n >= 5) return 'scrapped';
+  if (n === 4) return 'maintenance';
+  if (n === 3) return 'assigned';
+  if (n === 2) return 'accessed';
+  if (n === 1) return 'registered';
+  if (n === 0) return 'draft';
+  return 'registered';
+}
+
+/* ── 将后端 fire_device snake_case → 前端 Device ── */
+function mapBackendDeviceToDevice(raw: any): Device {
+  const statusNumMap: Record<number, string> = { 0: 'disabled', 1: 'normal', 2: 'fault', 3: 'offline', 4: 'scrapped' };
+  const st = raw.status;
+  const statusStr =
+    typeof st === 'number' ? (statusNumMap[st] ?? 'offline') : (st ?? 'offline');
+  const uid = raw.unit_id ?? raw.unitId ?? raw.unit?.id;
+  const unitIdStr = uid != null && uid !== '' && uid !== '0' ? String(uid) : '';
+  const lifecycle = Number(raw.lifecycle_status ?? raw.lifecycleStatus ?? 1) || 1;
+  const fallbackUnitName = unitIdStr ? `单位ID:${unitIdStr}` : '';
   return {
-    id: d.id,
-    name: d.name,
-    type: d.category,
-    unitId: d.unitId,
-    unitName: d.unitName,
-    location: `${d.floor}${d.room ? '/' + d.room : ''}`,
-    status: d.status,
-    onlineStatus: d.onlineStatus,
-    manufacturer: d.manufacturer,
-    model: d.model,
-    firmware: d.firmware,
-    ip: d.ip,
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
+    id: String(raw.id ?? ''),
+    deviceNo: String(raw.device_no ?? ''),
+    name: raw.device_name ?? raw.name ?? '',
+    type: raw.device_type ?? raw.type ?? '',
+    model: raw.device_model ?? raw.model ?? '',
+    manufacturer: raw.manufacturer ?? '',
+    unitId: unitIdStr,
+    unitName: raw.unit?.unit_name ?? raw.unit_name ?? raw.unitName ?? fallbackUnitName,
+    location: raw.install_location ?? raw.location ?? '',
+    ip: raw.iot_id ?? raw.ip ?? '',
+    status: statusStr as Device['status'],
+    onlineStatus: raw.online_status ?? raw.onlineStatus ?? 'offline',
+    installDate: raw.install_date ?? raw.installDate ?? '',
+    productionDate: raw.production_date ?? raw.productionDate ?? '',
+    warrantyPeriod: raw.warranty_period ?? raw.warrantyPeriod ?? undefined,
+    warrantyExpire: raw.warranty_expire ?? raw.warrantyExpire ?? '',
+    maintenanceExpire: raw.maintenance_expire ?? raw.maintenanceExpire ?? '',
+    firmware: raw.firmware ?? '',
+    remark: raw.remark ?? '',
+    createdAt: raw.created_at ?? raw.createdAt ?? '',
+    updatedAt: raw.updated_at ?? raw.updatedAt ?? '',
+    lifecycleStatus: lifecycle,
+    archiveStatus: mapLifecycleToArchiveStatus(lifecycle),
+    hasIotConfig: !!raw.has_iot_config,
   } as Device;
 }
 
-function mapGbToDevice(d: GB28181Device): Device {
-  return {
-    id: d.id,
-    name: d.name,
-    type: 'gb28181-camera',
-    unitId: d.unitId,
-    unitName: d.unitName,
-    location: d.location,
-    status: d.status === 'online' ? 'normal' : d.status === 'fault' ? 'fault' : 'offline',
-    onlineStatus: d.status === 'online' ? 'online' : 'offline',
-    manufacturer: d.manufacturer,
-    model: d.model,
-    firmware: d.firmware,
-    ip: d.ip,
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
-  } as Device;
-}
-
-function mapCamToDevice(d: Camera): Device {
-  return {
-    id: d.id,
-    name: d.name,
-    type: 'camera',
-    unitId: d.unitId,
-    unitName: d.unitName,
-    location: d.location,
-    status: d.status,
-    onlineStatus: d.onlineStatus,
-    createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
-  } as Device;
-}
-
-/* ── IoT 类型双向同步 ── */
-const IOT_CATEGORIES = new Set([
-  'fire-controller', 'detector', 'water', 'electrical', 'smoke-exhaust',
-  'lighting', 'broadcast', 'iot-sensor', 'elec-monitor', 'pressure-sensor',
-  'fan-controller', 'level-sensor', 'user-transmission-device',
-]);
-
-function isIoTCategory(type?: string): boolean {
-  return !!type && IOT_CATEGORIES.has(type);
-}
-
-function mapDeviceToIoT(d: Device): IoTDevice {
-  const [floor, room] = (d.location || '').includes('/')
-    ? d.location!.split('/')
-    : ['', d.location || ''];
-  const protoMap: Record<string, string> = {
-    'fire-controller': 'Modbus TCP',
-    'detector': 'MQTT',
-    'water': 'Modbus TCP',
-    'electrical': 'Modbus TCP',
-    'smoke-exhaust': 'Modbus TCP',
-    'lighting': 'TCP透传',
-    'broadcast': 'TCP透传',
-    'iot-sensor': 'MQTT',
-    'elec-monitor': 'Modbus TCP',
-    'pressure-sensor': 'MQTT',
-    'fan-controller': 'Modbus RTU',
-    'level-sensor': 'MQTT',
-    'user-transmission-device': 'GB26875.1-2011',
+/* ── 前端 Device → 后端 fire_device 字段映射 ── */
+function mapDeviceToBackend(data: Partial<Device>): any {
+  const base: Record<string, unknown> = {
+    name: data.name,
+    type: data.type,
+    device_model: data.model,
+    manufacturer: data.manufacturer,
+    serialNo: data.serialNo,
+    productionDate: data.productionDate,
+    installDate: data.installDate,
+    warrantyPeriod: data.warrantyPeriod,
+    warrantyExpire: data.warrantyExpire,
+    maintenanceExpire: data.maintenanceExpire,
+    calibrationCycle: data.calibrationCycle,
+    scrapYear: data.scrapYear,
+    location: data.location,
+    ip: data.ip,
+    remark: data.remark,
+    protocolType: data.protocolType,
+    gatewayId: data.gatewayId,
+    status: data.status,
   };
-  const portMap: Record<string, number | undefined> = {
-    'fire-controller': 502,
-    'detector': undefined,
-    'water': 502,
-    'electrical': 502,
-    'smoke-exhaust': 502,
-    'lighting': undefined,
-    'broadcast': undefined,
-    'iot-sensor': undefined,
-    'elec-monitor': 502,
-    'pressure-sensor': undefined,
-    'fan-controller': 503,
-    'level-sensor': undefined,
-    'user-transmission-device': 5200,
-  };
-  return {
-    id: d.id,
-    name: d.name || '',
-    category: d.type as IoTDevice['category'],
-    protocol: protoMap[d.type || ''] || 'Modbus TCP',
-    ip: d.ip,
-    port: portMap[d.type || ''],
-    unitId: d.unitId || '',
-    unitName: d.unitName || '',
-    floor: floor || '1F',
-    room: room || undefined,
-    onlineStatus: (d.onlineStatus || 'offline') as IoTDevice['onlineStatus'],
-    heartbeatInterval: 30,
-    registerCount: 0,
-    manufacturer: d.manufacturer || '',
-    model: d.model || '',
-    firmware: d.firmware || '',
-    status: (d.status || 'offline') as IoTDevice['status'],
-    lastHeartbeat: new Date().toISOString(),
-    createdAt: d.createdAt || new Date().toISOString(),
-    updatedAt: d.updatedAt || new Date().toISOString(),
-  } as IoTDevice;
+  /* 入库管理编辑表单不含 unitId，禁止默认传空字符串导致后端误判为解绑 */
+  if (data.unitId !== undefined && data.unitId !== null && data.unitId !== '') {
+    base.unitId = data.unitId;
+  }
+  if (data.lifecycleStatus !== undefined && data.lifecycleStatus !== null) {
+    base.lifecycleStatus = data.lifecycleStatus;
+  }
+  return base;
 }
-
-function detectSource(id: string): 'device' | 'iot' | 'gb28181' | 'camera' {
-  if (id.startsWith('IOT-')) return 'iot';
-  if (id.startsWith('GB-')) return 'gb28181';
-  if (id.startsWith('CAM-')) return 'camera';
-  // 国标设备编码为20位数字（如34020000001320000001）
-  if (/^\d{20}$/.test(id)) return 'gb28181';
-  return 'device';
-}
-
-/* ── 记录每个ID的真实来源，解决合并去重后的删除路由问题 ── */
-let sourceMap = new Map<string, 'device' | 'iot' | 'gb28181' | 'camera'>();
 
 const archiveService = {
   async list(params: QueryParams) {
-    const [deviceRes, iotRes, gbRes, camRes] = await Promise.all([
-      deviceService.list({ pageSize: 9999 }),
-      iotService.list({ pageSize: 9999 }).catch(() => null),
-      gb28181Service.list({ pageSize: 9999 }).catch(() => null),
-      cameraService.list({ pageSize: 9999 }).catch(() => null),
-    ]);
-
-    const devices = ((deviceRes.data as any)?.list || []) as Device[];
-    const iotDevices = ((iotRes?.data as any)?.list || []) as IoTDevice[];
-    const gbDevices = ((gbRes?.data as any)?.list || []) as GB28181Device[];
-    const cameras = ((camRes?.data as any)?.list || []) as Camera[];
-
-    // 重建来源映射（每次列表刷新时重置）
-    sourceMap = new Map();
-    devices.forEach(d => sourceMap.set(d.id, 'device'));
-    iotDevices.forEach(d => sourceMap.set(d.id, 'iot'));
-    gbDevices.forEach(d => sourceMap.set(d.id, 'gb28181'));
-    cameras.forEach(d => sourceMap.set(d.id, 'camera'));
-
-    const all: Device[] = [
-      ...devices,
-      ...iotDevices.map(mapIoTToDevice),
-      ...gbDevices.map(mapGbToDevice),
-      ...cameras.map(mapCamToDevice),
-    ];
-
-    // 按ID去重，档案设备优先，但摄像头/国标设备保留自己的type
-    const seen = new Map<string, Device>();
-    for (const d of all) {
-      const existing = seen.get(d.id);
-      if (!existing) {
-        seen.set(d.id, d);
-      } else if (d.type === 'camera' || d.type === 'gb28181-camera') {
-        // 摄像头/国标摄像头优先保留，避免被普通设备覆盖导致删错表
-        seen.set(d.id, d);
-      }
+    const q: QueryParams = { ...params };
+    if ((q as any).archive_status) {
+      const mapOld: Record<string, string> = {
+        draft: '0',
+        unallocated: '1',
+        allocated: '3',
+        accessed: '2',
+        scrapped: '5',
+      };
+      const v = String((q as any).archive_status);
+      if (mapOld[v]) (q as any).lifecycleStatus = mapOld[v];
+      delete (q as any).archive_status;
     }
-    const deduped = Array.from(seen.values());
-
-    let filtered = deduped;
-    if (params.keyword) {
-      const q = params.keyword.toLowerCase();
-      filtered = filtered.filter(d =>
-        d.name?.toLowerCase().includes(q) ||
-        d.id?.toLowerCase().includes(q) ||
-        d.unitName?.toLowerCase().includes(q)
-      );
-    }
-    if (params.type) {
-      filtered = filtered.filter(d => d.type === params.type);
-    }
-
-    const page = Number(params.page) || 1;
-    const pageSize = Number(params.pageSize) || 10;
-    const total = filtered.length;
-    const start = (page - 1) * pageSize;
-
+    const deviceRes = await deviceService.list(q);
+    if (deviceRes.code !== 200 || !deviceRes.data?.list) return deviceRes as any;
+    const list = ((deviceRes.data.list as any[]) || []).map(mapBackendDeviceToDevice);
     return {
-      code: 200,
-      message: 'success',
+      ...deviceRes,
       data: {
-        list: filtered.slice(start, start + pageSize),
-        total,
-        page,
-        pageSize,
-        totalPages: Math.ceil(total / pageSize),
-      }
+        ...deviceRes.data,
+        list,
+      },
     };
   },
   create: async (data: Partial<Device>) => {
-    const deviceId = data.id || `DEV-${Date.now()}`;
-    // 核心约束：创建设备档案时禁止绑定单位，后端自动生成 id 和 code
-    const payload = {
-      ...data,
-      id: deviceId,
-      onlineStatus: data.onlineStatus || 'offline',
-      unitId: '',
-      unitName: '',
-    };
-    // IoT类型设备：同步创建档案 + IoT记录
-    if (isIoTCategory(data.type)) {
-      const iotData = mapDeviceToIoT({ ...payload, unitId: '', unitName: '' } as Device);
-      const [deviceRes] = await Promise.all([
-        deviceService.create(payload as any),
-        iotService.create(iotData as any),
-      ]);
-      return deviceRes;
-    }
-    // 摄像头类型：同步创建档案 + 摄像头记录
-    if (data.type === 'camera') {
-      const camData = {
-        id: deviceId,
-        name: data.name || deviceId,
-        unitId: '',
-        unitName: '',
-        location: data.location || '',
-        type: 'indoor',
-        status: data.status || 'normal',
-        onlineStatus: data.onlineStatus || 'offline',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      const [deviceRes] = await Promise.all([
-        deviceService.create(payload as any),
-        cameraService.create(camData as any),
-      ]);
-      return deviceRes;
-    }
+    const payload = mapDeviceToBackend(data) as Record<string, unknown>;
+    payload.onlineStatus = 'offline';
+    /* 新建默认为草稿，需「提交入库」后进入已入库，方可设备接入 */
+    payload.lifecycleStatus = 0;
     return deviceService.create(payload as any);
   },
   update: async (id: string, data: Partial<Device>) => {
-    const source = detectSource(id);
-    // IoT来源设备：同步更新IoT记录与设备档案
-    if (source === 'iot') {
-      const iotData = mapDeviceToIoT({ ...data, id } as Device);
-      const [iotRes] = await Promise.all([
-        iotService.update(id, iotData as any),
-        deviceService.update(id, data).catch(() => null),
-      ]);
-      return iotRes;
-    }
-    if (source === 'camera') return cameraService.update(id, data as any);
-    if (source === 'gb28181') {
-      // GB28181 设备在 WVP 模式下无法直接修改，同步更新到 devices 档案表
-      const deviceData = {
-        ...data,
-        deviceName: data.name,
-        deviceType: data.type,
-        ipAddress: data.ip,
-      };
-      const res = await deviceService.update(id, deviceData as any).catch(async () => {
-        // 如果 devices 表中没有该设备，尝试创建
-        return deviceService.create({ ...deviceData, id } as any);
-      });
-      return res || { code: 200, message: 'success', data: null };
-    }
-    // 普通设备更新
-    const res = await deviceService.update(id, data);
-    // 若类型变为IoT，需创建/更新IoT记录
-    if (isIoTCategory(data.type)) {
-      const existingIoT = await iotService.get(id);
-      const iotData = mapDeviceToIoT({ ...data, id } as Device);
-      if (!existingIoT.data) {
-        await iotService.create(iotData as any).catch(() => null);
-      } else {
-        await iotService.update(id, iotData as any).catch(() => null);
-      }
-    }
-    // 若类型从IoT变为非IoT，清理IoT记录
-    if (data.type && !isIoTCategory(data.type)) {
-      await iotService.delete(id).catch(() => {});
-    }
-    return res;
+    const payload = mapDeviceToBackend(data);
+    return deviceService.update(id, payload as any);
   },
-  delete: async (id: string) => {
-    const source = sourceMap.get(id) || detectSource(id);
-    // IoT来源设备：同步删除IoT记录与设备档案
-    if (source === 'iot') {
-      const [iotRes] = await Promise.all([
-        iotService.delete(id),
-        deviceService.delete(id).catch(() => null),
-      ]);
-      return iotRes;
-    }
-    if (source === 'gb28181') {
-      // 同步删除GB28181记录与设备档案
-      const [gbRes] = await Promise.all([
-        gb28181Service.delete(id),
-        deviceService.delete(id).catch(() => null),
-      ]);
-      return gbRes;
-    }
-    if (source === 'camera') {
-      // 同步删除摄像头记录与设备档案（避免DeviceDAO中残留同名记录导致"删不掉"）
-      const [camRes] = await Promise.all([
-        cameraService.delete(id),
-        deviceService.delete(id).catch(() => null),
-      ]);
-      return camRes;
-    }
-    // 普通设备删除：若存在关联记录，一并清理
-    const existingGb = await gb28181Service.get(id);
-    if (existingGb.data) {
-      await gb28181Service.delete(id).catch(() => {});
-    }
-    const existingIoT = await iotService.get(id);
-    if (existingIoT.data) {
-      await iotService.delete(id).catch(() => {});
-    }
-    return deviceService.delete(id);
-  },
+  delete: async (id: string) => deviceService.delete(id),
 };
 
 export default function DeviceArchivePage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { success, error: toastError } = useToast();
+  const [listTick, setListTick] = useState(0);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const seedKeyword = searchParams.get('keyword') || searchParams.get('deviceId') || '';
   return (
     <PageTemplate
-      title="设备档案"
+      key={listTick}
+      title="入库管理"
       icon={Cpu}
+      badge="设备档案台账"
+      badgeColor="text-slate-300 bg-slate-500/10 border-slate-500/25"
       columns={COLUMNS}
       service={archiveService as any}
       fields={FIELDS}
       filterFields={FILTER_FIELDS}
+      initialKeyword={seedKeyword}
+      addable
+      actions
+      batchable
+      formInitialDefaults={{ protocolType: 'standard' }}
+      extraHeaderActions={<DeviceManagementFlowHint active="archive" />}
       renderExtraActions={(row: any) => {
-        if (row.archiveStatus === 'unallocated') {
+        if (row.archiveStatus === 'draft') {
           return (
             <button
-              onClick={() => window.location.href = `/device/allocate?deviceId=${row.id}`}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
-              title="去分配"
+              type="button"
+              disabled={submittingId === String(row.id)}
+              onClick={async () => {
+                const id = String(row.id);
+                setSubmittingId(id);
+                try {
+                  const res = await deviceService.update(id, { lifecycleStatus: 1 });
+                  if (res.code !== 200) {
+                    toastError('提交失败', (res as { msg?: string }).msg || '请重试');
+                    return;
+                  }
+                  success('已入库', '可前往「设备接入」完成协议与网络配置');
+                  setListTick((t) => t + 1);
+                } catch (e: unknown) {
+                  toastError('提交失败', getErrorMessage(e, '请检查网络'));
+                } finally {
+                  setSubmittingId(null);
+                }
+              }}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/25 transition-colors disabled:opacity-50"
+              title="将草稿转为已入库后，方可进行平台接入"
             >
-              去分配
+              {submittingId === String(row.id) ? '提交中…' : '提交入库'}
             </button>
           );
         }
-        if (row.archiveStatus === 'allocated') {
+        if (row.archiveStatus === 'registered') {
           return (
             <button
-              onClick={() => window.location.href = `/iot/access?deviceId=${row.id}`}
+              onClick={() => navigate(`/device/access?deviceId=${row.id}`)}
               className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
-              title="去接入"
+              title="平台接入（协议/网络）"
             >
               去接入
             </button>
           );
         }
+        if (row.archiveStatus === 'accessed') {
+          // 已接入但实际已有单位 → 显示已分配标签
+          if (row.unitId) {
+            return (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                已分配
+              </span>
+            );
+          }
+          return (
+            <button
+              onClick={() => navigate(`/device/allocate?deviceId=${row.id}`)}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 transition-colors"
+              title="绑定单位/项目"
+            >
+              去分配
+            </button>
+          );
+        }
+        if (row.archiveStatus === 'assigned') {
+          return (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20" title="已完成平台接入">
+                已接入
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20" title="已完成单位分配">
+                已分配
+              </span>
+              <button
+                onClick={() => navigate(`/device/config?keyword=${encodeURIComponent(row.deviceNo || row.id)}`)}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 border border-violet-500/20 transition-colors"
+                title="业务参数（阈值、联动等）"
+              >
+                去配置
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/device/maintain?deviceId=${encodeURIComponent(row.id)}`)}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 border border-amber-500/25 transition-colors"
+                title="登记或查看该设备的维保/巡检记录"
+              >
+                去维护
+              </button>
+            </div>
+          );
+        }
         return null;
       }}
+      emptyDescription="此处为全平台设备唯一源头：新增默认为「草稿」，核对 SN/型号后点「提交入库」进入「已入库」，再依次完成「设备接入」→「设备分配」→「设备配置」。禁止从接入页凭空创建设备档案。"
     />
   );
 }

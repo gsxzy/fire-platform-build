@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { legacyApi } from '@/api/services';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,21 +9,9 @@ import {
   Clock
 } from 'lucide-react';
 
-const trainingPlansInit = [
-  { id: 1, name: '消防设施操作员中级培训', type: '技能培训', time: '2025-02-15 09:00', location: '培训中心A', instructor: '李教员', participants: 12, status: '即将开始' },
-  { id: 2, name: '灭火器实操演练', type: '实操演练', time: '2025-02-10 14:00', location: '万达停车场', instructor: '王队长', participants: 8, status: '报名中' },
-  { id: 3, name: '火灾应急疏散演练', type: '应急演练', time: '2025-02-20 10:00', location: '兰大二院', instructor: '赵教员', participants: 30, status: '报名中' },
-  { id: 4, name: '消防法规更新解读', type: '法规培训', time: '2025-01-28 09:00', location: '线上直播', instructor: '张律师', participants: 45, status: '已完成' },
-  { id: 5, name: '电气火灾预防专项培训', type: '技能培训', time: '2025-01-25 14:00', location: '兰州石化', instructor: '陈专家', participants: 20, status: '已完成' },
-];
+const trainingPlansInit: any[] = [];
 
-const certRecordsInit = [
-  { id: 1, name: '张三', certNo: '消操证-甘2023-00158', level: '中级', issueDate: '2023-06-01', expiryDate: '2026-06-01', status: '有效', unit: '万达广场' },
-  { id: 2, name: '李四', certNo: '消操证-甘2023-00159', level: '中级', issueDate: '2023-08-15', expiryDate: '2026-08-15', status: '有效', unit: '万达广场' },
-  { id: 3, name: '王五', certNo: '消操证-甘2022-00087', level: '初级', issueDate: '2022-03-20', expiryDate: '2025-03-20', status: '即将到期', unit: '兰大二院' },
-  { id: 4, name: '赵六', certNo: '消操证-甘2024-00230', level: '高级', issueDate: '2024-01-10', expiryDate: '2027-01-10', status: '有效', unit: '兰州石化' },
-  { id: 5, name: '陈七', certNo: '消操证-甘2022-00102', level: '初级', issueDate: '2022-05-08', expiryDate: '2025-05-08', status: '即将到期', unit: '西北师大' },
-];
+const certRecordsInit: any[] = [];
 
 export default function TrainingPage() {
   const [tab, setTab] = useState<'plan' | 'cert'>('plan');

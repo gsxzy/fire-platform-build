@@ -4,6 +4,8 @@ import {
   Server, Database, Zap, TrendingUp, TrendingDown, Minus,
   CheckCircle, AlertTriangle, XCircle, RefreshCw
 } from 'lucide-react';
+import { raw } from '@/api/client';
+import EmptyState from '@/components/EmptyState';
 
 interface Metric {
   name: string;
@@ -30,69 +32,77 @@ interface LogEntry {
   message: string;
 }
 
-const generateHistory = (base: number, variance: number): number[] => {
-  return Array.from({ length: 20 }, () => base + (Math.random() - 0.5) * variance);
-};
+interface OverviewData {
+  uptime?: string;
+  dbConnections?: string;
+  deviceOnlineRate?: string;
+  qps?: string;
+}
 
-const initialMetrics: Metric[] = [
-  { name: 'CPU 使用率', value: 32.5, unit: '%', status: 'normal', trend: 'stable', history: generateHistory(35, 15) },
-  { name: '内存使用', value: 58.2, unit: '%', status: 'normal', trend: 'up', history: generateHistory(60, 10) },
-  { name: '磁盘 IO', value: 12.8, unit: 'MB/s', status: 'normal', trend: 'down', history: generateHistory(15, 8) },
-  { name: '网络吞吐', value: 856.3, unit: 'Mbps', status: 'normal', trend: 'up', history: generateHistory(800, 200) },
-];
-
-const services: Service[] = [
-  { name: 'API Gateway', status: 'running', uptime: '45天12时', version: 'v2.4.1', pid: 1245, memory: '256MB' },
-  { name: 'Device Service', status: 'running', uptime: '45天12时', version: 'v2.3.8', pid: 1256, memory: '512MB' },
-  { name: 'Alarm Engine', status: 'running', uptime: '45天10时', version: 'v2.4.0', pid: 1267, memory: '384MB' },
-  { name: 'Notification Service', status: 'running', uptime: '45天12时', version: 'v2.3.5', pid: 1278, memory: '192MB' },
-  { name: 'Data Collector', status: 'warning', uptime: '12天6时', version: 'v2.3.9', pid: 1290, memory: '1.2GB' },
-  { name: 'Report Generator', status: 'running', uptime: '45天12时', version: 'v2.2.1', pid: 1301, memory: '320MB' },
-  { name: 'File Storage', status: 'running', uptime: '60天2时', version: 'v1.8.5', pid: 1312, memory: '128MB' },
-  { name: 'Message Queue', status: 'running', uptime: '60天2时', version: 'v3.1.2', pid: 1323, memory: '448MB' },
-];
-
-const logs: LogEntry[] = [
-  { time: '09:18:32', level: 'info', module: 'AlarmEngine', message: '火警告警处理完成: id=ALM-20260419-00123' },
-  { time: '09:18:15', level: 'info', module: 'DeviceService', message: '设备心跳接收: GW-LZ-001' },
-  { time: '09:17:48', level: 'warn', module: 'DataCollector', message: '数据采集延迟超过阈值: 延迟 3.2s' },
-  { time: '09:17:22', level: 'info', module: 'Notification', message: '短信发送成功: 138****1234' },
-  { time: '09:16:55', level: 'info', module: 'API Gateway', message: '请求 /api/v2/devices/status 200 OK' },
-  { time: '09:16:30', level: 'error', module: 'DataCollector', message: '数据库连接池耗尽，等待重试...' },
-  { time: '09:15:48', level: 'info', module: 'AlarmEngine', message: '新告警触发: 万达广场1F烟感' },
-  { time: '09:15:12', level: 'info', module: 'DeviceService', message: '设备离线恢复: NP-LZ-0089' },
-  { time: '09:14:35', level: 'warn', module: 'ReportGen', message: '报表生成队列堆积: 待处理 12 个' },
-  { time: '09:13:58', level: 'info', module: 'Notification', message: 'App推送成功: 工单 WP-20260419-0042' },
-];
+async function fetchMetrics(): Promise<Metric[]> {
+  return raw.get<Metric[]>('/system-monitor/metrics');
+}
+async function fetchServices(): Promise<Service[]> {
+  return raw.get<Service[]>('/system-monitor/services');
+}
+async function fetchLogs(): Promise<any[]> {
+  const res = await raw.get<any>('/system-monitor/logs');
+  const data = Array.isArray(res) ? res : (res?.list || []);
+  return data;
+}
+async function fetchOverview(): Promise<OverviewData> {
+  const res = await raw.get<any>('/system-monitor/overview');
+  return res || {};
+}
 
 export default function SystemMonitorPage() {
-  const [metrics, setMetrics] = useState(initialMetrics);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [overview, setOverview] = useState<OverviewData>({} as OverviewData);
   const [logFilter, setLogFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setRefreshing(true);
+    try {
+      const [m, s, l, o] = await Promise.all([
+        fetchMetrics().catch(() => []),
+        fetchServices().catch(() => []),
+        fetchLogs().catch(() => []),
+        fetchOverview().catch(() => ({})),
+      ]);
+      setMetrics(m || []);
+      setServices(s || []);
+      setLogs((l || []).map((r: any) => ({
+        time: r.created_at || r.time || '-',
+        level: (r.result === 'error' ? 'error' : r.result === 'warn' ? 'warn' : 'info') as any,
+        module: r.module || r.action || '系统',
+        message: r.detail || r.message || '-',
+      })));
+      setOverview(o || {});
+    } catch {
+      // 静默失败，保留旧数据
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    loadData();
+  }, []);
+
+  // 每30秒自动刷新一次真实数据（不再使用随机数模拟）
+  useEffect(() => {
     const interval = setInterval(() => {
-      setMetrics(prev => prev.map(m => {
-        const newValue = Math.max(0, m.value + (Math.random() - 0.5) * m.value * 0.1);
-        const history = [...m.history.slice(1), newValue];
-        let status: 'normal' | 'warning' | 'critical' = 'normal';
-        if (m.name === 'CPU 使用率') {
-          if (newValue > 80) status = 'critical';
-          else if (newValue > 60) status = 'warning';
-        } else if (m.name === '内存使用') {
-          if (newValue > 85) status = 'critical';
-          else if (newValue > 70) status = 'warning';
-        }
-        return { ...m, value: newValue, status, history };
-      }));
-    }, 3000);
+      loadData();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  };
+  const handleRefresh = () => loadData();
 
   const statusColor = (status: string) => {
     switch (status) {
@@ -135,7 +145,7 @@ export default function SystemMonitorPage() {
 
   return (
     <div className="p-4 space-y-4 h-full overflow-y-auto scrollbar-thin">
-      {/* Header — glass */}
+      {/* Header */}
       <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20">
@@ -155,11 +165,11 @@ export default function SystemMonitorPage() {
         </button>
       </div>
 
-      {/* System Overview */}
+      {/* System Overview - 从API获取 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <OverviewCard
           label="系统运行时间"
-          value="45天12时"
+          value={overview.uptime || '--'}
           subtext="运行正常"
           subColor="text-emerald-400"
           icon={<Server className="w-4 h-4 text-blue-400" />}
@@ -167,24 +177,24 @@ export default function SystemMonitorPage() {
         />
         <OverviewCard
           label="数据库连接"
-          value="24/25"
-          subtext="1个连接等待"
+          value={overview.dbConnections || '--'}
+          subtext="连接池状态"
           subColor="text-yellow-400"
           icon={<Database className="w-4 h-4 text-purple-400" />}
           color="purple"
         />
         <OverviewCard
           label="设备在线率"
-          value="98.7%"
-          subtext="3,256 / 3,298 在线"
+          value={overview.deviceOnlineRate || '--'}
+          subtext="实时监控"
           subColor="text-slate-500"
           icon={<Wifi className="w-4 h-4 text-emerald-400" />}
           color="emerald"
         />
         <OverviewCard
           label="QPS"
-          value="1,245"
-          subtext="+12% 较昨日"
+          value={overview.qps || '--'}
+          subtext="实时吞吐量"
           subColor="text-emerald-400"
           icon={<Zap className="w-4 h-4 text-orange-400" />}
           color="orange"
@@ -192,47 +202,51 @@ export default function SystemMonitorPage() {
       </div>
 
       {/* Metrics with Sparklines */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {metrics.map((m: any, i: number) => {
-          const { min, max } = minMax(m.history);
-          const range = max - min || 1;
-          const barColor = m.status === 'critical' ? '#ef4444' : m.status === 'warning' ? '#eab308' : '#3b82f6';
-          return (
-            <div
-              key={i}
-              className="rounded-xl p-4 border border-slate-700/30 bg-slate-800/40 backdrop-blur-sm transition-all hover:border-slate-600/40"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Activity className={`w-4 h-4 ${statusColor(m.status)}`} />
-                  <span className="text-[10px] text-slate-400 font-medium">{m.name}</span>
+      {metrics.length > 0 ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {metrics.map((m: any, i: number) => {
+            const { min, max } = minMax(m.history);
+            const range = max - min || 1;
+            const barColor = m.status === 'critical' ? '#ef4444' : m.status === 'warning' ? '#eab308' : '#3b82f6';
+            return (
+              <div
+                key={i}
+                className="rounded-xl p-4 border border-slate-700/30 bg-slate-800/40 backdrop-blur-sm transition-all hover:border-slate-600/40"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className={`w-4 h-4 ${statusColor(m.status)}`} />
+                    <span className="text-[10px] text-slate-400 font-medium">{m.name}</span>
+                  </div>
+                  {trendIcon(m.trend)}
                 </div>
-                {trendIcon(m.trend)}
+                <div className="text-2xl font-bold text-slate-100 mb-3 tabular-nums">
+                  {typeof m.value === 'number' ? m.value.toFixed(1) : Number(m.value || 0).toFixed(1)}
+                  <span className="text-xs font-normal text-slate-500 ml-1">{m.unit}</span>
+                </div>
+                <div className="h-10 flex items-end gap-px">
+                  {m.history.map((v: any, j: number) => {
+                    const height = ((v - min) / range) * 100;
+                    return (
+                      <div
+                        key={j}
+                        className="flex-1 rounded-sm transition-all duration-500"
+                        style={{
+                          height: `${Math.max(4, height)}%`,
+                          background: barColor,
+                          opacity: 0.4 + (j / m.history.length) * 0.6,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-              <div className="text-2xl font-bold text-slate-100 mb-3 tabular-nums">
-                {typeof m.value === 'number' ? m.value.toFixed(1) : Number(m.value || 0).toFixed(1)}
-                <span className="text-xs font-normal text-slate-500 ml-1">{m.unit}</span>
-              </div>
-              <div className="h-10 flex items-end gap-px">
-                {m.history.map((v: any, j: number) => {
-                  const height = ((v - min) / range) * 100;
-                  return (
-                    <div
-                      key={j}
-                      className="flex-1 rounded-sm transition-all duration-500"
-                      style={{
-                        height: `${Math.max(4, height)}%`,
-                        background: barColor,
-                        opacity: 0.4 + (j / m.history.length) * 0.6,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : loading ? null : (
+        <EmptyState type="data" title="暂无性能指标" description="系统监控API尚未返回数据，请稍后刷新" />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Services */}
@@ -247,7 +261,7 @@ export default function SystemMonitorPage() {
             </span>
           </div>
           <div className="divide-y divide-slate-700/20">
-            {services.map((s: any) => (
+            {services.length > 0 ? services.map((s: any) => (
               <div
                 key={s.pid}
                 className="p-3 hover:bg-slate-700/20 transition-colors flex items-center justify-between group"
@@ -268,7 +282,11 @@ export default function SystemMonitorPage() {
                   <div className="text-[10px] text-slate-500 mt-0.5">运行 {s.uptime}</div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="p-8">
+                <EmptyState type="data" title="暂无服务状态" description="等待后端返回服务监控数据" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -296,7 +314,7 @@ export default function SystemMonitorPage() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto max-h-96 scrollbar-thin divide-y divide-slate-700/20">
-            {filteredLogs.map((l: any, i: number) => (
+            {filteredLogs.length > 0 ? filteredLogs.map((l: any, i: number) => (
               <div key={i} className="p-2.5 hover:bg-slate-700/20 transition-colors">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-[10px] text-slate-500 font-mono">{l.time}</span>
@@ -311,7 +329,11 @@ export default function SystemMonitorPage() {
                 </div>
                 <p className="text-[11px] text-slate-300 ml-0.5">{l.message}</p>
               </div>
-            ))}
+            )) : (
+              <div className="p-8">
+                <EmptyState type="data" title="暂无日志" description="等待后端返回系统日志" />
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://124.223.35.58:5004',
+        target: process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:5003',
         changeOrigin: true,
       },
     },
@@ -32,12 +32,16 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    target: 'es2020',
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-tabs'],
           'chart-vendor': ['recharts'],
+          'canvas-vendor': ['konva', 'react-konva'],
         },
       },
     },

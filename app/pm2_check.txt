@@ -1,7 +1,0 @@
-/www/server/nodejs/v20.20.0/bin/pm2
-SEP
-6.0.14
-SEP2
-/www/server/nodejs/v20.20.0/lib
-└── pm2@6.0.14
-

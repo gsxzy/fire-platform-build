@@ -1,17 +1,97 @@
+# ═══════════════════════════════════════════════════════════════════
+# 全局 .gitignore — 智慧消防平台
+# ═══════════════════════════════════════════════════════════════════
+
+# 环境变量（包含密码、密钥）
+.env
+.env.production
+.env.test
+backend/.env
+backend/.env.production
+backend/.env.test
+app/.env
+app/.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# 构建产物
+backend/dist/
+app/dist/
+dist-ssr/
+*.local
+
+# 日志
 logs/
 *.log
-.env
-.env.local
-.env.*.local
-.idea/
+
+# 上传文件
+uploads/*
+!uploads/.gitkeep
+
+# IDE
 .vscode/
-*.swp
-*.swo
+.idea/
+*.sw?
 .DS_Store
 Thumbs.db
-dist/
-build/
+
+# 测试脚本（开发/诊断用）
+test-*.js
+test-*.py
+check_*.py
+verify_*.py
+fix_*.py
+deploy_*.py
+restart_*.py
+update_*.py
+quick_*.py
+clean_*.py
+init_*.py
+kill_*.py
+monitor_*.py
+read_*.py
+start_*.py
+sync_*.py
+wait_*.py
+upload_*.py
+udp_*.py
+insert_*.py
+query_*.py
+recreate_*.py
+restore_*.py
+find_*.py
+disable_*.py
+patch_*.py
+rewrite_*.py
+layout_fix.py
+b64.txt
+
+# Flyway 迁移元数据（若使用 flyway command-line 本地运行）
+flyway.conf
+flyway.user.conf
+
+# 备份文件
+*.bak
+*.backup
+*.tar.gz
+*.zip
+/backup/
+/opt/backup/
+
+# 临时文件
+tmp_*.*
+*.tmp

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { legacyApi } from '@/api/services';
 import { BrainCircuit, Flame, AlertTriangle, TrendingUp, Shield, Zap, Activity, BarChart3, ChevronRight, RefreshCw, Lightbulb, CheckCircle } from 'lucide-react';
 import {
@@ -6,37 +6,9 @@ import {
   ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
 
-const radarDataInit = [
-  { subject: '火警响应', A: 95, B: 80, fullMark: 100 },
-  { subject: '故障处理', A: 88, B: 75, fullMark: 100 },
-  { subject: '巡检覆盖', A: 98, B: 85, fullMark: 100 },
-  { subject: '维保及时', A: 85, B: 90, fullMark: 100 },
-  { subject: '隐患整改', A: 90, B: 70, fullMark: 100 },
-  { subject: '设备在线', A: 96, B: 91, fullMark: 100 },
-];
+const radarDataInit: any[] = [];
 
-const decisionsInit = [
-  {
-    id: 1, type: 'fire', title: '万达广场1F火警联动建议',
-    content: '检测到万达广场1F大厅烟感触发火警，建议立即启动以下联动：\n1. 确认现场人员安全\n2. 启动声光报警器\n3. 联动关闭防火门\n4. 启动排烟系统\n5. 通知消防控制室值班人员',
-    confidence: 98, status: 'active', time: '2分钟前',
-  },
-  {
-    id: 2, type: 'fault', title: '排烟风机故障处理建议',
-    content: '排烟风机#3轴承异响故障，AI分析可能原因：\n1. 轴承磨损严重（概率85%）\n2. 润滑不足（概率60%）\n3. 叶轮不平衡（概率30%）\n建议立即安排维保人员现场检查，必要时更换轴承。',
-    confidence: 87, status: 'pending', time: '15分钟前',
-  },
-  {
-    id: 3, type: 'warning', title: '消防水池低液位预警',
-    content: '检测到消防水池液位下降至3.2m，低于安全线3.5m。\n建议：\n1. 立即检查补水系统\n2. 确认进水阀门状态\n3. 如30分钟内未恢复，启动应急供水方案',
-    confidence: 92, status: 'handled', time: '1小时前',
-  },
-  {
-    id: 4, type: 'analysis', title: '电气火灾风险分析',
-    content: '基于近30天数据分析，兰州中心B1配电室剩余电流波动异常。\nAI模型预测未来7天内发生电气故障的概率为23%。\n建议：\n1. 增加巡检频率至每日2次\n2. 检查线路绝缘状态\n3. 考虑更换老旧配电设备',
-    confidence: 76, status: 'active', time: '3小时前',
-  },
-];
+const decisionsInit: any[] = [];
 
 const typeConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   fire: { icon: Flame, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', label: '火警决策' },
@@ -63,7 +35,7 @@ export default function AIDecisionPage() {
         if (Array.isArray(data.radarData)) setRadarData(data.radarData as any);
         if (Array.isArray(data.decisions)) setDecisions(data.decisions as any);
       }
-    }).catch(() => {});
+    }).catch((e) => { console.error('[AIDecision] load data failed:', e); });
   }, []);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -96,11 +68,11 @@ export default function AIDecisionPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: '今日决策', value: 12, icon: BrainCircuit, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-          { label: '执行中', value: 4, icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-          { label: '已处理', value: 28, icon: CheckCircle, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-          { label: '平均置信度', value: '91%', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-          { label: '响应时间', value: '2.1s', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+          { label: '今日决策', value: '--', icon: BrainCircuit, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+          { label: '执行中', value: '--', icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+          { label: '已处理', value: '--', icon: CheckCircle, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+          { label: '平均置信度', value: '--', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+          { label: '响应时间', value: '--', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
         ].map((s: any, i: number) => {
           const Icon = s.icon;
           return (
@@ -203,12 +175,7 @@ export default function AIDecisionPage() {
               <span className="text-xs font-medium text-slate-200">AI洞察</span>
             </div>
             <div className="space-y-2">
-              {[
-                '本月火警响应时间平均缩短12%',
-                '万达广场设备故障率偏高，建议增加巡检',
-                '电气火灾预警准确率提升至94%',
-                '建议对B区进行消防设施升级改造',
-              ].map((tip: any, i: number) => (
+              {[].map((tip: any, i: number) => (
                 <div key={i} className="flex items-start gap-2 text-[10px] text-slate-400">
                   <div className="w-1 h-1 rounded-full bg-purple-400 mt-1.5 flex-shrink-0" />
                   <span>{tip}</span>

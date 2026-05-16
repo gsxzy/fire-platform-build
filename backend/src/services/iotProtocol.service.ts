@@ -7,6 +7,7 @@
 import { IoTDevice, Device, Alarm } from '@/models';
 import { iotGateway } from '@/iot';
 import logger from '@/config/logger';
+import { generateAlarmNo } from '@/utils/alarmNo';
 
 export class IoTProtocolService {
   // MQTT协议解析 - 4G烟感/温感/水压等设备
@@ -97,7 +98,7 @@ export class IoTProtocolService {
   private static async createDeviceAlarm(device: any, parsed: any) {
     const unitDevice = await Device.findOne({ where: { iot_id: device.device_sn } }) as any;
     await Alarm.create({
-      alarm_no: `ALM${Date.now()}${Math.floor(Math.random() * 1000)}`,
+      alarm_no: generateAlarmNo(),
       alarm_type: parsed.alarmType || 1,
       alarm_level: parsed.alarmType === 1 ? 3 : 2,
       device_id: unitDevice?.id,

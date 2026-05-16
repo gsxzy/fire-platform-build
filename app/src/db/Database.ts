@@ -12,9 +12,10 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 import type { Unit, Device, Alarm, ControlRoom, WorkOrder, MaintRecord, MaintContract, PatrolPlan, PatrolRecord, Hazard, User, Role, Plan, Drill, Inspection, Notification, DutySchedule, Document, SystemLog, IoTDevice, Personnel, Camera, FloorPlan, FloorDevice, DutyShift, DutyHandover, AlarmSnapshot, ControlRoomConfig, GB28181Device, SIPServerConfig } from '@/types/db';
+import { logger } from '@/lib/logger';
 
 const DB_NAME = 'SmartFirePlatformDB';
-const DB_VERSION = 5;
+const DB_VERSION = 8; // 升级清空 gb28181_devices，强制重新种子
 
 /* 所有表名 */
 export const DB_STORES = [
@@ -112,15 +113,15 @@ function getDBInternal(retryCount: number): Promise<IDBDatabase> {
       const db = (event.target as IDBOpenDBRequest).result;
       const tx = (event.target as IDBOpenDBRequest).transaction;
       const oldVersion = event.oldVersion;
-      console.log('[DB.upgrade] oldVersion=', oldVersion, 'newVersion=', DB_VERSION, 'stores=', Array.from(db.objectStoreNames));
+      logger.info('[DB.upgrade] oldVersion=', oldVersion, 'newVersion=', DB_VERSION, 'stores=', Array.from(db.objectStoreNames));
       if (tx) {
-        tx.onerror = () => console.error('[DB.upgrade] transaction error=', tx.error);
-        tx.onabort = () => console.error('[DB.upgrade] transaction aborted');
+        tx.onerror = () => logger.error('[DB.upgrade] transaction error=', tx.error);
+        tx.onabort = () => logger.error('[DB.upgrade] transaction aborted');
       }
       DB_STORES.forEach(store => {
         if (!db.objectStoreNames.contains(store)) {
           try {
-            console.log('[DB.upgrade] creating store:', store);
+            logger.info('[DB.upgrade] creating store:', store);
             const objectStore = db.createObjectStore(store, { keyPath: 'id' });
             // 创建索引
             const indexes = STORE_INDEXES[store] || [];
@@ -128,11 +129,11 @@ function getDBInternal(retryCount: number): Promise<IDBDatabase> {
               try {
                 objectStore.createIndex(idx.name, idx.keyPath, idx.options);
               } catch (e) {
-                console.error('[DB.upgrade] failed to create index', store, idx.name, e);
+                logger.error('[DB.upgrade] failed to create index', store, idx.name, e);
               }
             });
           } catch (e) {
-            console.error('[DB.upgrade] failed to create store', store, e);
+            logger.error('[DB.upgrade] failed to create store', store, e);
           }
         } else if (oldVersion < DB_VERSION) {
           // 版本升级时检查并创建缺失的索引
@@ -146,17 +147,30 @@ function getDBInternal(retryCount: number): Promise<IDBDatabase> {
                   try {
                     objectStore.createIndex(idx.name, idx.keyPath, idx.options);
                   } catch (e) {
-                    console.error('[DB.upgrade] failed to create index on upgrade', store, idx.name, e);
+                    logger.error('[DB.upgrade] failed to create index on upgrade', store, idx.name, e);
                   }
                 }
               });
             }
           } catch (e) {
-            console.error('[DB.upgrade] failed to upgrade indexes for', store, e);
+            logger.error('[DB.upgrade] failed to upgrade indexes for', store, e);
           }
         }
       });
-      console.log('[DB.upgrade] after upgrade stores=', Array.from(db.objectStoreNames));
+      // 版本6/7/8：清空 gb28181_devices 旧种子数据
+      if (oldVersion < 8 && db.objectStoreNames.contains('gb28181_devices')) {
+        try {
+          const tx2 = (event.target as IDBOpenDBRequest).transaction;
+          if (tx2) {
+            const store = tx2.objectStore('gb28181_devices');
+            store.clear();
+            logger.info('[DB.upgrade] cleared gb28181_devices for v8');
+          }
+        } catch (e) {
+          logger.error('[DB.upgrade] failed to clear gb28181_devices', e);
+        }
+      }
+      logger.info('[DB.upgrade] after upgrade stores=', Array.from(db.objectStoreNames));
     };
   });
 }
@@ -540,13 +554,10 @@ export const SIPServerConfigDAO = new BaseDAO<SIPServerConfig>('sip_server_confi
 
 /* ═══════ 数据库工具 ═══════ */
 export const DBUtils = {
-  /* 初始化所有表数据（seed） */
+  /* 初始化所有表数据（seed）—— 已禁用，系统不再注入任何静态数据 */
   async seedDatabase(): Promise<void> {
-    const { seedAll } = await import('./seeds');
-    const unitCount = await UnitDAO.count();
-    if (unitCount === 0) {
-      await seedAll();
-    }
+    // 接入测试阶段：所有数据须通过业务操作录入，不再自动注入种子数据
+    logger.info('[DB.seed] seedDatabase is disabled in production/testing mode');
   },
 
   /* 重置数据库 */

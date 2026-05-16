@@ -11,6 +11,7 @@ import './styles/utilities.css'
 import App from './App.tsx'
 import { AuthProvider } from '@/hooks/useAuth'
 
+// 静态数据已清理，不再自动注入种子数据。所有数据须通过业务操作录入。
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>

@@ -35,7 +35,7 @@ export class Building extends Model<BuildingAttributes, BuildingCreationAttribut
 Building.init(
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    unit_id: { type: DataTypes.INTEGER, allowNull: false, comment: '所属单位' },
+    unit_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, comment: '所属单位' },
     name: { type: DataTypes.STRING(100), allowNull: false, comment: '建筑物名称' },
     type: { type: DataTypes.STRING(50), comment: '建筑类型：商业/住宅/工业/公共' },
     total_floors: { type: DataTypes.INTEGER, comment: '总层数' },
@@ -122,7 +122,7 @@ FloorDevicePosition.init(
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     floor_id: { type: DataTypes.INTEGER, allowNull: false, comment: '所属楼层' },
-    device_id: { type: DataTypes.INTEGER, allowNull: false, comment: '关联设备' },
+    device_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, comment: '关联设备' },
     x: { type: DataTypes.FLOAT, allowNull: false, comment: 'X坐标百分比' },
     y: { type: DataTypes.FLOAT, allowNull: false, comment: 'Y坐标百分比' },
   },

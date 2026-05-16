@@ -2,30 +2,14 @@ import { Outlet, useLocation } from 'react-router';
 import { Suspense } from 'react';
 import { SidebarProvider } from '@/core/SidebarContext';
 import PageBreadcrumb from '@/core/PageBreadcrumb';
+import PageCommercialHint from '@/core/PageCommercialHint';
+import AppFallback from '@/components/AppFallback';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Footer from './Footer';
 import AIAssistant from './AIAssistant';
 import KeyboardShortcuts from './KeyboardShortcuts';
 import ErrorBoundary from '@/components/ErrorBoundary';
-
-function AppFallback() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <div className="relative w-14 h-14">
-        <div className="absolute inset-0 border-2 border-blue-500/10 rounded-full" />
-        <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
-        <div className="absolute inset-2 border-2 border-transparent border-t-cyan-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-        <div className="absolute inset-4 border-2 border-transparent border-t-indigo-400 rounded-full animate-spin" style={{ animationDuration: '2s' }} />
-      </div>
-      <div className="text-slate-400 text-sm font-medium tracking-wide">页面加载中...</div>
-      <div className="w-56 h-1 bg-slate-800/80 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 rounded-full animate-loading-bar" />
-      </div>
-
-    </div>
-  );
-}
 
 export default function MainLayout() {
   return (
@@ -49,9 +33,10 @@ function LayoutBody() {
     <div className="flex flex-1 overflow-hidden relative z-10">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto p-4 scrollbar-thin relative" style={{ background: 'transparent' }}>
+        <main className="flex-1 overflow-hidden p-2 md:p-4 scrollbar-thin relative flex flex-col max-w-full" style={{ background: 'transparent' }}>
           <PageBreadcrumb />
-          <div className="animate-fade-in-up">
+          <PageCommercialHint />
+          <div className="animate-fade-in-up flex-1 overflow-hidden flex flex-col min-h-0 min-w-0 max-w-full">
             <ErrorBoundary key={location.pathname}>
               <Suspense fallback={<AppFallback />}>
                 <Outlet />

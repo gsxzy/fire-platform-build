@@ -1,235 +1,350 @@
 /**
  * ═════════════════════════════════════════════════════════════════
- * GB28181视频监控服务
- * GB/T 28181-2016 公共安全视频监控联网系统信息传输、交换、控制技术要求
+ * 视频监控服务（统一入口）
+ * 兼容 ZLMediaKit 直连 与 WVP-PRO GB28181 两种模式
  * ═════════════════════════════════════════════════════════════════
  */
+import { spawn } from 'child_process';
+import fs from 'fs';
 import { Device } from '@/models';
 import logger from '@/config/logger';
+import { ZLMService, StreamStatus as ZLMStreamStatus } from './zlm.service';
+import * as WVP from './wvp.service';
 
-export interface GB28181Device {
-  deviceId: string;         // 设备ID
-  deviceName: string;       // 设备名称
-  ipAddress: string;        // IP地址
-  port: number;             // 端口（默认37777）
-  username: string;         // 用户名
-  password: string;         // 密码
-  channel: number;          // 通道号
+const WVP_ENABLED = !!(process.env.WVP_PRO_URL && String(process.env.WVP_PRO_URL).trim());
+if (!process.env.ZLM_PLAY_HOST) {
+  throw new Error('[Video] 错误：未设置 ZLM_PLAY_HOST 环境变量');
+}
+const ZLM_PLAY_HOST = process.env.ZLM_PLAY_HOST;
+
+/* ═════ 设备ID → ZLM摄像头ID 映射（集中定义，消除重复）═════ */
+const CAMERA_ID_MAP: Record<string, string> = {
+  '34020000001300000001': 'CAM-001',
+  '34020000001320000002': 'CAM-002',
+  '34020000001300000002': 'CAM-002',
+  'CAM_001': 'CAM-001',
+  'CAM-001': 'CAM-001',
+  'CAM-002': 'CAM-002',
+  '1': 'CAM-001',
+  '2': 'CAM-002',
+};
+
+function replaceLocalhost(url: string): string {
+  if (!url) return url;
+  return url
+    .replace(/127\.0\.0\.1:8081/g, `${ZLM_PLAY_HOST}:8081`)
+    .replace(/127\.0\.0\.1:443/g, `${ZLM_PLAY_HOST}:443`)
+    .replace(/127\.0\.0\.1:10001/g, `${ZLM_PLAY_HOST}:10001`);
 }
 
-export interface StreamInfo {
+export interface UnifiedStreamInfo {
   deviceId: string;
-  streamUrl: string;        // 播放地址（RTSP/RTMP/HLS）
-  streamType: 'rtsp' | 'rtmp' | 'hls' | 'flv';
-  resolution: string;         // 分辨率
-  bitrate: number;           // 码率
+  channelId: string;
+  flv: string;
+  hls: string;
+  rtmp: string;
+  rtsps: string;
+  rtc: string;
+  wsFlv: string;
+  httpsFlv: string;
+  httpsHls: string;
+  streamId: string;
+  mediaServerId: string;
+  startTime: string;
+  ssrc: string;
+  streamUrl: string;
+  snapUrl: string;
 }
 
 export class VideoService {
-  private static readonly SIP_PORT = 5060;
-  private static readonly DEFAULT_STREAM_PORT = 37777;
+  /* ══════════════════════════════════════════════════════════════
+     ZLMediaKit 直连模式
+     ══════════════════════════════════════════════════════════════ */
 
-  /**
-   * 获取设备视频流
-   */
-  static async getStream(deviceId: number): Promise<StreamInfo | null> {
-    try {
-      const device = await Device.findByPk(deviceId) as any;
-      if (!device) {
-        logger.error(`[Video] 设备不存在: ${deviceId}`);
-        return null;
-      }
-
-      // 解析设备配置
-      const config = this.parseDeviceConfig(device);
-
-      // 1. 尝试GB28181 SIP协议获取流
-      const sipStream = await this.getGB28181Stream(config);
-      if (sipStream) {
-        return sipStream;
-      }
-
-      // 2. 尝试直接RTSP流
-      const rtspStream = await this.getRTSPStream(config);
-      if (rtspStream) {
-        return rtspStream;
-      }
-
-      logger.error(`[Video] 无法获取视频流: ${deviceId}`);
-      return null;
-    } catch (err: any) {
-      logger.error(`[Video] 获取视频流失败: ${err.message}`);
-      return null;
-    }
+  static async getZLMStreamStatus(cameraId: string): Promise<ZLMStreamStatus | null> {
+    return ZLMService.getStreamStatus(cameraId);
   }
 
+  static async getAllZLMStreamStatus(): Promise<ZLMStreamStatus[]> {
+    return ZLMService.getAllStreamStatus();
+  }
+
+  static async startZLMStream(cameraId: string): Promise<boolean> {
+    return ZLMService.startStream(cameraId);
+  }
+
+  static async stopZLMStream(cameraId: string): Promise<boolean> {
+    return ZLMService.stopStream(cameraId);
+  }
+
+  static async startAllZLM(): Promise<void> {
+    return ZLMService.startAll();
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     WVP-PRO GB28181 模式
+     ══════════════════════════════════════════════════════════════ */
+
+  static async getWVPDevices(params?: { page?: number; count?: number; query?: string; online?: boolean }): Promise<{ total: number; list: any[] }> {
+    return WVP.getVideoDevices(params);
+  }
+
+  static async getWVPChannels(deviceId: string, params?: { page?: number; count?: number; query?: string; online?: boolean }): Promise<{ total: number; list: any[] }> {
+    return WVP.getDeviceChannels(deviceId, params);
+  }
+
+  static async startWVPStream(deviceId: string, channelId: string): Promise<UnifiedStreamInfo> {
+    const s = await WVP.getStream(deviceId, channelId);
+    return this.wvpPlayToPayload(s, deviceId, channelId);
+  }
+
+  static async stopWVPStream(deviceId: string, channelId: string): Promise<any> {
+    return WVP.stopStream(deviceId, channelId);
+  }
+
+  static async wvpPTZControl(deviceId: string, channelId: string, cmd: number, horizonSpeed?: number, verticalSpeed?: number, zoomSpeed?: number): Promise<any> {
+    return WVP.ptzControl(deviceId, channelId, cmd, horizonSpeed, verticalSpeed, zoomSpeed);
+  }
+
+  static async wvpPresetControl(deviceId: string, channelId: string, action: 'set' | 'goto' | 'remove', presetNo: number): Promise<any> {
+    return WVP.presetControl(deviceId, channelId, action, presetNo);
+  }
+
+  static async wvpPlayback(deviceId: string, channelId: string, startTime: string, endTime: string): Promise<any> {
+    return WVP.getPlayback(deviceId, channelId, startTime, endTime);
+  }
+
+  static async wvpSnapshot(deviceId: string, channelId: string): Promise<string> {
+    return WVP.snapshot(deviceId, channelId);
+  }
+
+  static async wvpDeviceStatus(deviceId: string): Promise<any> {
+    return WVP.getDeviceStatus(deviceId);
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     统一兼容接口（供 Controller 调用）
+     ══════════════════════════════════════════════════════════════ */
+
   /**
-   * GB28181协议获取流
+   * 获取视频设备列表（自动判断 WVP/ZLM）
    */
-  private static async getGB28181Stream(device: GB28181Device): Promise<StreamInfo | null> {
-    try {
-      // 这里应该调用SIP协议库（如sip.js）
-      // 简化实现，返回模拟流地址
+  static async getVideoDevices(params?: { page?: number; count?: number; query?: string; online?: boolean }): Promise<{ total: number; list: any[] }> {
+    if (WVP_ENABLED) {
+      try {
+        const raw = await this.getWVPDevices(params);
+        const list = (raw.list || []).map((d: any) => ({
+          deviceId: d.deviceId,
+          name: d.name || d.deviceId,
+          ip: d.ip || '',
+          port: d.port || 5060,
+          onLine: d.onLine !== false,
+          channelCount: d.channelCount || 0,
+          manufacturer: d.manufacturer || '',
+          model: d.model || '',
+          status: d.onLine !== false ? 'online' : 'offline',
+        }));
+        return { total: raw.total ?? list.length, list };
+      } catch (err: any) {
+        logger.warn(`[Video] WVP 获取设备列表失败，fallback 到 ZLM/DB 模式: ${err.message}`);
+      }
+    }
 
-      const sipUrl = `sip:${device.username}@${device.ipAddress}:${this.SIP_PORT}`;
-      const streamUrl = `rtsp://${device.ipAddress}:${this.DEFAULT_STREAM_PORT}/live/${device.deviceId}`;
-
-      logger.info(`[Video] GB28181流: ${streamUrl}`);
-
+    // ZLM 模式：硬编码摄像头 + 数据库摄像头
+    const zlmList = ZLMService.getCameraIds().map((id) => {
+      const cfg = ZLMService.getCameraConfig(id);
       return {
-        deviceId: device.deviceId,
-        streamUrl,
-        streamType: 'rtsp',
-        resolution: '1080P',
-        bitrate: 4000
+        deviceId: id,
+        name: cfg?.name || id,
+        ip: cfg?.ip || '',
+        port: 554,
+        onLine: true,
+        channelCount: 1,
+        manufacturer: 'Hikvision',
+        model: 'IP Camera',
+        status: 'online',
       };
-    } catch (err: any) {
-      logger.error(`[Video] GB28181获取流失败: ${err.message}`);
-      return null;
-    }
+    });
+
+    const dbDevices = await this.getDBVideoDevices();
+    const list = [...zlmList, ...dbDevices];
+    return { total: list.length, list };
   }
 
   /**
-   * RTSP流获取
+   * 获取设备通道列表
    */
-  private static async getRTSPStream(device: GB28181Device): Promise<StreamInfo | null> {
-    try {
-      // 标准RTSP地址格式
-      const streamUrl = `rtsp://${device.username}:${device.password}@${device.ipAddress}:${device.port}/h264/ch${device.channel}/main/av_stream`;
-
-      logger.info(`[Video] RTSP流: ${streamUrl}`);
-
-      return {
-        deviceId: device.deviceId,
-        streamUrl,
-        streamType: 'rtsp',
-        resolution: '1080P',
-        bitrate: 4000
-      };
-    } catch (err: any) {
-      logger.error(`[Video] RTSP获取流失败: ${err.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * 云台控制
-   */
-  static async ptzControl(deviceId: number, command: string, params: any = {}): Promise<boolean> {
-    try {
-      const device = await Device.findByPk(deviceId) as any;
-      if (!device) {
-        return false;
+  static async getDeviceChannels(deviceId: string, params?: { page?: number; count?: number }): Promise<{ total: number; list: any[] }> {
+    if (WVP_ENABLED) {
+      try {
+        const raw = await this.getWVPChannels(deviceId, params);
+        const list = (raw.list || []).map((ch: any) => ({
+          channelId: ch.channelId || ch.deviceId || String(ch.id),
+          name: ch.name || ch.channelId || '',
+          deviceId: ch.deviceId || deviceId,
+          status: ch.status,
+          hasAudio: !!ch.hasAudio,
+        }));
+        return { total: raw.total ?? list.length, list };
+      } catch (err: any) {
+        logger.warn(`[Video] WVP 获取通道列表失败，fallback 到 ZLM 模式: ${err.message}`);
       }
-
-      const config = this.parseDeviceConfig(device);
-
-      // 发送PTZ控制命令
-      const result = await this.sendPTZCommand(config, command, params);
-
-      logger.info(`[Video] PTZ控制: deviceId=${deviceId}, command=${command}, result=${result}`);
-      return result;
-    } catch (err: any) {
-      logger.error(`[Video] PTZ控制失败: ${err.message}`);
-      return false;
     }
-  }
 
-  /**
-   * 发送PTZ命令
-   */
-  private static async sendPTZCommand(device: GB28181Device, command: string, params: any): Promise<boolean> {
-    // PTZ命令类型: up, down, left, right, zoomIn, zoomOut, focusIn, focusOut
-    const ptzCommands: Record<string, string> = {
-      up: 'PTZ_UP',
-      down: 'PTZ_DOWN',
-      left: 'PTZ_LEFT',
-      right: 'PTZ_RIGHT',
-      zoomIn: 'PTZ_ZOOM_IN',
-      zoomOut: 'PTZ_ZOOM_OUT',
-      focusIn: 'PTZ_FOCUS_IN',
-      focusOut: 'PTZ_FOCUS_OUT',
-      stop: 'PTZ_STOP'
+    // ZLM 单通道
+    const cfg = ZLMService.getCameraConfig(deviceId);
+    if (!cfg) return { total: 0, list: [] };
+    return {
+      total: 1,
+      list: [{
+        channelId: '1',
+        name: `${cfg.name}-通道1`,
+        deviceId,
+        status: 'ON',
+        hasAudio: false,
+      }],
     };
+  }
 
-    const cmdCode = ptzCommands[command] || 'PTZ_STOP';
-    const speed = params.speed || 5; // 速度1-10
+  /**
+   * 统一取流（POST /stream 核心接口）
+   */
+  static async getUnifiedStream(deviceId: string, channelId?: string): Promise<UnifiedStreamInfo | null> {
+    const ch = channelId || deviceId;
 
-    // 这里应该通过SIP协议发送PTZ控制命令
-    // 简化实现
-    logger.info(`[Video] 发送PTZ命令: ${cmdCode}, 速度: ${speed}`);
+    if (WVP_ENABLED) {
+      try {
+        const s = await WVP.getStream(deviceId, ch);
+        return this.wvpPlayToPayload(s, deviceId, ch);
+      } catch (err: any) {
+        logger.error(`[Video] WVP 取流失败 device=${deviceId}: ${err.message}，尝试 ZLM fallback...`);
+        // WVP 失败时 fallback 到 ZLM 模式
+      }
+    }
 
-    return true;
+    // ZLM 模式：映射 deviceId → cameraId
+    const mappedId = CAMERA_ID_MAP[deviceId] || deviceId;
+
+    // 确保推流已启动
+    let status = await ZLMService.getStreamStatus(mappedId);
+    if (status && !status.isAlive) {
+      await ZLMService.startStream(mappedId);
+      await new Promise(r => setTimeout(r, 8000));
+      status = await ZLMService.getStreamStatus(mappedId);
+    }
+
+    if (!status) {
+      logger.error(`[Video] 摄像头不存在: ${mappedId}`);
+      return null;
+    }
+
+    return {
+      deviceId: mappedId,
+      channelId: '1',
+      flv: status.flv || '',
+      hls: status.hls || '',
+      rtmp: status.rtmp || '',
+      rtsps: '',
+      rtc: '',
+      wsFlv: status.flv || '',
+      httpsFlv: status.flv || '',
+      httpsHls: status.hls || '',
+      streamId: mappedId,
+      mediaServerId: 'zlm',
+      startTime: new Date().toISOString(),
+      ssrc: '',
+      streamUrl: status.hls || status.flv || '',
+      snapUrl: '',
+    };
+  }
+
+  /**
+   * 停止播放
+   */
+  static async stopStream(deviceId: string, channelId?: string): Promise<boolean> {
+    if (WVP_ENABLED) {
+      await WVP.stopStream(deviceId, channelId || deviceId);
+      return true;
+    }
+    const mappedId = CAMERA_ID_MAP[deviceId] || deviceId;
+    return ZLMService.stopStream(mappedId);
+  }
+
+  /**
+   * PTZ 云台控制
+   */
+  static async ptzControl(deviceId: string, channelId: string | undefined, cmd: number | string, params: any = {}): Promise<boolean> {
+    if (WVP_ENABLED) {
+      let ptzCmd = Number(cmd);
+      if (typeof cmd === 'string') {
+        const cmdMap: Record<string, number> = { up: 0, down: 1, left: 2, right: 3, zoomIn: 4, zoomOut: 5, stop: 0 };
+        ptzCmd = cmdMap[cmd] !== undefined ? cmdMap[cmd] : Number(cmd);
+      }
+      await WVP.ptzControl(deviceId, channelId || deviceId, ptzCmd, params.horizonSpeed || 50, params.verticalSpeed || 50, params.zoomSpeed || 50);
+      return true;
+    }
+    logger.warn('[Video] 当前模式不支持云台控制');
+    return false;
   }
 
   /**
    * 预设位控制
    */
-  static async presetControl(deviceId: number, action: 'goto' | 'set', presetNo: number): Promise<boolean> {
-    try {
-      const device = await Device.findByPk(deviceId) as any;
-      if (!device) {
-        return false;
-      }
-
-      const config = this.parseDeviceConfig(device);
-
-      if (action === 'goto') {
-        // 调用预设位
-        logger.info(`[Video] 调用预设位: deviceId=${deviceId}, presetNo=${presetNo}`);
-      } else {
-        // 设置预设位
-        logger.info(`[Video] 设置预设位: deviceId=${deviceId}, presetNo=${presetNo}`);
-      }
-
+  static async presetControl(deviceId: string, channelId: string | undefined, action: 'set' | 'goto' | 'remove', presetNo: number): Promise<boolean> {
+    if (WVP_ENABLED) {
+      await WVP.presetControl(deviceId, channelId || deviceId, action, presetNo);
       return true;
-    } catch (err: any) {
-      logger.error(`[Video] 预设位控制失败: ${err.message}`);
-      return false;
     }
+    logger.warn('[Video] 当前模式不支持预设位控制');
+    return false;
   }
 
   /**
-   * 回放控制
+   * 录像回放
    */
-  static async getPlayback(deviceId: number, startTime: string, endTime: string): Promise<string | null> {
-    try {
-      const device = await Device.findByPk(deviceId) as any;
-      if (!device) {
-        return null;
-      }
-
-      const config = this.parseDeviceConfig(device);
-
-      // 生成回放流地址
-      const playbackUrl = `rtsp://${config.username}:${config.password}@${config.ipAddress}:${config.port}/playback?start=${startTime}&end=${endTime}`;
-
-      logger.info(`[Video] 回放流: ${playbackUrl}`);
-
-      return playbackUrl;
-    } catch (err: any) {
-      logger.error(`[Video] 获取回放流失败: ${err.message}`);
-      return null;
+  static async getPlayback(deviceId: string, channelId: string | undefined, startTime: string, endTime: string): Promise<any> {
+    if (WVP_ENABLED) {
+      const s = await WVP.getPlayback(deviceId, channelId || deviceId, startTime, endTime);
+      return {
+        deviceId,
+        channelId: channelId || deviceId,
+        flv: s.flv || '',
+        hls: s.hls || '',
+        rtmp: s.rtmp || '',
+        wsFlv: s.wsFlv || '',
+        streamId: s.streamId || '',
+        startTime: s.startTime || startTime,
+        endTime: s.endTime || endTime,
+        duration: s.duration || 0,
+        streamUrl: s.hls || s.flv || '',
+      };
     }
+    logger.warn('[Video] 当前模式不支持录像回放');
+    return null;
   }
 
   /**
    * 截图
    */
-  static async snapshot(deviceId: number): Promise<Buffer | null> {
-    try {
-      const streamInfo = await this.getStream(deviceId);
-      if (!streamInfo) {
-        return null;
-      }
+  static async snapshot(deviceId: string, channelId?: string): Promise<{ snapUrl?: string; buffer?: Buffer } | null> {
+    if (WVP_ENABLED) {
+      const snapUrl = await WVP.snapshot(deviceId, channelId || deviceId);
+      return { snapUrl };
+    }
 
-      // 使用FFmpeg截图
-      const { spawn } = require('child_process');
-      const outputFile = `/tmp/snapshot_${deviceId}_${Date.now()}.jpg`;
+    // ZLM / RTSP 截图：用 FFmpeg
+    try {
+      const mappedId = CAMERA_ID_MAP[deviceId] || deviceId;
+      const status = await ZLMService.getStreamStatus(mappedId);
+      const streamUrl = status?.flv || status?.hls;
+      if (!streamUrl) return null;
+
+      const tmpDir = process.platform === 'win32' ? (process.env.TEMP || 'C:\\temp') : '/tmp';
+      const outputFile = `${tmpDir}/snapshot_${mappedId}_${Date.now()}.jpg`;
 
       return new Promise((resolve) => {
         const ffmpeg = spawn('ffmpeg', [
-          '-i', streamInfo.streamUrl,
+          '-i', streamUrl,
           '-frames:v', '1',
           '-y',
           outputFile
@@ -237,11 +352,10 @@ export class VideoService {
 
         ffmpeg.on('close', (code: number | null) => {
           if (code === 0) {
-            const fs = require('fs');
             if (fs.existsSync(outputFile)) {
               const buffer = fs.readFileSync(outputFile);
               fs.unlinkSync(outputFile);
-              resolve(buffer);
+              resolve({ buffer });
             } else {
               resolve(null);
             }
@@ -250,9 +364,7 @@ export class VideoService {
           }
         });
 
-        ffmpeg.on('error', () => {
-          resolve(null);
-        });
+        ffmpeg.on('error', () => resolve(null));
       });
     } catch (err: any) {
       logger.error(`[Video] 截图失败: ${err.message}`);
@@ -261,48 +373,86 @@ export class VideoService {
   }
 
   /**
-   * 解析设备配置
+   * 获取摄像头配置列表（ZLM）
    */
-  private static parseDeviceConfig(device: any): GB28181Device {
-    // 从device的protocol_config字段解析配置
-    const config = JSON.parse(device.protocol_config || '{}');
+  static getCameraConfigs(): any[] {
+    return ZLMService.getCameraIds().map((id) => {
+      const cfg = ZLMService.getCameraConfig(id);
+      return {
+        id,
+        name: cfg?.name || id,
+        ip: cfg?.ip || '',
+        streamKey: cfg?.streamKey || id,
+      };
+    });
+  }
 
+  /* ══════════════════════════════════════════════════════════════
+     内部工具
+     ══════════════════════════════════════════════════════════════ */
+
+  private static wvpPlayToPayload(s: WVP.WVPStreamInfo, deviceId: string, channelId: string): UnifiedStreamInfo {
+    const rawFlv = replaceLocalhost((s.flv || s.wsFlv || '').trim());
+    const rawHls = replaceLocalhost((s.httpsHls || s.hls || s.wsHls || '').trim());
+    let hls = rawHls;
+    if (!hls && rawFlv) {
+      hls = rawFlv.replace(/\.live\.flv(?:\?.*)?$/, '/hls.m3u8');
+    }
+    const flv = rawFlv;
+    const streamUrl = hls || flv;
     return {
-      deviceId: device.id.toString(),
-      deviceName: device.device_name,
-      ipAddress: config.ip || '127.0.0.1',
-      port: config.port || 37777,
-      username: config.username || 'admin',
-      password: config.password || 'admin',
-      channel: config.channel || 1
+      deviceId,
+      channelId,
+      flv,
+      hls,
+      rtmp: replaceLocalhost((s.rtmp || '').trim()),
+      rtsps: replaceLocalhost((s.rtsps || '').trim()),
+      rtc: replaceLocalhost((s.rtc || '').trim()),
+      wsFlv: replaceLocalhost((s.wsFlv || '').trim()),
+      httpsFlv: replaceLocalhost((s.httpsFlv || '').trim()),
+      httpsHls: replaceLocalhost((s.httpsHls || '').trim()),
+      streamId: (s.streamId || '').trim(),
+      mediaServerId: (s.mediaServerId || '').trim(),
+      startTime: s.startTime || new Date().toISOString(),
+      ssrc: (s.ssrc || '').trim(),
+      streamUrl,
+      snapUrl: '',
     };
   }
 
-  /**
-   * 设备列表
-   */
-  static async getVideoDevices(unitId?: number): Promise<any[]> {
+  private static async getDBVideoDevices(): Promise<any[]> {
     try {
-      const where: any = { device_type: '摄像头' };
-      if (unitId) {
-        where.unit_id = unitId;
-      }
-
       const devices = await Device.findAll({
-        where,
-        attributes: ['id', 'device_no', 'device_name', 'install_location', 'protocol_config']
+        where: { device_type: '摄像头' },
+        attributes: ['id', 'device_no', 'device_name', 'install_location', 'protocol_config', 'protocol_type', 'iot_id', 'device_sn'],
       });
-
-      return devices.map((d: any) => ({
-        id: d.id,
-        deviceNo: d.device_no,
-        deviceName: d.device_name,
-        location: d.install_location,
-        config: JSON.parse(d.protocol_config || '{}')
-      }));
+      return devices.map((d: any) => {
+        const cfg = this.safeParseConfig(d.protocol_config);
+        return {
+          id: d.id,
+          deviceId: d.device_sn || d.iot_id || String(d.id),
+          name: d.device_name,
+          ip: cfg.ip || '',
+          port: cfg.port || 554,
+          onLine: true,
+          channelCount: 1,
+          manufacturer: cfg.manufacturer || '',
+          model: cfg.model || '',
+          status: 'online',
+        };
+      });
     } catch (err: any) {
-      logger.error(`[Video] 获取设备列表失败: ${err.message}`);
+      logger.error(`[Video] 获取数据库摄像头失败: ${err.message}`);
       return [];
+    }
+  }
+
+  private static safeParseConfig(raw: string | null | undefined): Record<string, any> {
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
     }
   }
 }

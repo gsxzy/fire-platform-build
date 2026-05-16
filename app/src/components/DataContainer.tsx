@@ -12,7 +12,11 @@ interface DataContainerProps<T> {
   data?: T | T[];
   onRetry?: () => void;
   emptyText?: string;
+  /** 覆盖 EmptyState 默认说明 */
+  emptyDescription?: string;
   emptyType?: 'data' | 'search' | 'error' | 'custom';
+  /** 为 true 时数据为空仍渲染 children（如 GIS 地图底图不依赖点位） */
+  allowEmptyChildren?: boolean;
   children: React.ReactNode;
 }
 
@@ -22,7 +26,9 @@ export default function DataContainer<T>({
   data,
   onRetry,
   emptyText = '暂无数据',
+  emptyDescription,
   emptyType = 'data',
+  allowEmptyChildren = false,
   children,
 }: DataContainerProps<T>) {
   const [retryCount, setRetryCount] = useState(0);
@@ -79,13 +85,17 @@ export default function DataContainer<T>({
   }
 
   // Empty
-  const isEmpty = data === undefined || data === null || (Array.isArray(data) && data.length === 0);
+  const isEmpty =
+    !allowEmptyChildren &&
+    (data === undefined || data === null || (Array.isArray(data) && data.length === 0));
   if (isEmpty) {
     return (
       <EmptyState
         type={emptyType}
         title={emptyText}
-        description={emptyType === 'data' ? '当前暂无相关数据，请稍后刷新或联系管理员' : undefined}
+        description={
+          emptyDescription ?? (emptyType === 'data' ? '当前暂无相关数据，请稍后刷新或联系管理员核对接入与权限。' : undefined)
+        }
       />
     );
   }

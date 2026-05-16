@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/core/ToastContext";
 import { dutyShiftService, dutyService } from "@/api/services";
+import { getErrorMessage } from "@/types/api";
 import DataContainer from "@/components/DataContainer";
 import {
   Calendar, Clock, Plus, X, Save, Users, ChevronLeft, ChevronRight,
@@ -30,7 +31,7 @@ const TEMPLATES: ShiftTemplate[] = [
   { id: "T-003", name: "晚班", startTime: "00:00", endTime: "08:00", icon: Moon, color: "text-purple-400" },
 ];
 
-const STAFF_OPTIONS = ["张三", "李四", "王五", "赵六", "孙七", "周八", "吴九", "郑十"];
+const STAFF_OPTIONS: string[] = [];
 const WEEK_DAYS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
 
 function generateWeekData(): DaySchedule[] {
@@ -45,7 +46,7 @@ function generateWeekData(): DaySchedule[] {
       date: dateStr,
       dayOfWeek: dow,
       shiftName: tmpl.name,
-      staffNames: [STAFF_OPTIONS[i % 8], STAFF_OPTIONS[(i + 1) % 8]],
+      staffNames: [],
       status: "scheduled" as const,
     };
   });
@@ -153,12 +154,14 @@ export default function DutyShiftPage() {
       const list = res.data?.list || [];
       const weekRecord = list.find((item: any) => item.name === weekLabel);
       if (weekRecord?.content) {
-        const parsed = JSON.parse(weekRecord.content);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setSchedules(parsed);
-          setLoading(false);
-          return;
-        }
+        try {
+          const parsed = JSON.parse(weekRecord.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSchedules(parsed);
+            setLoading(false);
+            return;
+          }
+        } catch { /* ignore invalid JSON */ }
       }
       const res2: any = await dutyShiftService.list({ page: 1, pageSize: 100 });
       const data = Array.isArray(res2?.data) ? res2.data : (res2?.data?.list || []);
@@ -173,8 +176,8 @@ export default function DutyShiftPage() {
       } else {
         setSchedules(generateWeekData());
       }
-    } catch (e: any) {
-      setError(e);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e : new Error(getErrorMessage(e)));
       setSchedules(generateWeekData());
     } finally {
       setLoading(false);
@@ -202,6 +205,7 @@ export default function DutyShiftPage() {
     } catch (e) { console.error('排班同步后端失败:', e); }
   };
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- 周标签仅随 weekOffset 重算（刻意忽略日历日推进）
   const weekLabel = useMemo(() => {
     const base = new Date();
     base.setDate(base.getDate() - base.getDay() + 1 + weekOffset * 7);

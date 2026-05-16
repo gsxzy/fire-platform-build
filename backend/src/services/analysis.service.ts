@@ -1,5 +1,5 @@
 import { Op, Sequelize } from 'sequelize';
-import { Alarm, Device, MaintenanceWorkOrder, PatrolRecord, Hazard, Unit } from '@/models';
+import { Alarm, Device, MaintenanceWorkOrder, PatrolRecord, Hazard } from '@/models';
 
 export class AnalysisService {
   // 设备运行数据分析

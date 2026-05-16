@@ -7,17 +7,20 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/core/ToastContext';
 import { ControlRoomDAO } from '@/db/Database';
 import { api as httpApi } from '@/api/client';
-import { generateRoomData, crHostsCache } from '@/api/mock';
+
+import { getErrorMessage } from '@/types/api';
+import EmptyState from '@/components/EmptyState';
 import {
   Search, ChevronLeft, ChevronRight,
   Monitor, CheckSquare, Square, Edit3, Trash2, X, Save,
   AlertTriangle, Cpu, FileText, Server, Plus, Loader2,
-  CircuitBoard, Grid3X3, Zap, Activity
+  CircuitBoard, Grid3X3, Zap, Activity, Table2
 } from 'lucide-react';
 
 /* ===== Types ===== */
 interface ControlRoom {
   id: string;
+  unitId?: string;
   unitName: string;
   projectName?: string;
   controllerModel: string;
@@ -35,16 +38,19 @@ interface ControlRoom {
 function RoomFormModal({
   room,
   mode,
+  units,
   onSave,
   onClose,
 }: {
   room: ControlRoom | null;
   mode: 'add' | 'edit';
+  units: Array<{id: string|number; name: string}>;
   onSave: (room: ControlRoom) => void;
   onClose: () => void;
 }) {
-  const [form, setForm] = useState<ControlRoom>({
+  const [form, setForm] = useState<ControlRoom & { unitId?: string }>({
     id: '',
+    unitId: '',
     unitName: '',
     controllerModel: '',
     hostNo: '',
@@ -61,6 +67,7 @@ function RoomFormModal({
     if (room) setForm({ ...room });
     else setForm({
       id: 'CR' + Date.now(),
+      unitId: '',
       unitName: '',
       controllerModel: '',
       hostNo: '主机1',
@@ -90,7 +97,13 @@ function RoomFormModal({
         <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">单位名称 <span className="text-red-400">*</span></label>
-            <Input value={form.unitName} onChange={e => setForm({ ...form, unitName: e.target.value })} placeholder="输入单位名称" className="h-8 text-xs bg-slate-800/40 border-slate-700/30 text-slate-200 rounded-lg focus:border-blue-500/40" />
+            <select value={form.unitId || ''} onChange={e => {
+              const u = units.find(x => String(x.id) === e.target.value);
+              setForm({ ...form, unitId: e.target.value, unitName: u?.name || '' });
+            }} className="h-8 text-xs bg-slate-800/40 border border-slate-700/30 text-slate-200 rounded-lg focus:border-blue-500/40 w-full px-2">
+              <option value="">请选择单位</option>
+              {units.map(u => <option key={u.id} value={String(u.id)}>{u.name}</option>)}
+            </select>
           </div>
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">控制器型号 <span className="text-red-400">*</span></label>
@@ -232,6 +245,13 @@ function ControlRoomCard({
             )}
           </div>
           <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => navigate(`/monitor/control/host-code?roomId=${room.id}`)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 transition-all text-[10px] font-medium"
+              title="报警主机编码表"
+            >
+              <Table2 className="w-3 h-3" />编码表
+            </button>
             <button onClick={() => onEdit(room)} className="p-1.5 text-slate-500 hover:text-blue-400 rounded-lg hover:bg-blue-500/10 transition-all" title="编辑">
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -319,13 +339,17 @@ export default function FireControlRoomListPage() {
   const [formMode, setFormMode] = useState<'add' | 'edit' | null>(null);
   const [editingRoom, setEditingRoom] = useState<ControlRoom | null>(null);
   const [deletingRoom, setDeletingRoom] = useState<ControlRoom | null>(null);
+  const [units, setUnits] = useState<Array<{id: string|number; name: string}>>([]);
 
-  const PROJECT_NAMES: Record<string, string> = {
-    '万达广场商业中心': '万达广场消防项目',
-    '兰州大学第二医院': '兰大二院消防改造项目',
-    '兰州中心': '兰州中心综合体消防项目',
-    '甘肃省博物馆': '省博物馆消防升级项目',
-  };
+  useEffect(() => {
+    httpApi.get<any>('/units/list', { pageSize: 500 }).then(res => {
+      if (res.code === 200 && Array.isArray(res.data?.list)) {
+        setUnits(res.data.list.map((u: any) => ({ id: u.id, name: u.name || u.unit_name || '未命名' })));
+      }
+    });
+  }, []);
+
+  const PROJECT_NAMES: Record<string, string> = {};
 
   const fetchRooms = async () => {
     setLoading(true);
@@ -335,29 +359,28 @@ export default function FireControlRoomListPage() {
       let list: any[] = [];
       if (res.code === 200 && res.data?.list) {
         list = res.data.list;
-        console.log('[fetchRooms] API count=', list.length);
       } else {
         // API 失败时 fallback 到本地 IndexedDB
         list = await ControlRoomDAO.getAll();
-        console.log('[fetchRooms] DAO fallback count=', list.length);
       }
       let filtered = list.map((r: any) => {
         // 支持后端字段名和本地字段名两种格式
-        const id = r.roomId || r.id || '';
-        const unitName = r.location?.trim() || r.unitName?.trim() || r.name?.trim() || r.room_name?.trim() || r.unit_name?.trim() || id || '未命名消控室';
+        const id = String(r.roomId || r.id || '');
+        const unitName = r.unitName?.trim() || r.room_name?.trim() || r.unit_name?.trim() || r.name?.trim() || id || '未命名消控室';
         return {
           id,
           unitName,
+          unitId: r.unit_id ? String(r.unit_id) : undefined,
           projectName: PROJECT_NAMES[unitName] || `${unitName}消防项目`,
-          controllerModel: r.model || r.brand || r.hostModel || r.controllerModel || '',
-          hostNo: r.hostCode || r.hostNo || '主机1',
-          busDevices: r.deviceCount || r.busDevices || 0,
-          busPoints: r.busPoints || r.deviceCount || 0,
+          controllerModel: r.controllerModel || r.host_model || r.hostModel || r.model || r.brand || '',
+          hostNo: r.hostNo || r.host_no || r.hostCode || '主机1',
+          busDevices: r.busDevices || r.device_count || 0,
+          busPoints: r.busPoints || r.loop_count || 0,
           multilineDevices: r.multilineDevices || 0,
           multilinePoints: r.multilinePoints || 0,
           serviceStart: r.serviceStart || '',
           serviceEnd: r.serviceEnd || '',
-          online: (r.hostStatus === 1 || r.status === 'normal' || r.online === true),
+          online: (r.hostStatus === 1 || r.status === 1 || r.status === 'normal' || r.online === true),
         };
       });
       if (keyword) {
@@ -369,7 +392,7 @@ export default function FireControlRoomListPage() {
         );
       }
       setRooms(filtered);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('加载消控室失败', e);
     } finally {
       setLoading(false);
@@ -392,30 +415,39 @@ export default function FireControlRoomListPage() {
   const handleAdd = () => { setFormMode('add'); setEditingRoom(null); };
   const handleEdit = (room: ControlRoom) => { setFormMode('edit'); setEditingRoom(room); };
 
-  const handleSave = async (updated: ControlRoom) => {
+  const handleSave = async (updated: ControlRoom & { unitId?: string }) => {
     try {
+      const payload = {
+        room_name: updated.unitName,
+        unit_name: updated.unitName,
+        unit_id: updated.unitId ? parseInt(updated.unitId) : null,
+        duty_person: '',
+        duty_phone: '',
+        status: 1,
+        // 主机信息（后端会同步写入 fire_control_room_host）
+        controllerModel: updated.controllerModel,
+        hostNo: updated.hostNo,
+        host_model: updated.controllerModel,
+        host_no: updated.hostNo,
+      };
       if (formMode === 'add') {
-        const before = await ControlRoomDAO.getAll();
-        console.log('[handleSave] before create count=', before.length, 'ids=', before.map((r: any) => r.id));
-        await ControlRoomDAO.create(updated as any);
-        generateRoomData(updated.id, updated as any);
-        const after = await ControlRoomDAO.getAll();
-        console.log('[handleSave] after create count=', after.length, 'ids=', after.map((r: any) => r.id));
-        if (after.length <= before.length) {
-          alert('新增失败：数据未写入，请打开浏览器控制台查看日志');
+        const res = await httpApi.post<{id: number}>('/control-rooms', payload);
+        if (res.code === 200) {
+          success('新增成功', `${updated.unitName} 的消控室已创建`);
+        } else {
+          alert('新增失败: ' + (res.msg || '未知错误'));
           return;
         }
-        success('新增成功', `${updated.unitName} 的消控室已创建`);
       } else {
-        await ControlRoomDAO.update(updated.id, updated as any);
+        await httpApi.put(`/control-rooms/${updated.id}`, payload);
         success('保存成功', `${updated.unitName} 的信息已更新`);
       }
       setFormMode(null);
       setEditingRoom(null);
       fetchRooms();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('保存失败', e);
-      alert('保存失败: ' + (e.message || e));
+      alert('保存失败: ' + getErrorMessage(e, String(e)));
     }
   };
 
@@ -423,15 +455,15 @@ export default function FireControlRoomListPage() {
   const handleConfirmDelete = async () => {
     if (!deletingRoom) return;
     try {
-      await ControlRoomDAO.delete(deletingRoom.id);
-      crHostsCache.delete(deletingRoom.id);
+      await httpApi.delete(`/control-rooms/${deletingRoom.id}`);
+      // crHostsCache 已废弃清理
       setSelectedIds(prev => prev.filter(id => id !== deletingRoom.id));
       success('删除成功', `${deletingRoom.unitName} 的消控室已删除`);
       setDeletingRoom(null);
       fetchRooms();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('删除失败', e);
-      alert('删除失败: ' + (e.message || e));
+      alert('删除失败: ' + getErrorMessage(e, String(e)));
     }
   };
 
@@ -495,8 +527,9 @@ export default function FireControlRoomListPage() {
       {/* Cards Grid */}
       <div className="flex-1 overflow-y-auto scrollbar-thin relative">
         {loading && (
-          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px] flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-10">
             <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+            <span className="text-[11px] text-slate-500">正在同步消控室列表…</span>
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -512,12 +545,17 @@ export default function FireControlRoomListPage() {
           ))}
         </div>
         {paged.length === 0 && !loading && (
-          <div className="text-center py-20 text-xs text-slate-500 flex flex-col items-center gap-2">
-            <div className="w-14 h-14 rounded-2xl bg-slate-800/40 backdrop-blur-sm flex items-center justify-center border border-slate-700/30">
-              <Monitor className="w-7 h-7 text-slate-600" />
-            </div>
-            <span>未找到匹配的消控室</span>
-          </div>
+          <EmptyState
+            type={keyword.trim() ? 'search' : 'data'}
+            title={keyword.trim() ? '未找到匹配的消控室' : '暂无消控室档案'}
+            description={
+              keyword.trim()
+                ? '请尝试修改搜索关键词，或清空搜索后查看全部列表。'
+                : '请先使用「新增」登记消控室并绑定联网单位；若已与后端同步仍为空，请检查接口权限与网络。'
+            }
+            icon={Monitor}
+            className="py-16"
+          />
         )}
       </div>
 
@@ -525,6 +563,7 @@ export default function FireControlRoomListPage() {
         <RoomFormModal
           room={editingRoom}
           mode={formMode}
+          units={units}
           onSave={handleSave}
           onClose={() => { setFormMode(null); setEditingRoom(null); }}
         />

@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Camera, Video, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getErrorMessage } from '@/types/api';
 
 interface VideoPopupProps {
   open: boolean;
@@ -42,8 +43,8 @@ export default function VideoPopup({ open, cameraId, channelId, cameraName, onCl
       } else {
         setError(data.message || '获取视频流失败');
       }
-    } catch (e: any) {
-      setError(e.message || '网络错误');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, '网络错误'));
     } finally {
       setLoading(false);
     }

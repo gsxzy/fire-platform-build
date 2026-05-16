@@ -26,6 +26,13 @@ interface MenuFlatItem {
   icon: unknown;
   parentLabel: string;
   parentPath: string;
+  /** 商用悬停说明 */
+  hint?: string;
+}
+
+function isRouteActive(pathname: string, path: string): boolean {
+  if (!path) return false;
+  return pathname === path || pathname.startsWith(path + '/');
 }
 
 export default function Sidebar() {
@@ -46,7 +53,17 @@ export default function Sidebar() {
     return unsubscribe;
   }, []);
 
-  const [openMenus, setOpenMenus] = useState<string[]>(['/monitor']);
+  const [openMenus, setOpenMenus] = useState<string[]>([]);
+
+  // 默认展开第一个有子菜单的模块（避免 monitor 被禁用时展开空菜单）
+  useEffect(() => {
+    if (menuModules.length > 0 && openMenus.length === 0) {
+      const firstWithChildren = menuModules.find(m => m.menu?.children?.length);
+      if (firstWithChildren?.menu?.path) {
+        setOpenMenus([firstWithChildren.menu.path]);
+      }
+    }
+  }, [menuModules]);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
@@ -63,9 +80,10 @@ export default function Sidebar() {
     );
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const pathname = location.pathname;
+  const isActive = (path: string) => isRouteActive(pathname, path);
   const isParentActive = (mod: PlatformModule) =>
-    mod.menu?.children?.some(c => location.pathname.startsWith(c.path)) ?? false;
+    mod.menu?.children?.some(c => isRouteActive(pathname, c.path)) ?? false;
 
   const toggleFavorite = (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
@@ -85,10 +103,26 @@ export default function Sidebar() {
 
       if (mod.menu.children?.length) {
         for (const child of mod.menu.children) {
-          items.push({ id: child.id, label: child.label, path: child.path, icon: child.icon, parentLabel, parentPath });
+          items.push({
+            id: child.id,
+            label: child.label,
+            path: child.path,
+            icon: child.icon,
+            parentLabel,
+            parentPath,
+            hint: child.description,
+          });
         }
       } else {
-        items.push({ id: mod.id, label: mod.menu.label || mod.name, path: mod.menu.path || mod.path || '', icon: mod.menu.icon || mod.icon, parentLabel, parentPath });
+        items.push({
+          id: mod.id,
+          label: mod.menu.label || mod.name,
+          path: mod.menu.path || mod.path || '',
+          icon: mod.menu.icon || mod.icon,
+          parentLabel,
+          parentPath,
+          hint: mod.menu.description ?? mod.description,
+        });
       }
     }
     return items;
@@ -148,11 +182,14 @@ export default function Sidebar() {
                   if (!menu) return null;
                   const hasChildren = !!menu.children?.length;
                   const active = isParentActive(mod) || (mod.path === '/bigscreen' && isActive(mod.path || ''));
+                  const topHint = menu.description ?? mod.description;
                   const isOpen = openMenus.includes(mod.path || '') || active;
                   const modPath = mod.path || '';
                   return (
                     <div key={mod.id}>
                       <button
+                        type="button"
+                        title={topHint ?? menu.label ?? mod.name}
                         onClick={() => {
                           if (!hasChildren && modPath) { navigate(modPath); toggleSidebar(); }
                           else toggleMenu(modPath);
@@ -172,6 +209,8 @@ export default function Sidebar() {
                           {menu.children.map((child: ModuleMenuChild) => (
                             <button
                               key={child.id}
+                              type="button"
+                              title={child.description ?? child.label}
                               onClick={() => { navigate(child.path); toggleSidebar(); }}
                               className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200 rounded-lg ${
                                 isActive(child.path)
@@ -273,6 +312,8 @@ export default function Sidebar() {
                 searchResults.map(item => (
                   <button
                     key={item.id}
+                    type="button"
+                    title={item.hint ?? item.label}
                     onClick={() => { navigate(item.path); setSearchQuery(''); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-300 hover:bg-blue-500/10 hover:text-blue-300 transition-colors text-left"
                   >
@@ -298,6 +339,8 @@ export default function Sidebar() {
           {favItems.map(item => (
             <button
               key={item.id}
+              type="button"
+              title={item.hint ?? item.label}
               onClick={() => navigate(item.path)}
               className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[11px] rounded-lg transition-all duration-200 ${
                 isActive(item.path) ? 'text-blue-400 bg-blue-500/10 shadow-[0_0_8px_rgba(59,130,246,0.06)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30'
@@ -319,16 +362,18 @@ export default function Sidebar() {
           const active = isParentActive(mod) || (mod.path === '/bigscreen' && isActive(mod.path || ''));
           const isOpen = openMenus.includes(mod.path || '') || active;
           const modPath = mod.path || '';
+          const topHint = menu.description ?? mod.description;
 
           if (isEffectivelyCollapsed) {
             return (
               <div key={mod.id} className="relative group px-2 mb-1">
                 <button
+                  type="button"
                   onClick={() => {
                     if (!hasChildren && modPath) navigate(modPath);
                     else toggleMenu(modPath);
                   }}
-                  title={menu.label || mod.name}
+                  title={topHint ?? menu.label ?? mod.name}
                   className={`w-full flex items-center justify-center py-2.5 rounded-xl transition-all duration-200 ${
                     active
                       ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-[0_0_12px_rgba(59,130,246,0.08)]'
@@ -340,8 +385,11 @@ export default function Sidebar() {
 
                 <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg shadow-2xl
                               text-[11px] text-slate-200 whitespace-nowrap z-[100] opacity-0 group-hover:opacity-100 pointer-events-none
-                              transition-all duration-150 translate-x-1 group-hover:translate-x-0">
-                  {menu.label || mod.name}
+                              transition-all duration-150 translate-x-1 group-hover:translate-x-0 max-w-[min(280px,calc(100vw-100px))]">
+                  <span className="block font-medium">{menu.label || mod.name}</span>
+                  {topHint && topHint !== menu.label && (
+                    <span className="block mt-0.5 text-[10px] text-slate-400 font-normal whitespace-normal">{topHint}</span>
+                  )}
                   <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-slate-800 border-l border-b border-slate-700/50 rotate-45" />
                 </div>
 
@@ -353,6 +401,8 @@ export default function Sidebar() {
                     {menu.children.map((child: ModuleMenuChild) => (
                       <button
                         key={child.id}
+                        type="button"
+                        title={child.description ?? child.label}
                         onClick={() => navigate(child.path)}
                         className={`w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-all duration-200 ${
                           isActive(child.path)
@@ -373,6 +423,8 @@ export default function Sidebar() {
           return (
             <div key={mod.id} className="px-2 mb-0.5">
               <button
+                type="button"
+                title={topHint ?? menu.label ?? mod.name}
                 onClick={() => {
                   if (!hasChildren && modPath) navigate(modPath);
                   else toggleMenu(modPath);
@@ -394,6 +446,8 @@ export default function Sidebar() {
                   {menu.children.map((child: ModuleMenuChild) => (
                     <div key={child.id} className="group relative flex items-center pl-3">
                       <button
+                        type="button"
+                        title={child.description ?? child.label}
                         onClick={() => navigate(child.path)}
                         className={`flex-1 flex items-center gap-3 px-3 py-2 text-sm transition-all duration-200 rounded-lg ${
                           isActive(child.path)

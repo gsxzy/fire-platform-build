@@ -62,7 +62,7 @@ export default function DataImportExportPage() {
     legacyApi.logList().then((res: any) => {
       const list = Array.isArray(res.data) ? res.data : (res.data?.list || []);
       if (list.length > 0) setImportHistory(list);
-    }).catch(() => {});
+    }).catch((e) => { console.error('[DataImportExport] load logs failed:', e); });
   }, []);
 
   const handleDrop = (e: React.DragEvent) => {

@@ -9,17 +9,17 @@
  * - 支持一级路由和二级子路由自动展开
  * ═══════════════════════════════════════════════════════════════════
  */
-import { lazy, useState, useEffect, useMemo } from 'react';
+import { lazy, useState, useEffect, useMemo, type ComponentType, type LazyExoticComponent } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import { ModuleEngine } from '@/core/platform';
 import type { PlatformModule } from '@/core/platform';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 /* 带自动重试的 lazy 加载器 —— 解决部署后 chunk 缓存导致的加载失败 */
-function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any> }>) {
+function lazyWithRetry(factory: () => Promise<{ default: ComponentType<object> }>) {
   return lazy(() => {
-    return factory().catch((error: any) => {
-      const msg = error?.message || '';
+    return factory().catch((error: unknown) => {
+      const msg = error instanceof Error ? error.message : '';
       if (msg.includes('Failed to fetch dynamically imported module')) {
         if (!sessionStorage.getItem('chunk_retry')) {
           sessionStorage.setItem('chunk_retry', '1');
@@ -38,7 +38,7 @@ function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType<any
    key 必须与 ModuleRegistry 中定义的 path 完全匹配
    ═══════════════════════════════════════════════════════════════ */
 
-const PAGE_COMPONENTS: Record<string, React.LazyExoticComponent<any>> = {
+const PAGE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType<object>>> = {
   /* ── 工作台 workbench ── */
   '/workbench': lazyWithRetry(() => import('@/sections/WorkbenchPage')),
   '/workbench/todo': lazyWithRetry(() => import('@/sections/TodoListPage')),
@@ -49,6 +49,7 @@ const PAGE_COMPONENTS: Record<string, React.LazyExoticComponent<any>> = {
   '/monitor/video': lazyWithRetry(() => import('@/sections/VideoMonitorPage')),
   '/monitor/control': lazyWithRetry(() => import('@/sections/FireControlRoomListPage')),
   '/monitor/control/room/:roomId': lazyWithRetry(() => import('@/sections/FireControlRoomPage')),
+  '/monitor/control/host-code': lazyWithRetry(() => import('@/sections/HostDeviceCodePage')),
   '/monitor/linkage': lazyWithRetry(() => import('@/sections/SafetyLinkagePage')),
   '/monitor/subsys': lazyWithRetry(() => import('@/sections/SubSystemPage')),
 
@@ -73,12 +74,13 @@ const PAGE_COMPONENTS: Record<string, React.LazyExoticComponent<any>> = {
   '/unit/stats': lazyWithRetry(() => import('@/sections/UnitStatsPage')),
   '/floor-plans': lazyWithRetry(() => import('@/sections/FloorPlanPage')),
 
-  /* ── 设备管理 device ── */
+  /* ── 设备管理 device（入库管理为唯一菜单入口，其余页面保留路由供档案页快捷跳转） ── */
   '/device/archive': lazyWithRetry(() => import('@/sections/DeviceArchivePage')),
+  '/device/access': lazyWithRetry(() => import('@/sections/DeviceAccessPage')),
+  '/device/access/ctwing': lazyWithRetry(() => import('@/sections/Ctwing4gAccessPage')),
   '/device/allocate': lazyWithRetry(() => import('@/sections/DeviceAllocationPage')),
   '/device/config': lazyWithRetry(() => import('@/sections/DeviceConfigPage')),
   '/device/maintain': lazyWithRetry(() => import('@/sections/DeviceMaintainPage')),
-  '/device/status': lazyWithRetry(() => import('@/sections/DeviceStatusPage')),
 
 
   /* ── 消防维保 maintenance ── */
@@ -121,8 +123,8 @@ const PAGE_COMPONENTS: Record<string, React.LazyExoticComponent<any>> = {
   /* ── AI决策中心 ai ── */
   '/ai/center': lazyWithRetry(() => import('@/sections/AIDecisionPage')),
 
-  /* ── IoT设备接入 iot ── */
-  '/iot/access': lazyWithRetry(() => import('@/sections/DeviceAccessPage')),
+  /* ── IoT设备接入 iot（设备物理接入已迁至 /device/access，此处保留兼容重定向） ── */
+  '/iot/access': lazyWithRetry(() => import('@/sections/DeviceAccessRedirect')),
   '/iot/protocol': lazyWithRetry(() => import('@/sections/ProtocolConfigPage')),
   '/iot/pipeline': lazyWithRetry(() => import('@/sections/DataPipelinePage')),
   '/iot/gb28181': lazyWithRetry(() => import('@/sections/GB28181Page')),
@@ -203,10 +205,11 @@ export function DynamicRoutes() {
 
   // 基于启用的模块计算路由配置（tick 变化时重新计算）
   const { routes, redirectRoutes } = useMemo(() => {
+    void tick;
     const enabledModules = ModuleEngine.getEnabledModules();
     const paths = extractPathsFromModules(enabledModules);
 
-    const routeList: { path: string; component: React.LazyExoticComponent<React.FC> }[] = [];
+    const routeList: { path: string; component: LazyExoticComponent<ComponentType<object>> }[] = [];
     const redirectList: { from: string; to: string }[] = [];
 
     // 为每个提取的路径匹配组件
@@ -220,6 +223,7 @@ export function DynamicRoutes() {
     // 手动添加非菜单参数化路由（详情页等）
     const extraPaths = [
       '/monitor/control/room/:roomId',
+      '/monitor/control/host-code',
     ];
     for (const path of extraPaths) {
       const Component = PAGE_COMPONENTS[path];
@@ -255,10 +259,13 @@ export function DynamicRoutes() {
     );
   }
 
+  // 兜底：选择第一个启用的模块默认路径（workbench 被禁用时不会空白）
+  const fallbackPath = redirectRoutes[0]?.to || routes[0]?.path || '/workbench';
+
   return (
     <Routes>
       {routes.map(({ path, component: Component }) => (
-        <Route key={path} path={path.slice(1)} element={
+        <Route key={path} path={path} element={
           <ErrorBoundary>
             <Component />
           </ErrorBoundary>
@@ -268,13 +275,13 @@ export function DynamicRoutes() {
       {redirectRoutes.map(({ from, to }) => (
         <Route
           key={`redirect-${from}`}
-          path={from.slice(1)}
+          path={from}
           element={<Navigate to={to} replace />}
         />
       ))}
 
-      {/* 兜底重定向到工作台 */}
-      <Route path="*" element={<Navigate to="/workbench" replace />} />
+      {/* 兜底重定向到第一个可用模块 */}
+      <Route path="*" element={<Navigate to={fallbackPath} replace />} />
     </Routes>
   );
 }

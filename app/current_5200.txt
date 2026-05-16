@@ -1,8 +1,0 @@
-﻿python : C:\Python314\python.exe: can't open file 'D:\\新致远智慧消防平台\\fire-platform-build\\app\\backend\\remote_exec.py': [
-Errno 2] No such file or directory
-所在位置 行:1 字符: 1
-+ python backend\remote_exec.py "ss -tnp | grep -i 5200" 2>&1 | Out-Fil ...
-+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (C:\Python314\py...le or directory:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 

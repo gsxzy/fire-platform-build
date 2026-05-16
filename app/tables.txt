@@ -1,7 +1,0 @@
-Tables_in_fire_platform
-fire_device
-fire_host
-fire_loop
-v_fire_device_stats
-v_fire_host_stats
-v_fire_loop_stats

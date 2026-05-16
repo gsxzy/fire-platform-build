@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Activity, Droplets, Wind, Zap, Lightbulb, Volume2,
   WifiOff, AlertTriangle, CheckCircle, RefreshCw,
   Shield
 } from 'lucide-react';
+import { raw } from '@/api/client';
+import EmptyState from '@/components/EmptyState';
 
 interface SubSystem {
   id: string;
@@ -16,16 +18,9 @@ interface SubSystem {
   lastUpdate: string;
 }
 
-const subsystems: SubSystem[] = [
-  { id: 'SS-001', name: '自动喷水灭火系统', type: 'water', unit: '万达广场', devices: 156, online: 155, status: 'warning', lastUpdate: '2026-04-19 10:05:30' },
-  { id: 'SS-002', name: '消火栓系统', type: 'water', unit: '万达广场', devices: 89, online: 89, status: 'normal', lastUpdate: '2026-04-19 10:05:28' },
-  { id: 'SS-003', name: '防排烟系统', type: 'vent', unit: '万达广场', devices: 24, online: 23, status: 'warning', lastUpdate: '2026-04-19 10:04:15' },
-  { id: 'SS-004', name: '电气火灾监控', type: 'elec', unit: '兰州中心', devices: 45, online: 43, status: 'warning', lastUpdate: '2026-04-19 10:03:12' },
-  { id: 'SS-005', name: '应急照明系统', type: 'light', unit: '万达广场', devices: 567, online: 567, status: 'normal', lastUpdate: '2026-04-19 10:05:18' },
-  { id: 'SS-006', name: '消防广播系统', type: 'audio', unit: '万达广场', devices: 23, online: 23, status: 'normal', lastUpdate: '2026-04-19 10:05:10' },
-  { id: 'SS-007', name: '防火门监控系统', type: 'door', unit: '兰州中心', devices: 78, online: 76, status: 'warning', lastUpdate: '2026-04-19 09:55:22' },
-  { id: 'SS-008', name: '气体灭火系统', type: 'gas', unit: '兰大二院', devices: 12, online: 12, status: 'normal', lastUpdate: '2026-04-19 10:02:45' },
-];
+async function fetchSubsystems(): Promise<SubSystem[]> {
+  return raw.get<SubSystem[]>('/subsystems');
+}
 
 const TYPE_ICON: Record<string, { icon: any; color: string; bg: string; border: string }> = {
   water: { icon: Droplets, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
@@ -51,16 +46,30 @@ const FILTERS = [
 ];
 
 export default function SubSystemPage() {
-  const [systems, setSystems] = useState<SubSystem[]>(subsystems);
+  const [systems, setSystems] = useState<SubSystem[]>([]);
   const [filter, setFilter] = useState('all');
+  const [listLoading, setListLoading] = useState(true);
 
-  const filtered = systems.filter(s => filter === 'all' ? true : s.status === filter);
-  const normal = systems.filter(s => s.status === 'normal').length;
-  const warning = systems.filter(s => s.status === 'warning').length;
-  const totalDevices = systems.reduce((s, x) => s + x.devices, 0);
+  const loadList = useCallback(() => {
+    setListLoading(true);
+    return fetchSubsystems()
+      .then(data => setSystems(Array.isArray(data) ? data : []))
+      .catch(() => setSystems([]))
+      .finally(() => setListLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadList();
+  }, [loadList]);
+
+  const safeSystems = Array.isArray(systems) ? systems : [];
+  const filtered = safeSystems.filter(s => filter === 'all' ? true : s.status === filter);
+  const normal = safeSystems.filter(s => s.status === 'normal').length;
+  const warning = safeSystems.filter(s => s.status === 'warning').length;
+  const totalDevices = safeSystems.reduce((s, x) => s + (Number(x.devices) || 0), 0);
 
   const refresh = () => {
-    setSystems(prev => prev.map((s: any) => ({ ...s, lastUpdate: new Date().toLocaleString('zh-CN') })));
+    void loadList();
   };
 
   return (
@@ -87,7 +96,7 @@ export default function SubSystemPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="子系统" value={systems.length} unit="个" color="blue" icon={<Shield className="w-3.5 h-3.5" />} />
+        <StatCard label="子系统" value={safeSystems.length} unit="个" color="blue" icon={<Shield className="w-3.5 h-3.5" />} />
         <StatCard label="正常" value={normal} unit="个" color="emerald" icon={<CheckCircle className="w-3.5 h-3.5" />} />
         <StatCard label="预警" value={warning} unit="个" color="yellow" icon={<AlertTriangle className="w-3.5 h-3.5" />} />
         <StatCard label="总设备" value={totalDevices} unit="台" color="cyan" icon={<Activity className="w-3.5 h-3.5" />} />
@@ -114,13 +123,35 @@ export default function SubSystemPage() {
       </div>
 
       {/* Subsystem Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {filtered.map(sys => {
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 min-h-[200px]">
+        {listLoading ? (
+          <div className="col-span-full flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+            <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
+            <span className="text-xs">子系统数据加载中，请稍候…</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="col-span-full">
+            <EmptyState
+              type={filter === 'all' ? 'data' : 'search'}
+              title={filter === 'all' ? '暂无子系统数据' : '当前筛选下无子系统'}
+              description={
+                filter === 'all'
+                  ? '请确认后端 /subsystems 已接入真实数据，或检查网络与登录状态后点击「刷新」。'
+                  : '请尝试切换为「全部」或调整状态筛选。'
+              }
+              icon={Shield}
+              className="py-12"
+            />
+          </div>
+        ) : (
+          filtered.map(sys => {
           const tc = TYPE_ICON[sys.type] || TYPE_ICON.water;
           const sc = STATUS_CFG[sys.status] || STATUS_CFG.normal;
           const TypeIcon = tc.icon;
           const StatusIcon = sc.icon;
-          const onlineRate = Math.round((sys.online / sys.devices) * 100);
+          const devices = Number(sys.devices) || 0;
+          const online = Number(sys.online) || 0;
+          const onlineRate = devices > 0 ? Math.round((online / devices) * 100) : 0;
           const rateColor = onlineRate === 100 ? 'emerald' : onlineRate > 90 ? 'yellow' : 'red';
           const rateText = rateColor === 'emerald' ? 'text-emerald-400' : rateColor === 'yellow' ? 'text-yellow-400' : 'text-red-400';
           const rateBg = rateColor === 'emerald' ? 'bg-emerald-400' : rateColor === 'yellow' ? 'bg-yellow-400' : 'bg-red-400';
@@ -162,13 +193,14 @@ export default function SubSystemPage() {
 
               <div className="flex items-center justify-between text-[10px]">
                 <span className="text-slate-500">
-                  设备: <span className="text-slate-300 font-medium">{sys.online}/{sys.devices}</span> 在线
+                  设备: <span className="text-slate-300 font-medium">{online}/{devices}</span> 在线
                 </span>
-                <span className="text-slate-600 font-mono">{sys.lastUpdate.split(' ')[1]}</span>
+                <span className="text-slate-600 font-mono">{(sys.lastUpdate || '').split(' ')[1] || '--:--'}</span>
               </div>
             </div>
           );
-        })}
+          })
+        )}
       </div>
     </div>
   );

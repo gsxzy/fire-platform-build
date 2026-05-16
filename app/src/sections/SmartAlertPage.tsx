@@ -1,4 +1,4 @@
-﻿import PageTemplate from '@/sections/PageTemplate';
+import PageTemplate from '@/sections/PageTemplate';
 import { legacyApi, api as httpApi } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import { AlertTriangle } from 'lucide-react';
@@ -42,5 +42,5 @@ const smartAlertService = {
 };
 
 export default function SmartAlertPage() {
-  return <PageTemplate title="智能预警" icon={AlertTriangle} badge="7条" columns={COLUMNS} service={smartAlertService} fields={FIELDS} />;
+  return <PageTemplate title="智能预警" icon={AlertTriangle} badge="7条" columns={COLUMNS} service={smartAlertService} fields={FIELDS} emptyDescription="基于规则或模型的预警条目由分析服务写入。若为空请确认 AI/规则引擎已启用且设备数据已接入。" />;
 }

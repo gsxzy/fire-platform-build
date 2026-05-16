@@ -1,8 +1,0 @@
-/usr/bin/mysql
-SEP
-/usr/bin/mariadb
-SEP2
-999       278954  0.3  2.7 2827764 102368 ?      Ssl  Mar25 147:07 mysqld
-root     3691441  0.0  0.0   7372  1540 ?        S    Apr15   0:00 /bin/sh /usr/bin/mysqld_safe --skip-grant-tables --skip-networking
-mysql    3692034  0.0  0.0 1589976 2968 ?        Sl   Apr15   5:28 /www/server/mysql/bin/mysqld --basedir=/www/server/mysql --datadir=/www/server/data --plugin-dir=/www/server/mysql/lib/plugin --user=mysql --skip-grant-tables --skip-networking --log-error=VM-0-3-opencloudos.err --open-files-limit=65535 --pid-file=VM-0-3-opencloudos.pid --socket=/tmp/mysql.sock --port=3306
-SEP3

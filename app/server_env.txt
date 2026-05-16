@@ -1,5 +1,0 @@
-v20.20.0
-SEP
-10.8.2
-SEP2
-/www/server/nodejs/v20.20.0/bin/node

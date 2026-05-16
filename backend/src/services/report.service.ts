@@ -1,5 +1,5 @@
 import { Op, Sequelize } from 'sequelize';
-import { Alarm, Device, MaintenanceWorkOrder, PatrolRecord, Hazard, Unit, FireInspection } from '@/models';
+import { Alarm, Device, MaintenanceWorkOrder, PatrolRecord, Hazard, FireInspection } from '@/models';
 
 export class ReportService {
   // 日报

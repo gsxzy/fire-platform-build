@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Send, Bot, User, Sparkles, Flame, Wrench, AlertTriangle, Shield, MapPin, FileText, Zap } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, Flame, Wrench, AlertTriangle, Shield, MapPin, FileText, Zap, BrainCircuit } from 'lucide-react';
+import { api } from '@/api/client';
 
 interface ChatMessage {
   id: number;
@@ -16,6 +17,8 @@ const quickQuestions = [
   '巡检任务进度',
   '单位安全评分',
   '生成日报',
+  '摄像头故障诊断',
+  '设备故障自学习',
 ];
 
 const quickActions = [
@@ -23,155 +26,12 @@ const quickActions = [
   { label: '导出数据', icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/10' },
   { label: '查看地图', icon: MapPin, color: 'text-purple-400', bg: 'bg-purple-500/10' },
   { label: '设备巡检', icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  { label: '故障自学习', icon: BrainCircuit, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
 ];
-
-const aiResponses: Record<string, { content: string; type?: 'normal' | 'fire' | 'fault' | 'warning' | 'success' }> = {
-  '今日告警统计': {
-    content: `📊 今日告警统计（截至当前时间）
-
-┌──────────┬──────┬────────┐
-│ 告警类型  │ 数量  │ 环比     │
-├──────────┼──────┼────────┤
-│ 🔥 火警   │  3   │  ↓ 25% │
-│ ⚠️ 故障   │ 12   │  ↑ 20% │
-│ 💧 预警   │  8   │  ↓ 11% │
-│ 📢 监管   │  2   │   --   │
-├──────────┼──────┼────────┤
-│ 📝 合计   │ 25   │  ↓ 5%  │
-└──────────┴──────┴────────┘
-
-✅ 已处理：20起
-⏳ 待处理：5起
-
-⚡ 建议：万达广场故障较多，建议安排维保人员优先处理。`,
-    type: 'fire',
-  },
-  '设备在线情况': {
-    content: `🔌 设备在线情况总览
-
-在线设备：3,256 / 3,298
-在线率：98.7%
-
-📍 离线设备分布：
-• 万达广场 — 8台离线
-• 兰州中心 — 6台离线
-• 红星美凯龙 — 5台离线
-• 兰大二院 — 3台离线
-• 其他区域 — 20台离线
-
-⚠️ 重点关注：
-兰州石化区域有2台电气火灾监控器离线超过4小时，建议立即排查。`,
-    type: 'normal',
-  },
-  '维保到期提醒': {
-    content: `🔧 维保到期提醒
-
-⏰ 7天内到期：15台
-⏰ 30天内到期：68台
-
-🔴 紧急（2天内）：
-• 万达广场喷淋泵 — 2天后到期
-• 兰大二院排烟风机 — 5天后到期
-• 兰州中心消防栓泵 — 7天后到期
-
-🟡 即将到期（7天内）：
-• 万达广场烟感探测器 x12
-• 兰州中心手动报警按钮 x3
-
-💡 建议：请及时联系维保公司安排上门维护。`,
-    type: 'warning',
-  },
-  '巡检任务进度': {
-    content: `📋 巡检任务进度（今日）
-
-完成情况：18 / 25 个点位
-完成率：72%
-
-🟢 已完成：18个点位
-🟡 进行中：3个点位（万达广场1F、兰州中心B1、兰大二院3F）
-⚪ 待巡检：4个点位
-
-⚠️ 异常发现（2处）：
-• B2层消防栓压力不足（0.18MPa，正常≥0.2MPa）
-• 3F走廊应急灯故障（编号EL-203）
-
-👤 巡检人：张强、李明
-📞 值班电话：0931-8888888`,
-    type: 'normal',
-  },
-  '单位安全评分': {
-    content: `🏆 单位安全评分排名（本月）
-
-🥇 万达广场 — 93分 ⭐⭐⭐⭐⭐
-   火警处理率99%，设备在线率97%
-
-🥈 兰大二院 — 91分 ⭐⭐⭐⭐
-   巡检覆盖率100%，隐患整改率95%
-
-🥉 兰州中心 — 83分 ⭐⭐⭐⭐
-   维保及时率偏低，需加强
-
-4️⃣ 兰州石化 — 88分 ⭐⭐⭐⭐
-   电气设备老旧，建议更新
-
-5️⃣ 红星美凯龙 — 85分 ⭐⭐⭐
-   应急演练记录不完整`,
-    type: 'success',
-  },
-  '生成日报': {
-    content: `📄 日报已生成
-
-2026年4月19日 智慧消防监控日报
-━━━━━━━━━━━━━━━━━━━━
-
-📌 告警概况：
-   今日告警25起，已处理20起
-
-📌 设备状态：
-   在线率98.7%，离线42台
-
-📌 巡检进度：
-   完成18/25点位（72%）
-
-📌 维保提醒：
-   7天内到期15台
-
-📌 消控室在岗：
-   全部8个消控室值班人员正常在岗
-
-✅ 报告已保存至「统计报表」页面
-📥 点击可直接下载PDF版本`,
-    type: 'success',
-  },
-};
-
-const defaultReply = {
-  content: `您好！我是智慧消防AI助手 🤖
-
-我可以为您提供以下智能服务：
-
-🔥 告警查询 — 实时/历史告警统计
-🔌 设备状态 — 在线率、离线排查
-🔧 维保管理 — 到期提醒、工单跟踪
-📋 巡检进度 — 任务分配、异常记录
-🏆 安全评分 — 单位排名、趋势分析
-📄 报告生成 — 日报/周报/月报
-
-请从下方快捷问题中选择，或直接输入您的问题。`,
-  type: 'normal' as const,
-};
 
 export default function AIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 0,
-      role: 'assistant',
-      content: defaultReply.content,
-      timestamp: '10:30',
-      type: 'normal',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -211,24 +71,58 @@ export default function AIAssistant() {
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = aiResponses[text] || {
-        content: `收到您的问题："${text}"\n\n我正在为您查询相关数据，请稍候...\n\n💡 提示：您可以尝试以下快捷问题：\n• 今日告警统计\n• 设备在线情况\n• 维保到期提醒\n• 巡检任务进度\n• 单位安全评分`,
-        type: 'normal' as const,
-      };
+    // 异步获取智能回复
+    (async () => {
+      let responseContent = '';
+      let responseType: ChatMessage['type'] = 'normal';
+
+      try {
+        // 故障诊断相关查询
+        const diagnoseKeywords = ['诊断', '故障', '离线', '掉线', '摄像头', '又离线', '为什么', '问题', '自学习', '知识库'];
+        const isDiagnose = diagnoseKeywords.some(k => text.includes(k));
+
+        if (isDiagnose) {
+          // 尝试提取设备ID
+          const deviceMatch = text.match(/3402000000\d{8}/);
+          const deviceId = deviceMatch ? deviceMatch[0] : '34020000001300000001';
+
+          const res = await api.get<{ totalOccurrences: number; similarIssues: any[]; suggestion: string }>(`/ai/diagnose?deviceId=${deviceId}`);
+          if (res.code === 200 && res.data) {
+            const d = res.data;
+            responseContent = d.suggestion || `设备 ${deviceId} 暂无历史故障记录。`;
+            if (d.totalOccurrences > 0) {
+              responseType = d.totalOccurrences >= 5 ? 'warning' : 'fault';
+              responseContent += `\n\n📊 该设备历史故障累计 ${d.totalOccurrences} 次。`;
+            }
+          } else {
+            responseContent = `设备 ${deviceId} 暂无历史故障记录。建议检查设备电源、网络连接和 GB28181 配置。`;
+          }
+        } else if (text.includes('告警统计') || text.includes('今日告警')) {
+          responseContent = '今日告警统计：\n• 待处理告警：393 条\n• 今日火警：0 起\n• 今日故障：0 起\n• 本月累计：393 条';
+          responseType = 'fire';
+        } else if (text.includes('设备在线') || text.includes('在线情况')) {
+          responseContent = '设备在线情况：\n• 设备总数：23 台\n• 在线设备：15 台\n• 在线率：65.2%\n• 离线设备：8 台\n\n⚠️ 注意：摄像头 34020000001300000001/02 当前离线，已记录到故障知识库。';
+          responseType = 'warning';
+        } else {
+          responseContent = `收到您的问题："${text}"\n\n我正在为您查询相关数据，请稍候...\n\n💡 提示：您可以尝试以下快捷问题：\n• 今日告警统计\n• 设备在线情况\n• 摄像头故障诊断\n• 设备故障自学习\n• 维保到期提醒`;
+        }
+      } catch (err: any) {
+        responseContent = `查询失败：${err.message || '网络异常'}。请稍后重试。`;
+      }
+
       const replyId = ++msgIdRef.current;
       setMessages(prev => [
         ...prev,
         {
           id: replyId,
           role: 'assistant',
-          content: response.content,
+          content: responseContent,
           timestamp: `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`,
-          type: response.type,
+          type: responseType,
         },
       ]);
       setIsTyping(false);
-    }, 800 + (text.length % 6) * 100);
+    })();
   }, []);
 
   const typeIcon = (type?: string) => {

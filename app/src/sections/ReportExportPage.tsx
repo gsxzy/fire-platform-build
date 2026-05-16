@@ -1,29 +1,111 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { legacyApi } from '@/api/services';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Loader2 } from 'lucide-react';
 
-const fallbackReports = [
-  { name: '报警统计月报', period: '月度', format: 'PDF', size: '2.3MB' },
-  { name: '维保执行情况报表', period: '月度', format: 'Excel', size: '1.8MB' },
-  { name: '消防安全综合年报', period: '年度', format: 'PDF', size: '5.6MB' },
-  { name: '巡检覆盖率报表', period: '月度', format: 'PDF', size: '3.1MB' },
-  { name: '隐患治理报表', period: '季度', format: 'PDF', size: '4.2MB' },
-  { name: '设备运行状态分析', period: '月度', format: 'Excel', size: '2.8MB' },
+type ReportRow = {
+  key: string;
+  name: string;
+  period: string;
+  format: string;
+  fetch: () => Promise<unknown>;
+};
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthRange() {
+  const end = todayStr();
+  const s = new Date();
+  s.setDate(s.getDate() - 30);
+  const start = s.toISOString().slice(0, 10);
+  return { start, end };
+}
+
+const REPORT_ITEMS: ReportRow[] = [
+  {
+    key: 'daily',
+    name: '消防日报',
+    period: '单日汇总',
+    format: 'JSON',
+    fetch: () => legacyApi.dailyReport(todayStr()),
+  },
+  {
+    key: 'weekly',
+    name: '消防周报',
+    period: '近7天',
+    format: 'JSON',
+    fetch: () => legacyApi.weeklyReport(todayStr()),
+  },
+  {
+    key: 'monthly',
+    name: '消防月报',
+    period: '当月',
+    format: 'JSON',
+    fetch: () => {
+      const d = new Date();
+      return legacyApi.monthlyReport(d.getFullYear(), d.getMonth() + 1);
+    },
+  },
+  {
+    key: 'device',
+    name: '设备运行报表',
+    period: '全库',
+    format: 'JSON',
+    fetch: () => legacyApi.deviceReport(),
+  },
+  {
+    key: 'maintenance',
+    name: '维保执行报表',
+    period: '近30天',
+    format: 'JSON',
+    fetch: () => {
+      const { start, end } = monthRange();
+      return legacyApi.maintenanceReport(start, end);
+    },
+  },
+  {
+    key: 'patrol',
+    name: '巡检报表',
+    period: '近30天',
+    format: 'JSON',
+    fetch: () => {
+      const { start, end } = monthRange();
+      return legacyApi.patrolReport(start, end);
+    },
+  },
 ];
 
-export default function ReportExportPage() {
-  const [reports, setReports] = useState(fallbackReports as any);
+function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-  useEffect(() => {
-    legacyApi.dailyReport().then((res: any) => {
-      const list = Array.isArray(res.data) ? res.data : (res.data?.list || []);
-      if (list.length > 0) setReports(list);
-    }).catch(() => {});
+export default function ReportExportPage() {
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  const onDownload = useCallback(async (row: ReportRow) => {
+    setLastError(null);
+    setDownloading(row.key);
+    try {
+      const data = await row.fetch();
+      const safe = `${row.name}_${todayStr()}`.replace(/\s+/g, '_');
+      downloadJson(`${safe}.json`, data);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloading(null);
+    }
   }, []);
 
   return (
     <div className="space-y-4">
-      {/* Header — glass */}
       <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20">
@@ -31,30 +113,38 @@ export default function ReportExportPage() {
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-100 leading-tight">报表导出</h2>
-            <p className="text-[10px] text-slate-500">数据报表生成与导出</p>
+            <p className="text-[10px] text-slate-500">调用后端 `/reports/*` 实时聚合，下载 JSON 便于归档或二次加工</p>
           </div>
         </div>
       </div>
+
+      {lastError && (
+        <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+          上次导出失败：{lastError}
+        </div>
+      )}
+
       <div className="bg-slate-800/50 rounded-lg border border-slate-700/30 divide-y divide-slate-700/30">
-        {reports.map((r: any, i: number) => (
-          <div key={i} className="flex items-center justify-between p-4">
+        {REPORT_ITEMS.map((r) => (
+          <div key={r.key} className="flex items-center justify-between p-4">
             <div>
               <div className="text-sm text-slate-200">{r.name}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5">{r.period} · {r.format} · {r.size}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">
+                {r.period} · {r.format}
+              </div>
             </div>
             <button
-              className="flex items-center gap-1 text-[10px] px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 transition-colors"
-              onClick={() => {
-                const blob = new Blob([`报表: ${r.name}\n周期: ${r.period}\n格式: ${r.format}\n生成时间: ${new Date().toLocaleString()}`], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${r.name}.${r.format === 'Excel' ? 'xlsx' : 'pdf'}`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
+              type="button"
+              disabled={downloading === r.key}
+              className="flex items-center gap-1 text-[10px] px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+              onClick={() => onDownload(r)}
             >
-              <Download className="w-3 h-3" />下载
+              {downloading === r.key ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+              下载
             </button>
           </div>
         ))}

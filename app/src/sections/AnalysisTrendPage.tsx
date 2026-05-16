@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { legacyApi } from '@/api/services';
 import { TrendingUp } from 'lucide-react';
 import DataContainer from '@/components/DataContainer';
@@ -7,28 +7,10 @@ import {
   ResponsiveContainer, LineChart, Line, Legend
 } from 'recharts';
 
-const monthlyDataInit = [
-  { month: '1月', fire: 12, fault: 45, supervisory: 8, total: 65 },
-  { month: '2月', fire: 8, fault: 38, supervisory: 6, total: 52 },
-  { month: '3月', fire: 15, fault: 52, supervisory: 12, total: 79 },
-  { month: '4月', fire: 10, fault: 41, supervisory: 9, total: 60 },
-  { month: '5月', fire: 7, fault: 35, supervisory: 5, total: 47 },
-  { month: '6月', fire: 9, fault: 42, supervisory: 7, total: 58 },
-];
-
-const deviceOnlineDataInit = [
-  { month: '1月', rate: 97.2 },
-  { month: '2月', rate: 96.8 },
-  { month: '3月', rate: 95.5 },
-  { month: '4月', rate: 96.1 },
-  { month: '5月', rate: 97.5 },
-  { month: '6月', rate: 96.9 },
-];
-
 export default function AnalysisTrendPage() {
   const [tab, setTab] = useState<'alarm' | 'device'>('alarm');
-  const [monthlyData, setMonthlyData] = useState(monthlyDataInit as any);
-  const [deviceOnlineData, setDeviceOnlineData] = useState(deviceOnlineDataInit as any);
+  const [monthlyData, setMonthlyData] = useState([] as any);
+  const [deviceOnlineData, setDeviceOnlineData] = useState([] as any);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 

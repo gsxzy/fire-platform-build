@@ -22,6 +22,8 @@ export interface StreamUrl {
   mediaServerId: string;
   startTime: string;
   ssrc: string;
+  /** 后端聚合后的主播放地址（优先 HLS，便于 hls.js） */
+  streamUrl?: string;
 }
 
 /* ───── 设备信息 ───── */

@@ -4,10 +4,100 @@
  * 火警自动触发门禁、电梯、摄像头、电源等联动设备
  * ═══════════════════════════════════════════════════════════════════
  */
-import { LinkageRule, Alarm, Device } from '@/models';
+import { LinkageRule, Alarm } from '@/models';
 import { DeviceControlService } from './deviceControl.service';
 import logger from '@/config/logger';
 import redis from '@/config/redis';
+
+/** trigger_condition JSON（与前端安消联动页对齐） */
+export interface LinkageTriggerConditionV2 {
+  version?: number;
+  type?: string;
+  trigger?: string;
+  triggerDesc?: string;
+  priority?: 'high' | 'medium' | 'low';
+  timeRange?: string;
+  units?: string[];
+  deviceTypes?: string[];
+  targets?: string[];
+  description?: string;
+  /** 限制的告警类型，空或不填则仅受全局类型/级别策略约束 */
+  alarmTypes?: number[];
+}
+
+const PRIORITY_ORDER: Record<string, number> = { high: 3, medium: 2, low: 1 };
+
+function safeParseJson<T>(raw: string | null | undefined, fallback: T): T {
+  if (raw == null || raw === '') return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseActionPairs(rule: any): { deviceId: number; command: string; params: any; delay: number }[] {
+  const devices = safeParseJson<number[]>(rule.action_devices, []);
+  const commands = safeParseJson<{ command: string; params?: any; delay?: number }[]>(rule.action_commands, []);
+  const out: { deviceId: number; command: string; params: any; delay: number }[] = [];
+  const n = Math.min(devices.length, commands.length);
+  for (let i = 0; i < n; i++) {
+    out.push({
+      deviceId: Number(devices[i]) || 0,
+      command: commands[i]?.command ?? 'config',
+      params: commands[i]?.params ?? {},
+      delay: commands[i]?.delay ?? 0,
+    });
+  }
+  return out;
+}
+
+function inTimeRange(range: string | undefined, now: Date): boolean {
+  if (!range || !range.includes('-')) return true;
+  const [a, b] = range.split('-').map((s) => s.trim());
+  if (!a || !b) return true;
+  const parse = (t: string) => {
+    const [h, m] = t.split(':').map((x) => parseInt(x, 10));
+    if (!Number.isFinite(h)) return null;
+    return (h * 60 + (Number.isFinite(m) ? m : 0)) % (24 * 60);
+  };
+  const start = parse(a);
+  const end = parse(b);
+  const cur = now.getHours() * 60 + now.getMinutes();
+  if (start == null || end == null) return true;
+  if (start <= end) return cur >= start && cur <= end;
+  return cur >= start || cur <= end;
+}
+
+function matchesTriggerCondition(alarm: any, rule: any): boolean {
+  const cond = safeParseJson<LinkageTriggerConditionV2>(rule.trigger_condition, {} as LinkageTriggerConditionV2);
+
+  if (cond.alarmTypes && cond.alarmTypes.length > 0 && !cond.alarmTypes.includes(Number(alarm.alarm_type))) {
+    return false;
+  }
+
+  const units = cond.units?.filter((u) => u && u.trim());
+  if (units && units.length > 0 && !units.some((u) => u === '全部单位')) {
+    const uname = String(alarm.unit_name ?? '').trim();
+    const uid = alarm.unit_id != null ? String(alarm.unit_id) : '';
+    const hit = units.some((u) => {
+      const t = u.trim();
+      return (uid && t === uid) || (uname && (uname.includes(t) || t.includes(uname)));
+    });
+    if (!hit) return false;
+  }
+
+  if (!inTimeRange(cond.timeRange, new Date())) {
+    return false;
+  }
+
+  return true;
+}
+
+function rulePriority(rule: any): number {
+  const cond = safeParseJson<LinkageTriggerConditionV2>(rule.trigger_condition, {} as LinkageTriggerConditionV2);
+  return PRIORITY_ORDER[cond.priority ?? 'medium'] ?? 2;
+}
 
 export interface LinkageAction {
   deviceId: number;
@@ -47,40 +137,44 @@ export class LinkageService {
         return null;
       }
 
-      // 查找匹配的联动规则
-      const rules = await LinkageRule.findAll({
+      const candidates = await LinkageRule.findAll({
         where: {
-          trigger_type: 1, // 告警触发
-          trigger_device_id: alarm.device_id,
-          status: 1 // 启用
-        }
+          trigger_type: 1,
+          status: 1,
+        },
       }) as any[];
 
+      const rules = candidates
+        .filter((rule) => {
+          const tid = rule.trigger_device_id;
+          if (tid != null && tid !== '' && Number(tid) > 0) {
+            if (alarm.device_id == null || Number(tid) !== Number(alarm.device_id)) return false;
+          }
+          return matchesTriggerCondition(alarm, rule);
+        })
+        .sort((a, b) => rulePriority(b) - rulePriority(a));
+
       if (rules.length === 0) {
-        logger.info(`[Linkage] 没有匹配的联动规则: deviceId=${alarm.device_id}`);
+        logger.info(`[Linkage] 没有匹配的联动规则: alarmId=${alarmId}, deviceId=${alarm.device_id}`);
         return null;
       }
 
-      // 创建联动计划
       const plan: LinkagePlan = {
         triggerAlarmId: alarmId,
         actions: [],
         status: 'pending',
         startTime: new Date(),
-        results: []
+        results: [],
       };
 
-      // 解析联动规则，构建动作列表
       for (const rule of rules) {
-        const actionDevices = JSON.parse(rule.action_devices);
-        const actionCommands = JSON.parse(rule.action_commands);
-
-        for (let i = 0; i < actionDevices.length; i++) {
+        const pairs = parseActionPairs(rule);
+        for (const p of pairs) {
           plan.actions.push({
-            deviceId: actionDevices[i],
-            command: actionCommands[i].command,
-            params: actionCommands[i].params,
-            delay: actionCommands[i].delay || 0
+            deviceId: p.deviceId,
+            command: p.command,
+            params: { ...p.params, _ruleId: rule.id, _ruleName: rule.rule_name },
+            delay: p.delay,
           });
         }
       }
@@ -131,19 +225,24 @@ export class LinkageService {
           await this.sleep(waitTime * 1000);
         }
 
-        // 执行控制指令
-        const result = await DeviceControlService.sendCommand({
-          deviceId: action.deviceId,
-          commandType: this.getCommandType(action.command),
-          params: action.params,
-          operatorId: userId || 0,
-          operatorName: userName || '系统自动'
-        });
+        let result: { success: boolean; message: string; result?: any };
+        if (!action.deviceId) {
+          logger.info(`[Linkage] 软动作（无设备反控）: ${action.command} params=${JSON.stringify(action.params)}`);
+          result = { success: true, message: '软动作，仅记录不下发设备' };
+        } else {
+          result = await DeviceControlService.sendCommand({
+            deviceId: action.deviceId,
+            commandType: this.getCommandType(action.command),
+            params: action.params,
+            operatorId: userId || 0,
+            operatorName: userName || '系统自动',
+          });
+        }
 
         plan.results.push({
           action,
           result,
-          executedAt: new Date()
+          executedAt: new Date(),
         });
 
         lastDelay = delay;
@@ -210,15 +309,13 @@ export class LinkageService {
         results: []
       };
 
-      const actionDevices = JSON.parse(rule.action_devices);
-      const actionCommands = JSON.parse(rule.action_commands);
-
-      for (let i = 0; i < actionDevices.length; i++) {
+      const pairs = parseActionPairs(rule);
+      for (const p of pairs) {
         plan.actions.push({
-          deviceId: actionDevices[i],
-          command: actionCommands[i].command,
-          params: actionCommands[i].params,
-          delay: actionCommands[i].delay || 0
+          deviceId: p.deviceId,
+          command: p.command,
+          params: { ...p.params, _ruleId: rule.id, _ruleName: rule.rule_name },
+          delay: p.delay,
         });
       }
 

@@ -1,6 +1,36 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { legacyApi as api } from '@/api/services';
+import { TOKEN_KEY, REFRESH_KEY, API_BASE } from '@/api/client';
 import type { UserInfo } from '@/types';
+import { ApiClientError } from '@/types/api';
+
+function mapLoginUserToUserInfo(raw: unknown): UserInfo | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const u = raw as Record<string, unknown>;
+  const idRaw = u.id ?? u.userId;
+  // 兼容 number（自增 ID）和 string（UUID）
+  const userId: number | string =
+    typeof idRaw === 'number' ? idRaw
+    : typeof idRaw === 'string' ? idRaw
+    : '';
+  const username = typeof u.username === 'string' ? u.username : '';
+  const realName =
+    typeof u.realName === 'string' ? u.realName
+    : typeof u.real_name === 'string' ? u.real_name
+    : username;
+  let roles: string[] = [];
+  if (Array.isArray(u.roles)) {
+    roles = u.roles.filter((x): x is string => typeof x === 'string');
+  } else if (typeof u.roles === 'string') {
+    roles = [u.roles];
+  }
+  const permissions = Array.isArray(u.permissions)
+    ? u.permissions.filter((x): x is string => typeof x === 'string')
+    : [];
+  const avatar = typeof u.avatar === 'string' ? u.avatar : null;
+  if ((!userId && userId !== 0) || !username) return null;
+  return { userId, username, realName, avatar, roles, permissions };
+}
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -12,10 +42,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = 'sfp_token';
-const REFRESH_KEY = 'sfp_refreshToken';
 const USER_INFO_KEY = 'sfp_userInfo';
-const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo | null>(() => {
@@ -36,16 +63,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const data = await api.login(username, password);
-      // 后端返回 { accessToken, refreshToken, user }
-      const accessToken = (data as any).accessToken || (data as any).token;
-      const refreshToken = (data as any).refreshToken;
-      const userInfo = (data as any).user || (data as any).userInfo;
-      if (!accessToken) throw new Error('登录响应缺少 accessToken');
+      if (!data || typeof data !== 'object') {
+        throw new ApiClientError('登录响应格式错误', 502);
+      }
+      const o = data as Record<string, unknown>;
+      const accessToken =
+        typeof o.accessToken === 'string' ? o.accessToken
+        : typeof o.token === 'string' ? o.token
+        : '';
+      if (!accessToken) {
+        throw new ApiClientError('登录响应缺少 accessToken', 502);
+      }
+      const refreshToken = typeof o.refreshToken === 'string' ? o.refreshToken : undefined;
+      const mapped = mapLoginUserToUserInfo(o.user ?? o.userInfo);
       localStorage.setItem(TOKEN_KEY, accessToken);
       if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
-      if (userInfo != null) {
-        localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
-        setUser(userInfo as UserInfo);
+      if (mapped) {
+        localStorage.setItem(USER_INFO_KEY, JSON.stringify(mapped));
+        setUser(mapped);
       } else {
         localStorage.removeItem(USER_INFO_KEY);
         setUser(null);

@@ -13,7 +13,10 @@ export function useVisibilityPolling(
 ) {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     const start = () => {

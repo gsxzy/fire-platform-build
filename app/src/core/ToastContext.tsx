@@ -64,10 +64,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const warning = useCallback((title: string, message?: string) => show({ type: 'warning', title, message }), [show]);
   const info = useCallback((title: string, message?: string) => show({ type: 'info', title, message }), [show]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount（捕获当前 Map 引用，避免 cleanup 读到已被替换的 ref）
   useEffect(() => {
+    const timers = timersRef.current;
     return () => {
-      timersRef.current.forEach(t => clearTimeout(t));
+      timers.forEach(t => clearTimeout(t));
     };
   }, []);
 

@@ -12,13 +12,14 @@ import {
   Zap, Activity, HardDrive, Phone, User, MapPin,
   BellOff, Settings2, Users, Monitor, Clock,
   RefreshCw, Radio, CheckCircle2, XCircle,
-  Video, LogIn, Cog
+  Video, LogIn, Cog, Loader2
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api } from '@/api/services';
 import { controlRoomConfigService } from '@/api/services';
 import { ControlRoomDAO } from '@/db/Database';
 import { api as httpApi } from '@/api/client';
 import DataContainer from '@/components/DataContainer';
+import { logger } from '@/lib/logger';
 import SimpleVideoPlayer from '@/components/SimpleVideoPlayer';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -67,7 +68,7 @@ interface VideoCamera {
   streamUrl: string; status: number; position: string;
 }
 
-const SECONDARY_PWD = '888888';
+const SECONDARY_PWD = import.meta.env.VITE_SECONDARY_VERIFY_PWD || ''; // 二次验证密码，生产环境必须在 .env 中设置
 
 /* ─── Hooks ─── */
 function usePrevious<T>(value: T): T | undefined {
@@ -104,6 +105,7 @@ export default function FireControlRoomPage() {
   const [resetPwdError, setResetPwdError] = useState(false);
   const [shieldDialog, setShieldDialog] = useState(false);
   const [modeDialog, setModeDialog] = useState(false);
+  const [hasRealHost, setHasRealHost] = useState(true);
   const [modeTarget, setModeTarget] = useState(2);
   const [silencePressed, setSilencePressed] = useState(false);
   const [shieldReason, setShieldReason] = useState('');
@@ -211,7 +213,7 @@ export default function FireControlRoomPage() {
           }));
         }
       } catch (apiErr) {
-        console.log('[loadData] API 加载失败，fallback 到 DAO', apiErr);
+        // API 加载失败，fallback 到 DAO
         allRoomsRes = await ControlRoomDAO.getAll();
       }
       const [hostsRes] = await Promise.all([
@@ -245,6 +247,15 @@ export default function FireControlRoomPage() {
           duty_phone: hosts[0].duty_phone || '13911110001',
           duty_person: hosts[0].duty_person || '王值班',
         });
+        setHasRealHost(true);
+      } else {
+        // 无真实主机时仍显示默认控制界面（避免空白）
+        setSelectedHost({
+          id: 1, host_name: '报警主机1号',
+          duty_phone: '13911110001',
+          duty_person: '王值班',
+        });
+        setHasRealHost(false);
       }
 
       /* 独立请求，互不影响 —— 避免单个 API 404 导致全部数据丢失 */
@@ -280,7 +291,7 @@ export default function FireControlRoomPage() {
       setCommandLogs(Array.isArray(logRes) ? logRes : (logRes?.list || []));
       setCameras(Array.isArray(vidRes) ? vidRes : (vidRes?.list || []));
     } catch (e) {
-      console.error('消控室数据加载失败', e);
+      logger.error('消控室数据加载失败', e);
       setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setPageLoading(false);
@@ -299,7 +310,7 @@ export default function FireControlRoomPage() {
     if ((prevFireCount !== undefined && fireAlarms.length > prevFireCount && unconfirmedFire > 0) ||
         (prevFaultCount !== undefined && faultAlarms.length > prevFaultCount && unconfirmedFault > 0)) {
       // 预留接口：接入实际告警音效系统
-      console.log('[ALARM SOUND TRIGGER] fire:', unconfirmedFire, 'fault:', unconfirmedFault);
+      // 预留接口：接入实际告警音效系统
     }
   }, [fireAlarms, faultAlarms, prevFireCount, prevFaultCount]);
 
@@ -454,6 +465,14 @@ export default function FireControlRoomPage() {
             </div>
           </div>
         </div>
+
+        {/* 无真实主机提示 */}
+        {!hasRealHost && (
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>当前消控室尚未配置报警主机，以下为默认演示数据。请前往「数智消控室」列表页添加主机。</span>
+          </div>
+        )}
 
         {/* ═══════════════════════════════════════════════════════════════
             MAIN: Left Stats + Center Table + Right Controls + Right Info
@@ -810,7 +829,10 @@ export default function FireControlRoomPage() {
           <p className="text-xs text-yellow-500">仅关闭现场声光报警器的声音，不清除当前告警，不复位设备状态。</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSilenceDialog(false)} className="border-slate-600 text-slate-300 h-8 text-xs">取消</Button>
-            <Button onClick={handleSilence} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs">{loading ? '执行中...' : '确认消音'}</Button>
+            <Button onClick={handleSilence} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs flex items-center gap-1.5">
+              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {loading ? '执行中...' : '确认消音'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -837,7 +859,10 @@ export default function FireControlRoomPage() {
           <p className="text-xs text-yellow-500">远程火警、故障复位，清除当前告警状态，恢复设备正常运行。历史告警记录不会被删除。</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetDialog(false)} className="border-slate-600 text-slate-300 h-8 text-xs">取消</Button>
-            <Button onClick={handleReset} disabled={loading} className="bg-yellow-500 hover:bg-yellow-600 text-white h-8 text-xs">{loading ? '执行中...' : '确认复位'}</Button>
+            <Button onClick={handleReset} disabled={loading} className="bg-yellow-500 hover:bg-yellow-600 text-white h-8 text-xs flex items-center gap-1.5">
+              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {loading ? '执行中...' : '确认复位'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -851,7 +876,10 @@ export default function FireControlRoomPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShieldDialog(false)} className="border-slate-600 text-slate-300 h-8 text-xs">取消</Button>
-            <Button onClick={handleShield} disabled={loading || !shieldReason} className="bg-purple-500 hover:bg-purple-600 text-white h-8 text-xs">{loading ? '添加中...' : '添加屏蔽'}</Button>
+            <Button onClick={handleShield} disabled={loading || !shieldReason} className="bg-purple-500 hover:bg-purple-600 text-white h-8 text-xs flex items-center gap-1.5">
+              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {loading ? '添加中...' : '添加屏蔽'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -866,7 +894,10 @@ export default function FireControlRoomPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModeDialog(false)} className="border-slate-600 text-slate-300 h-8 text-xs">取消</Button>
-            <Button onClick={handleModeSwitch} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs">{loading ? '切换中...' : '确认切换'}</Button>
+            <Button onClick={handleModeSwitch} disabled={loading} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs flex items-center gap-1.5">
+              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+              {loading ? '切换中...' : '确认切换'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

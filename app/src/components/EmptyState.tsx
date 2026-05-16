@@ -17,9 +17,18 @@ const icons = {
 };
 
 const defaults = {
-  data: { title: '暂无数据', description: '当前列表为空，您可以点击上方「新增」按钮添加记录' },
-  search: { title: '未找到匹配结果', description: '请尝试更换关键词或清除筛选条件' },
-  error: { title: '加载失败', description: '数据加载出错，请稍后重试' },
+  data: {
+    title: '暂无数据',
+    description: '当前暂无相关记录。可调整筛选条件、稍后刷新，或通过「新增」等操作补录；若持续无数据请联系管理员核对接入与权限。',
+  },
+  search: {
+    title: '未找到匹配结果',
+    description: '请尝试更换关键词、放宽筛选或清空条件后重试。',
+  },
+  error: {
+    title: '加载失败',
+    description: '数据暂不可用，请检查网络后重试；若多次失败请联系技术支持。',
+  },
   custom: { title: '暂无内容', description: '' },
 };
 

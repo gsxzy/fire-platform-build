@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useToast } from '@/core/ToastContext';
 import { deviceAllocationService, unitService } from '@/api/services';
+import { DeviceManagementFlowHint } from '@/sections/device/DeviceManagementFlowHint';
+import { getErrorMessage } from '@/types/api';
 import {
   ArrowRightLeft, Building2, CheckSquare, Square, Search,
-  Package, ChevronRight, AlertTriangle, CheckCircle2
+  Package, ChevronRight, AlertTriangle, CheckCircle2, Loader2,
 } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 
 interface DeviceItem {
   id: string;
@@ -79,7 +82,28 @@ export default function DeviceAllocationPage() {
     try {
       const res = await unitService.list({ pageSize: 9999 });
       const list = res.data?.list || [];
-      setUnits(list.filter((u: any) => parseInt(u.status, 10) === 1));
+      // 兼容多种状态表示：数字1、字符串'1'、字符串'normal'
+      const filtered = list.filter((u: any) => {
+        const s = u.status;
+        if (typeof s === 'number') return s === 1;
+        if (typeof s === 'string') {
+          const num = parseInt(s, 10);
+          if (!Number.isNaN(num)) return num === 1;
+          return s === 'normal' || s === 'active' || s === 'enabled';
+        }
+        return true; // 状态未知时默认显示
+      });
+      /* 后端返回 snake_case（unit_name / unit_type），前端需要 camelCase（name / type） */
+      const unitTypeMap: Record<string | number, string> = {
+        1: '一般单位', 2: '重点单位', 3: '九小场所',
+        general: '一般单位', key: '重点单位', 'nine-small': '九小场所',
+      };
+      setUnits(filtered.map((u: any) => ({
+        id: String(u.id),
+        name: u.unit_name ?? u.name ?? '未命名单位',
+        type: unitTypeMap[u.unit_type ?? u.type] ?? (u.unit_type ?? u.type ?? ''),
+        address: u.address ?? '',
+      })));
     } catch {
       setUnits([]);
     }
@@ -139,8 +163,8 @@ export default function DeviceAllocationPage() {
       } else {
         error(res.message || '分配失败');
       }
-    } catch (e: any) {
-      error(e?.message || '分配请求失败');
+    } catch (e: unknown) {
+      error(getErrorMessage(e, '分配请求失败'));
     } finally {
       setAllocating(false);
     }
@@ -148,6 +172,7 @@ export default function DeviceAllocationPage() {
 
   return (
     <div className="h-[calc(100vh-7rem)] flex flex-col gap-3">
+      <DeviceManagementFlowHint active="allocate" />
       {/* Header */}
       <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
         <div className="flex items-center gap-3">
@@ -156,7 +181,9 @@ export default function DeviceAllocationPage() {
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-100 leading-tight">设备分配</h2>
-            <p className="text-[10px] text-slate-500">将未分配档案绑定到具体消防单位</p>
+            <p className="text-[10px] text-slate-500">
+              仅展示<span className="text-slate-400">已接入平台且尚未绑定单位</span>的设备；前置环节为「入库管理」→「设备接入」。
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -171,7 +198,7 @@ export default function DeviceAllocationPage() {
       <div className="flex items-center gap-2 px-1">
         <button onClick={() => setStep(1)} className={`flex-1 flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${step === 1 ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-slate-800/30 border-slate-700/30 text-slate-500 hover:border-slate-600/30'}`}>
           <Package className="w-4 h-4" />
-          <span className="text-xs font-medium">1. 选择未分配设备</span>
+          <span className="text-xs font-medium">1. 选择待分配设备（已接入）</span>
           {selectedDevices.size > 0 && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">已选 {selectedDevices.size} 台</span>}
         </button>
         <ChevronRight className="w-4 h-4 text-slate-600" />
@@ -193,18 +220,26 @@ export default function DeviceAllocationPage() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
               <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="搜索设备编码/名称/类型" className="bg-slate-700/30 border border-slate-600/30 rounded pl-6 pr-2 py-1 text-[10px] text-slate-200 outline-none w-48" />
             </div>
-            <span className="text-[10px] text-slate-500 ml-auto">共 {filteredDevices.length} 台未分配设备</span>
+            <span className="text-[10px] text-slate-500 ml-auto">共 {filteredDevices.length} 台可分配（已接入·无单位）</span>
           </div>
 
           {/* Device Table */}
           <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
             {loading ? (
-              <div className="flex items-center justify-center py-12 text-slate-500 text-xs">加载中...</div>
-            ) : filteredDevices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-600 gap-2">
-                <Package className="w-8 h-8 opacity-30" />
-                <span className="text-xs">暂无未分配设备</span>
+              <div className="flex flex-col items-center justify-center gap-3 py-14 text-slate-500">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+                </div>
+                <p className="text-xs">数据加载中，请稍候…</p>
               </div>
+            ) : filteredDevices.length === 0 ? (
+              <EmptyState
+                type="data"
+                title="暂无可分配设备"
+                description="列表为「已接入」且未绑定单位的设备。若为空：请先在「入库管理」建档并「提交入库」，再在「设备接入」完成入网。"
+                icon={Package}
+                className="py-12"
+              />
             ) : (
               <div className="space-y-1">
                 {filteredDevices.map(d => {
@@ -284,7 +319,10 @@ export default function DeviceAllocationPage() {
                       <span className="text-xs text-slate-200 font-medium">{u.name}</span>
                       {active && <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{u.address || '-'}</div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[10px] px-1 py-0.5 rounded bg-slate-700/40 text-slate-400 border border-slate-600/20">{u.type}</span>
+                      <span className="text-[10px] text-slate-500">{u.address || '-'}</span>
+                    </div>
                   </div>
                 );
               })}

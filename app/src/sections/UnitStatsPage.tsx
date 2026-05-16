@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useToast } from '@/core/ToastContext';
 import { unitService, deviceService } from '@/api/services';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { BarChart3, Building2, Cpu, Bell, Activity } from 'lucide-react';
+import { BarChart3, Building2, Cpu, Bell, Activity, Loader2 } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 
 // const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -12,9 +14,10 @@ const fallbackUnitStats = {
 };
 
 export default function UnitStatsPage() {
+  const { error: showError } = useToast();
   const [overview, setOverview] = useState(fallbackUnitStats);
   const [categoryStats, setCategoryStats] = useState<any[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -34,7 +37,7 @@ export default function UnitStatsPage() {
       if (deviceRes?.code === 200 && deviceRes.data) {
         setCategoryStats(deviceRes.data.category || []);
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { showError('加载失败', '统计数据加载出错'); console.error(e); }
     setLoading(false);
   };
 
@@ -97,7 +100,12 @@ export default function UnitStatsPage() {
         {/* 单位类型分布 */}
         <div className="bg-slate-800/50 rounded-lg border border-slate-700/30 p-4">
           <div className="text-xs font-medium text-slate-200 mb-3">单位类型分布</div>
-          {unitTypeData.length > 0 ? (
+          {loading ? (
+            <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-slate-500">
+              <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+              <span className="text-xs">统计数据加载中…</span>
+            </div>
+          ) : unitTypeData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -116,7 +124,14 @@ export default function UnitStatsPage() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[220px] flex items-center justify-center text-xs text-slate-500">暂无数据</div>
+            <div className="h-[220px] flex items-center justify-center">
+              <EmptyState
+                type="data"
+                title="暂无单位类型分布"
+                description="请在「单位管理」中补录一般单位、重点单位或九小场所后，本图将自动汇总展示。"
+                className="py-4"
+              />
+            </div>
           )}
           <div className="flex justify-center gap-4 mt-2">
             {unitTypeData.map((d, i) => (
@@ -131,7 +146,12 @@ export default function UnitStatsPage() {
         {/* 设备分类统计 */}
         <div className="bg-slate-800/50 rounded-lg border border-slate-700/30 p-4">
           <div className="text-xs font-medium text-slate-200 mb-3">设备分类统计</div>
-          {categoryStats.length > 0 ? (
+          {loading ? (
+            <div className="h-[250px] flex flex-col items-center justify-center gap-2 text-slate-500">
+              <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+              <span className="text-xs">设备统计加载中…</span>
+            </div>
+          ) : categoryStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={categoryStats.slice(0, 8)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
@@ -148,7 +168,14 @@ export default function UnitStatsPage() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[250px] flex items-center justify-center text-xs text-slate-500">暂无数据</div>
+            <div className="h-[250px] flex items-center justify-center">
+              <EmptyState
+                type="data"
+                title="暂无设备分类统计"
+                description="设备接入并上报状态后，将按类型汇总展示。可先检查「设备档案 / 设备接入」是否已有数据。"
+                className="py-4"
+              />
+            </div>
           )}
         </div>
       </div>

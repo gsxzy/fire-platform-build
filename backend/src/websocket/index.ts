@@ -13,13 +13,3 @@ export function initWebSocket(server: Server): WebSocketServer | null {
   WebSocketService.init(server);
   return WebSocketService.getWss();
 }
-
-/** @deprecated 优先使用 WebSocketService；保留以兼容旧调用 */
-export function broadcast(type: string, data: unknown) {
-  WebSocketService.broadcastSimple(type, data);
-}
-
-/** @deprecated 优先使用 WebSocketService；保留以兼容旧调用 */
-export function sendToUser(userId: number, type: string, data: unknown) {
-  WebSocketService.sendToUserByType(userId, type, data);
-}

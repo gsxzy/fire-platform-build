@@ -10,7 +10,7 @@ import {
   BookOpen, MapPin, BarChart3, FileBarChart, GraduationCap, PhoneCall,
   Power, BrainCircuit, Server, AlertTriangle, Users, Settings, Activity,
   CheckSquare, Megaphone, Droplets, Zap, Wind, Maximize2, Upload, Mail,
-  Clock, Store, Factory, FileCheck
+  Clock, Store, Factory, FileCheck, Cable, Radio,
 } from 'lucide-react';
 import type { PlatformModule } from './types';
 
@@ -51,7 +51,7 @@ export const MODULES: PlatformModule[] = [
         { id: 'mon-linkage', label: '安消联动', path: '/monitor/linkage', icon: Link2 },
       ],
     },
-    dbTables: ['monitor_logs', 'video_channels', 'control_rooms', 'linkage_rules'],
+    dbTables: ['monitor_logs', 'video_channels', 'control_rooms', 'control_room_hosts', 'host_device_codes', 'linkage_rules'],
     permissions: [
       { code: 'monitor:view', name: '监控查看', actions: ['view'] },
       { code: 'monitor:control', name: '远程控制', actions: ['view', 'edit'] },
@@ -145,23 +145,28 @@ export const MODULES: PlatformModule[] = [
 
   /* ═══════ 7. 设备管理 (manage) ═══════ */
   {
-    id: 'device', name: '设备管理', version: '1.0.0',
-    description: '设备档案、设备配置、设备维护、设备状态',
+    id: 'device', name: '设备管理', version: '2.0.0',
+    description: '档案入库→平台接入→单位分配→业务配置/维护，数据唯一源头在档案',
     icon: Cpu, category: 'manage', status: 'enabled',
     path: '/device', priority: 60,
     menu: {
       label: '设备管理', icon: Cpu, path: '/device',
       children: [
-        { id: 'dev-archive', label: '设备档案', path: '/device/archive', icon: Cpu },
+        { id: 'dev-archive', label: '入库管理', path: '/device/archive', icon: Cpu },
+        { id: 'dev-access', label: '设备接入', path: '/device/access', icon: Cable },
+        { id: 'dev-ctwing', label: 'CTWing 4G', path: '/device/access/ctwing', icon: Radio },
+        { id: 'dev-allocate', label: '设备分配', path: '/device/allocate', icon: Server },
         { id: 'dev-config', label: '设备配置', path: '/device/config', icon: Settings },
         { id: 'dev-maintain', label: '设备维护', path: '/device/maintain', icon: Wrench },
-        { id: 'dev-status', label: '设备状态', path: '/device/status', icon: Activity },
       ],
     },
-    dbTables: ['devices', 'device_configs', 'device_types', 'device_logs'],
+    dbTables: ['devices', 'device_configs', 'device_types', 'device_logs', 'iot_devices', 'device_allocation_logs'],
     permissions: [
       { code: 'device:view', name: '设备查看', actions: ['view'] },
-      { code: 'device:manage', name: '设备管理', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'device:archive', name: '入库与设备档案', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'device:access', name: '设备接入', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'device:allocate', name: '设备分配', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'device:config', name: '设备配置', actions: ['view', 'create', 'edit', 'delete'] },
     ],
   },
 
@@ -361,15 +366,14 @@ export const MODULES: PlatformModule[] = [
   /* ═══════ 18. IoT设备接入 (iot) ═══════ */
   {
     id: 'iot', name: 'IoT设备接入', version: '1.0.0',
-    description: '设备接入管理、协议解析配置、数据流转管道',
+    description: 'GB28181、协议模板与数据管道；现场设备入网请使用「设备管理→设备接入」',
     icon: Server, category: 'iot', status: 'enabled',
     path: '/iot', priority: 170,
     menu: {
       label: 'IoT设备接入', icon: Server, path: '/iot',
       children: [
-        { id: 'iot-access', label: '设备接入管理', path: '/iot/access', icon: Server },
         { id: 'iot-gb28181', label: 'GB28181接入', path: '/iot/gb28181', icon: Video },
-        { id: 'iot-protocol', label: '协议解析配置', path: '/iot/protocol', icon: Activity },
+        { id: 'iot-protocol', label: '协议解析配置', path: '/iot/protocol', icon: Cable },
         { id: 'iot-pipeline', label: '数据流转管道', path: '/iot/pipeline', icon: FileText },
       ],
     },
@@ -469,12 +473,94 @@ export const MODULES: PlatformModule[] = [
   /* 预留扩展接口：后续新增模块只需在此注册 */
 ];
 
+/** 二级菜单商用说明（侧边栏悬停），key 为 ModuleMenuChild.id */
+const MENU_CHILD_DESCRIPTIONS: Record<string, string> = {
+  'wb-home': '工作台总览、快捷入口与运行摘要',
+  'wb-todo': '待办事项创建、流转与关闭',
+  'wb-notice': '平台公告与通知发布查看',
+  'mon-realtime': '消防设备与告警实时监视',
+  'mon-video': '视频预览、云台与录像联动（GB28181 等）',
+  'mon-control': '消控室主机列表，进入房间级详情操作',
+  'mon-linkage': '安消联动策略与执行记录',
+  'alm-center': '告警确认、处理、派发与历史追溯',
+  'duty-dispatch': '接警工单与处置闭环',
+  'duty-log': '值班记录（与系统审计日志区分，见系统管理）',
+  'duty-shift': '排班、班次与人员值守',
+  'duty-handover': '交接班登记与责任移交',
+  'sub-water': '消防给水系统工况与设备点位',
+  'sub-elec': '电气火灾监控与预警',
+  'sub-vent': '防排烟风机风阀状态监测',
+  'unit-general': '一般社会单位档案与监管信息',
+  'unit-key': '消防安全重点单位专项管理',
+  'unit-nine': '九小场所台账与检查要点',
+  'unit-stats': '单位维度统计与对比',
+  'unit-floorplan': '建筑平面图与楼层设备标注',
+  'dev-archive': '设备档案台账：新增默认为草稿，提交入库后进入「已入库」方可平台接入。禁止从接入侧凭空创建设备',
+  'dev-access': '协议、IP/端口、MQTT/CTWing 等；仅可选「已入库」及以上档案，接入成功后将档案置为「已接入」',
+  'dev-ctwing': '海康4G 经天翼 CTWing MQTT 转发：产品ID、设备ID、特征串、Broker、保活与阈值；须先完成入库管理',
+  'dev-allocate': '绑定单位/项目/建筑/楼层/点位；仅可选「已接入」设备，分配后状态变为「已分配」',
+  'dev-config': '业务参数：采集间隔、阈值、联动规则与远程控制（需已完成接入）',
+  'dev-maintain': '维保计划与现场维护记录入口；维护中设备暂停正常使用',
+  'mt-contract': '维保合同周期与范围',
+  'mt-company': '维保服务企业名录',
+  'mt-workorder': '维保工单派发与验收',
+  'mt-record': '到场维保作业明细',
+  'mt-stats': '维保履约与成本统计',
+  'pt-plan': '巡检路线与周期计划',
+  'pt-record': '巡检执行与签到记录',
+  'pt-hazard': '隐患登记、整改与闭环',
+  'pl-library': '应急预案文本与版本',
+  'pl-drill': '演练计划与总结归档',
+  'map-gis': 'GIS 上图：单位、设备与告警',
+  'an-alarm': '告警多维统计与归因',
+  'an-device': '设备完好率与类型分布',
+  'an-trend': '时间序列与同比环比',
+  'an-report': '固定格式统计报表',
+  'rp-export': '报表导出与定时任务（如已启用）',
+  'kn-base': '法规、制度与培训文档库',
+  'iot-gb28181': '国标视频设备目录与信令',
+  'iot-protocol': '协议模板与 fire_protocol_config 对齐',
+  'iot-pipeline': '采集 → 解析 → 存储流水线配置',
+  'sm-warning': '基于规则的智能预警与预测',
+  'tr-manage': '在线课程与考核题库',
+  'fc-manage': '防火检查项与整改单',
+  'sys-user': '登录账号与密码策略',
+  'sys-personnel': '消防值班与单位人员档案',
+  'sys-role': '角色与功能权限绑定',
+  'sys-org': '部门与上下级组织',
+  'sys-log': '操作与接口审计日志',
+  'sys-config': '平台参数、字典与安全选项',
+  'sys-data': '批量导入导出与备份辅助',
+  'sys-notify': '短信/邮件/站内信模板',
+  'sys-monitor': '服务健康与接口性能',
+  'sys-module': '启用或禁用业务模块（影响菜单与路由）',
+};
+
+/** 无子菜单的一级入口说明 */
+const MODULE_MENU_DESCRIPTIONS: Record<string, string> = {
+  bigscreen: '指挥大厅全屏数据墙，建议独立显示设备运行',
+  'device-control': '符合权限的远程控制，指令经接入层下发',
+  ai: 'AI 研判与推荐，依赖历史告警与知识数据',
+};
+
+function applyMenuCommercialCopy(mod: PlatformModule): void {
+  const md = MODULE_MENU_DESCRIPTIONS[mod.id];
+  if (md && mod.menu) mod.menu.description = md;
+  mod.menu?.children?.forEach(child => {
+    const d = MENU_CHILD_DESCRIPTIONS[child.id];
+    if (d) child.description = d;
+  });
+}
+
+for (const mod of MODULES) applyMenuCommercialCopy(mod);
+
 /* ── 扩展预留接口 ── */
 export function registerExtensionModule(module: PlatformModule): void {
   if (MODULES.find(m => m.id === module.id)) {
     console.warn(`[ModuleRegistry] Module ${module.id} already exists`);
     return;
   }
+  applyMenuCommercialCopy(module);
   MODULES.push(module);
   // 按优先级排序
   MODULES.sort((a, b) => a.priority - b.priority);

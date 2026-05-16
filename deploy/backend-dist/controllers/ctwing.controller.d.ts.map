@@ -1,0 +1,1 @@
+{"version":3,"file":"ctwing.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/ctwing.controller.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AACH,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAkgBjD,eAAO,MAAM,gBAAgB;IAC3B,uBAAuB;gBACL,OAAO,OAAO,QAAQ;IAoCxC,4BAA4B;gBACV,OAAO,OAAO,QAAQ;CAyBzC,CAAC"}

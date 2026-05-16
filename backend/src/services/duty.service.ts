@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { DutySchedule, DutyLog, User } from '@/models';
+import { DutySchedule, DutyLog } from '@/models';
 
 export class DutyService {
   // 创建排班
@@ -7,12 +7,38 @@ export class DutyService {
     return DutySchedule.create(data as any);
   }
 
-  // 获取排班表
-  static async getSchedules(startDate: string, endDate: string) {
-    return DutySchedule.findAll({
-      where: { duty_date: { [Op.between]: [startDate, endDate] } },
-      order: [['duty_date', 'ASC'], ['start_time', 'ASC']],
+  // 获取排班表（支持分页）
+  static async getSchedules(startDate: string, endDate: string, pageNum?: number, pageSize?: number) {
+    const where: any = {};
+    if (startDate && endDate) {
+      where.duty_date = { [Op.between]: [startDate, endDate] };
+    }
+    if (pageNum && pageSize) {
+      const { count, rows } = await DutySchedule.findAndCountAll({
+        where, limit: pageSize, offset: (pageNum - 1) * pageSize,
+        order: [['duty_date', 'ASC'], ['start_time', 'ASC']],
+      });
+      return { list: rows, total: count, pageNum, pageSize };
+    }
+    const rows = await DutySchedule.findAll({
+      where, order: [['duty_date', 'ASC'], ['start_time', 'ASC']],
     });
+    return { list: rows, total: rows.length, pageNum: 1, pageSize: rows.length };
+  }
+
+  // 按ID获取排班
+  static async getScheduleById(id: string) {
+    return DutySchedule.findByPk(id);
+  }
+
+  // 更新排班
+  static async updateSchedule(id: string, data: any) {
+    return DutySchedule.update(data, { where: { id } });
+  }
+
+  // 删除排班
+  static async deleteSchedule(id: string) {
+    return DutySchedule.destroy({ where: { id } });
   }
 
   // 签到

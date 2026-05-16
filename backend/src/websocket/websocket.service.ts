@@ -9,7 +9,8 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import redis from '@/config/redis';
 import logger from '@/config/logger';
-import { Alarm, Device, ControlCommand } from '@/models';
+import { SECRET } from '@/utils/jwt';
+import { Device, ControlCommand } from '@/models';
 
 export interface WSClient {
   ws: WebSocket;
@@ -30,7 +31,7 @@ export class WebSocketService {
   private static wss: WebSocketServer | null = null;
   private static clients: Map<WebSocket, WSClient> = new Map();
   private static redisAlarmBridgeBound = false;
-  private static readonly JWT_SECRET = process.env.JWT_SECRET || 'fire_platform_secret';
+  private static readonly JWT_SECRET = SECRET;
 
   static getWss(): WebSocketServer | null {
     return this.wss;
@@ -65,16 +66,18 @@ export class WebSocketService {
     if (this.redisAlarmBridgeBound) return;
     this.redisAlarmBridgeBound = true;
 
-    redis.subscribe('fire:alarm', (err) => {
+    const subRedis = redis.duplicate();
+    subRedis.subscribe('fire:alarm', (err) => {
       if (err) logger.error('[WS] Redis subscribe error:', err);
       else logger.info('[WS] Subscribed to fire:alarm');
     });
 
-    redis.on('message', (channel, message) => {
+    subRedis.on('message', (channel, message) => {
       if (channel !== 'fire:alarm') return;
       try {
-        const data = JSON.parse(message as string);
-        this.broadcastSimple('alarm', data);
+        const payload = JSON.parse(message as string);
+        // payload = { type: 'new_alarm', data: alarm }
+        this.broadcastAlarm(payload.data);
       } catch (e: any) {
         logger.error(`[WS] Invalid Redis alarm payload: ${e?.message}`);
       }

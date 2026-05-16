@@ -6,9 +6,13 @@ import {
   AlertTriangle, Bell, Camera, Wrench, BrainCircuit,
   DoorOpen, Droplets, Users, FileText, Download,
   MapPin, ChevronUp, Video,
-  Zap, Activity, Filter
+  Zap, Activity,   Filter, Loader2
 } from 'lucide-react';
 import { legacyApi } from '@/api/services';
+import { logger } from '@/lib/logger';
+import { useToast } from '@/core/ToastContext';
+import EmptyState from '@/components/EmptyState';
+import TableBodyPlaceholder from '@/components/TableBodyPlaceholder';
 
 /* ═══════════════════════════════════════════════
    Types
@@ -29,6 +33,10 @@ interface LinkageRule {
   lastTriggered: string;
   triggerCount: number;
   description: string;
+  /** 指定触发设备时仅该设备告警匹配；留空表示任意设备 */
+  triggerDeviceId?: string;
+  /** 限制的告警类型（与 fire_alarm.alarm_type 一致），空表示不按类型额外过滤 */
+  alarmTypes?: number[];
 }
 
 interface LinkageLog {
@@ -46,89 +54,136 @@ interface LinkageLog {
 /* ═══════════════════════════════════════════════
    8 Standard Linkage Rules
    ═══════════════════════════════════════════════ */
-const defaultRules: LinkageRule[] = [
-  {
-    id: 'LK-001', name: '火警联动视频', type: 'fire-video',
-    trigger: '火警报警触发', triggerDesc: '火灾报警控制器上报火警信号',
-    actions: ['调取最近摄像头视频', '弹窗显示告警画面', '自动录像', 'AI烟火识别分析'],
-    targets: ['视频监控系统', '告警中心', 'AI识别引擎'],
-    enabled: true, priority: 'high', timeRange: '00:00-23:59',
-    units: ['全部单位'], deviceTypes: ['火灾报警控制器', '烟感探测器', '温感探测器'],
-    lastTriggered: '2026-04-19 09:15:22', triggerCount: 156, description: '火警发生时自动联动视频监控，实现可视化确认',
-  },
-  {
-    id: 'LK-002', name: '故障联动视频', type: 'fault-video',
-    trigger: '设备故障/离线', triggerDesc: '设备通讯中断或故障上报',
-    actions: ['调取设备位置视频', '生成巡检提醒工单', '推送运维人员'],
-    targets: ['视频监控系统', '维保管理'],
-    enabled: true, priority: 'medium', timeRange: '00:00-23:59',
-    units: ['全部单位'], deviceTypes: ['全部设备'],
-    lastTriggered: '2026-04-18 14:30:15', triggerCount: 89, description: '设备故障或离线时联动视频查看现场情况',
-  },
-  {
-    id: 'LK-003', name: '监管反馈联动', type: 'feedback',
-    trigger: '设备启动/反馈信号', triggerDesc: '消防设备启动动作反馈',
-    actions: ['启动事件录像', '记录联动结果', '更新设备状态'],
-    targets: ['视频存储', '设备管理'],
-    enabled: true, priority: 'medium', timeRange: '00:00-23:59',
-    units: ['全部单位'], deviceTypes: ['排烟风机', '消防水泵', '防火卷帘'],
-    lastTriggered: '2026-04-19 08:45:33', triggerCount: 234, description: '消防设备动作后自动记录联动结果',
-  },
-  {
-    id: 'LK-004', name: 'AI烟火识别联动', type: 'ai-recognition',
-    trigger: 'AI识别到烟火', triggerDesc: '视频AI分析检测到烟火特征',
-    actions: ['生成预警事件', '弹窗提示值班人员', 'App推送', '短信通知'],
-    targets: ['告警中心', '推送服务'],
-    enabled: true, priority: 'high', timeRange: '00:00-23:59',
-    units: ['万达广场', '兰州中心', '兰大二院'], deviceTypes: ['AI摄像头'],
-    lastTriggered: '2026-04-17 16:22:08', triggerCount: 12, description: 'AI烟火识别检测到异常时自动预警',
-  },
-  {
-    id: 'LK-005', name: '消防通道占用联动', type: 'blockage',
-    trigger: '消防通道被占用', triggerDesc: 'AI视频分析检测到通道堵塞',
-    actions: ['现场抓拍', '生成隐患工单', '推送管理人员', '声光告警'],
-    targets: ['隐患管理', '推送服务'],
-    enabled: true, priority: 'medium', timeRange: '00:00-23:59',
-    units: ['万达广场', '兰州中心'], deviceTypes: ['AI摄像头'],
-    lastTriggered: '2026-04-16 11:08:45', triggerCount: 45, description: '消防通道被占用时自动抓拍并生成隐患',
-  },
-  {
-    id: 'LK-006', name: '消控室离岗联动', type: 'vacancy',
-    trigger: '消控室人员离岗超3分钟', triggerDesc: 'AI视频检测消控室无人值守',
-    actions: ['立即声光预警', '记录离岗事件', '推送管理人员', '生成巡查记录'],
-    targets: ['告警中心', '推送服务'],
-    enabled: true, priority: 'high', timeRange: '00:00-23:59',
-    units: ['全部单位'], deviceTypes: ['AI摄像头'],
-    lastTriggered: '2026-04-19 06:30:12', triggerCount: 23, description: '消控室离岗超时自动预警',
-  },
-  {
-    id: 'LK-007', name: '水压液位超低联动', type: 'water-low',
-    trigger: '水源压力/液位低于阈值', triggerDesc: '管网压力或水池液位异常',
-    actions: ['调取水源位置视频', '生成维保工单', '推送维保人员', '大屏高亮'],
-    targets: ['视频监控', '维保管理', '大屏'],
-    enabled: true, priority: 'high', timeRange: '00:00-23:59',
-    units: ['全部单位'], deviceTypes: ['压力传感器', '液位传感器'],
-    lastTriggered: '2026-04-18 22:15:30', triggerCount: 8, description: '消防水源异常时联动视频并生成维保工单',
-  },
-  {
-    id: 'LK-008', name: '重点区域批量联动', type: 'key-area',
-    trigger: '重点单位火警', triggerDesc: '重点单位火灾报警触发',
-    actions: ['全开所有摄像头', '全通道录像', '启动应急预案', '通知119', '疏散广播', '释放全部门禁'],
-    targets: ['视频监控', '广播系统', '门禁系统', '告警中心'],
-    enabled: true, priority: 'high', timeRange: '00:00-23:59',
-    units: ['万达广场', '兰大二院', '中石油兰州石化'], deviceTypes: ['全部设备'],
-    lastTriggered: '-', triggerCount: 0, description: '重点单位火警时启动全量联动预案',
-  },
-];
+const defaultRules: LinkageRule[] = [];
 
-const defaultLogs: LinkageLog[] = [
-  { id: 'LL-001', time: '2026-04-19 09:15:22', ruleName: '火警联动视频', ruleId: 'LK-001', trigger: '1F大厅烟感001火警', actions: ['调视频', '弹窗', '录像', 'AI识别'], result: 'success', duration: '2.3s', operator: 'system' },
-  { id: 'LL-002', time: '2026-04-19 09:15:25', ruleName: '重点区域批量联动', ruleId: 'LK-008', trigger: '万达广场1F火警', actions: ['开摄像头', '录像', '启动预案'], result: 'success', duration: '5.1s', operator: 'system' },
-  { id: 'LL-003', time: '2026-04-19 08:45:33', ruleName: '监管反馈联动', ruleId: 'LK-003', trigger: '排烟风机#1启动', actions: ['录像', '记录状态'], result: 'success', duration: '1.2s', operator: 'system' },
-  { id: 'LL-004', time: '2026-04-19 06:30:12', ruleName: '消控室离岗联动', ruleId: 'LK-006', trigger: '消控室离岗3分12秒', actions: ['声光预警', '推送'], result: 'success', duration: '0.8s', operator: 'system' },
-  { id: 'LL-005', time: '2026-04-18 22:15:30', ruleName: '水压液位超低联动', ruleId: 'LK-007', trigger: 'B2管网压力0.15MPa', actions: ['调视频', '生成工单'], result: 'partial', duration: '3.5s', operator: 'system' },
-  { id: 'LL-006', time: '2026-04-18 14:30:15', ruleName: '故障联动视频', ruleId: 'LK-002', trigger: '信号蝶阀#2通讯故障', actions: ['调视频', '巡检提醒'], result: 'success', duration: '2.1s', operator: 'system' },
-];
+const defaultLogs: LinkageLog[] = [];
+
+function safeParseJson<T>(raw: string | null | undefined, fallback: T): T {
+  if (raw == null || raw === '') return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function mapUiActionLabel(label: string): { deviceId: number; command: string; params: Record<string, unknown> } {
+  if (label.includes('门禁') || label.includes('释放')) {
+    return { deviceId: 0, command: 'unlock', params: { description: label } };
+  }
+  if (label.includes('广播') || label.includes('119')) {
+    return { deviceId: 0, command: 'broadcast', params: { description: label } };
+  }
+  if (label.includes('电梯') || label.includes('归首')) {
+    return { deviceId: 0, command: 'floor1', params: { description: label } };
+  }
+  if (label.includes('电源') || label.includes('强切')) {
+    return { deviceId: 0, command: 'power_off', params: { description: label } };
+  }
+  return { deviceId: 0, command: 'notify', params: { uiAction: label } };
+}
+
+function uiActionsToDb(actions: string[]) {
+  const devices: number[] = [];
+  const commands: { command: string; params: Record<string, unknown>; delay: number }[] = [];
+  let delayAcc = 0;
+  const stepSec = 1;
+  for (const label of actions) {
+    const m = mapUiActionLabel(label);
+    devices.push(m.deviceId);
+    commands.push({ command: m.command, params: m.params, delay: delayAcc });
+    delayAcc += stepSec;
+  }
+  return {
+    action_devices: JSON.stringify(devices),
+    action_commands: JSON.stringify(commands),
+  };
+}
+
+function buildTriggerCondition(form: Partial<LinkageRule>): string {
+  return JSON.stringify({
+    version: 2,
+    type: form.type,
+    trigger: form.trigger,
+    triggerDesc: form.triggerDesc,
+    priority: form.priority,
+    timeRange: form.timeRange,
+    units: form.units,
+    deviceTypes: form.deviceTypes ?? [],
+    targets: form.targets ?? [],
+    description: form.description ?? '',
+    actions: form.actions ?? [],
+    alarmTypes: form.alarmTypes ?? [],
+  });
+}
+
+function ruleToDbPayload(form: LinkageRule): Record<string, unknown> {
+  const ac = uiActionsToDb(form.actions);
+  const tid = form.triggerDeviceId?.trim();
+  return {
+    rule_name: form.name,
+    trigger_type: 1,
+    trigger_device_id: tid ? Number(tid) : null,
+    trigger_condition: buildTriggerCondition(form),
+    action_devices: ac.action_devices,
+    action_commands: ac.action_commands,
+    status: form.enabled ? 1 : 0,
+  };
+}
+
+function deriveActionsFromCommands(row: { action_commands?: string }): string[] {
+  const cmds = safeParseJson<Array<{ params?: { uiAction?: string; description?: string } }>>(row.action_commands, []);
+  const out = cmds
+    .map((c) => (c.params?.uiAction || c.params?.description || '').trim())
+    .filter(Boolean);
+  return out;
+}
+
+function rowToRule(row: Record<string, unknown>): LinkageRule {
+  const cond = safeParseJson<Partial<LinkageRule> & { actions?: string[]; alarmTypes?: number[] }>(
+    row.trigger_condition as string,
+    {},
+  );
+  const acts =
+    Array.isArray(cond.actions) && cond.actions.length > 0
+      ? cond.actions
+      : deriveActionsFromCommands(row as { action_commands?: string });
+  const tid = row.trigger_device_id;
+  return {
+    id: String(row.id ?? ''),
+    name: (row.rule_name as string) || cond.name || '未命名',
+    type: cond.type || 'fire-video',
+    trigger: cond.trigger || '',
+    triggerDesc: cond.triggerDesc || '',
+    actions: acts,
+    targets: cond.targets || [],
+    enabled: row.status === 1,
+    priority: (cond.priority as LinkageRule['priority']) || 'medium',
+    timeRange: cond.timeRange || '00:00-23:59',
+    units: cond.units?.length ? (cond.units as string[]) : ['全部单位'],
+    deviceTypes: cond.deviceTypes || [],
+    lastTriggered: '-',
+    triggerCount: 0,
+    description: cond.description || '',
+    triggerDeviceId: tid != null && tid !== '' ? String(tid) : '',
+    alarmTypes: Array.isArray(cond.alarmTypes) ? cond.alarmTypes : [],
+  };
+}
+
+async function fetchAllLinkageRules(): Promise<Record<string, unknown>[]> {
+  const pageSize = 100;
+  let pageNum = 1;
+  const all: Record<string, unknown>[] = [];
+  for (;;) {
+    const data = (await legacyApi.linkageRuleList({ pageNum, pageSize })) as { list?: Record<string, unknown>[] };
+    const list = data?.list ?? [];
+    all.push(...list);
+    if (list.length < pageSize) break;
+    pageNum += 1;
+    if (pageNum > 50) break;
+  }
+  return all;
+}
 
 /* ═══════════════════════════════════════════════
    Helpers
@@ -184,6 +239,7 @@ const actionIcon = (action: string) => {
    Main Component
    ═══════════════════════════════════════════════ */
 export default function SafetyLinkagePage() {
+  const { error: showError } = useToast();
   const [rules, setRules] = useState<LinkageRule[]>(defaultRules);
   const [logs] = useState<LinkageLog[]>(defaultLogs);
   const [activeTab, setActiveTab] = useState<'rules' | 'logs'>('rules');
@@ -193,55 +249,73 @@ export default function SafetyLinkagePage() {
   const [search, setSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [loadRules, setLoadRules] = useState(true);
 
   useEffect(() => {
-    legacyApi.planList().then((res: any) => {
-      const list = res.data?.list || [];
-      if (list.length > 0) {
-        const parsed = list.map((item: any) => {
-          try { return item.content ? JSON.parse(item.content) : null; } catch { return null; }
-        }).filter(Boolean);
-        if (parsed.length > 0) setRules(parsed);
-      }
-    }).catch(() => {});
+    setLoadRules(true);
+    fetchAllLinkageRules()
+      .then((rows) => setRules(rows.map(rowToRule)))
+      .catch((e) => {
+        showError('加载失败', '联动规则加载出错，请确认后端已提供 /linkage/rules');
+        logger.error(e);
+      })
+      .finally(() => setLoadRules(false));
   }, []);
 
-  const toggleEnable = (id: string) => {
-    setRules(prev => prev.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
-  };
-
-  const syncRule = async (rule: LinkageRule, isNew: boolean) => {
-    const payload = { name: rule.name, status: rule.enabled ? '启用' : '停用', content: JSON.stringify(rule) };
-    if (isNew) {
-      await legacyApi.createPlan(payload);
-    } else {
-      await legacyApi.updatePlan(Number(rule.id), payload);
+  const toggleEnable = async (id: string) => {
+    const target = rules.find((r) => r.id === id);
+    if (!target) return;
+    const next = !target.enabled;
+    setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: next } : r)));
+    try {
+      await legacyApi.updateLinkageRule(Number(id), { status: next ? 1 : 0 });
+    } catch (e) {
+      setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !next } : r)));
+      showError('更新失败', '无法更新规则状态');
+      logger.error(e);
     }
   };
 
   const handleCopy = async (rule: LinkageRule) => {
-    const newRule: LinkageRule = {
+    const copy: LinkageRule = {
       ...rule,
-      id: `LK-${Date.now()}`,
+      id: 'temp',
       name: `${rule.name} (复制)`,
       enabled: false,
       triggerCount: 0,
       lastTriggered: '-',
     };
-    setRules(prev => [...prev, newRule]);
-    try { await syncRule(newRule, true); } catch { /* ignore */ }
+    try {
+      const created = (await legacyApi.createLinkageRule(ruleToDbPayload(copy))) as Record<string, unknown>;
+      setRules((prev) => [...prev, rowToRule(created)]);
+    } catch (e) {
+      showError('保存失败', '请检查网络或稍后重试');
+      logger.error(e);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    setRules(prev => prev.filter(r => r.id !== id));
-    try { await legacyApi.deletePlan(Number(id)); } catch { /* ignore */ }
+    const prev = rules;
+    setRules((prevList) => prevList.filter((r) => r.id !== id));
+    try {
+      await legacyApi.deleteLinkageRule(Number(id));
+    } catch (e) {
+      setRules(prev);
+      showError('删除失败', '请检查网络或稍后重试');
+      logger.error(e);
+    }
   };
 
   const handleSaveEdit = async (updated: LinkageRule) => {
-    setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
+    setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setShowEditor(false);
     setEditingRule(null);
-    try { await syncRule(updated, false); } catch { /* ignore */ }
+    try {
+      await legacyApi.updateLinkageRule(Number(updated.id), ruleToDbPayload(updated));
+    } catch (e) {
+      showError('保存失败', '请检查网络或稍后重试');
+      logger.error(e);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -347,8 +421,34 @@ export default function SafetyLinkagePage() {
           </div>
 
           {/* Rules */}
-          <div className="space-y-2">
-            {filtered.map(rule => {
+          <div className="space-y-2 min-h-[160px]">
+            {loadRules ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-14 text-slate-500">
+                <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+                <span className="text-xs">联动规则加载中，请稍候…</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                type={search.trim() || priorityFilter !== 'all' || statusFilter !== 'all' ? 'search' : 'data'}
+                title={search.trim() || priorityFilter !== 'all' || statusFilter !== 'all' ? '未找到匹配规则' : '暂无联动规则'}
+                description={
+                  search.trim() || priorityFilter !== 'all' || statusFilter !== 'all'
+                    ? '请调整搜索词或筛选条件后重试。'
+                    : '点击「新建规则」配置告警与视频的联动策略；规则可同步至后端预案库以便多终端一致。'
+                }
+                icon={Link2}
+                className="py-10"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => { setEditingRule(null); setShowEditor(true); }}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg"
+                  >
+                    新建规则
+                  </button>
+                }
+              />
+            ) : filtered.map(rule => {
               const pc = priorityCfg(rule.priority);
               const isExpanded = expandedRule === rule.id;
               return (
@@ -356,7 +456,7 @@ export default function SafetyLinkagePage() {
                   <div className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <button onClick={() => toggleEnable(rule.id)} className="mt-0.5 flex-shrink-0 p-1 hover:bg-slate-700/30 rounded-lg transition-all" aria-label="切换">
+                        <button type="button" onClick={() => { void toggleEnable(rule.id); }} className="mt-0.5 flex-shrink-0 p-1 hover:bg-slate-700/30 rounded-lg transition-all" aria-label="切换">
                           {rule.enabled ? <ToggleRight className="w-5 h-5 text-emerald-400" /> : <ToggleLeft className="w-5 h-5 text-slate-600" />}
                         </button>
                         <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-slate-700/30 border border-slate-600/20 flex items-center justify-center">
@@ -442,19 +542,28 @@ export default function SafetyLinkagePage() {
                 <th className="text-left p-3">执行动作</th><th className="text-left p-3">结果</th><th className="text-left p-3">耗时</th>
               </tr></thead>
               <tbody className="text-[11px]">
-                {logs.map(log => {
-                  const rc = resultCfg(log.result);
-                  return (
-                    <tr key={log.id} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
-                      <td className="p-3 text-slate-400 font-mono">{log.time}</td>
-                      <td className="p-3"><span className="text-slate-200">{log.ruleName}</span><span className="text-slate-600 text-[9px] ml-1">{log.ruleId}</span></td>
-                      <td className="p-3 text-slate-400">{log.trigger}</td>
-                      <td className="p-3"><div className="flex flex-wrap gap-1">{log.actions.map((a: any, i: number) => <span key={i} className="text-[8px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20">{a}</span>)}</div></td>
-                      <td className="p-3"><span className={`flex items-center gap-1 ${rc.color}`}><rc.icon className="w-3 h-3" />{rc.label}</span></td>
-                      <td className="p-3 text-slate-500 font-mono">{log.duration}</td>
-                    </tr>
-                  );
-                })}
+                {logs.length === 0 ? (
+                  <TableBodyPlaceholder
+                    colSpan={6}
+                    isEmpty
+                    emptyTitle="暂无联动执行记录"
+                    emptyDescription="规则触发并执行动作后，将在此留痕；若长期为空，请确认联动引擎与日志上报是否已接入。"
+                  />
+                ) : (
+                  logs.map(log => {
+                    const rc = resultCfg(log.result);
+                    return (
+                      <tr key={log.id} className="border-b border-slate-700/20 hover:bg-slate-700/20 transition-colors">
+                        <td className="p-3 text-slate-400 font-mono">{log.time}</td>
+                        <td className="p-3"><span className="text-slate-200">{log.ruleName}</span><span className="text-slate-600 text-[9px] ml-1">{log.ruleId}</span></td>
+                        <td className="p-3 text-slate-400">{log.trigger}</td>
+                        <td className="p-3"><div className="flex flex-wrap gap-1">{log.actions.map((a: any, i: number) => <span key={i} className="text-[8px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20">{a}</span>)}</div></td>
+                        <td className="p-3"><span className={`flex items-center gap-1 ${rc.color}`}><rc.icon className="w-3 h-3" />{rc.label}</span></td>
+                        <td className="p-3 text-slate-500 font-mono">{log.duration}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -466,12 +575,18 @@ export default function SafetyLinkagePage() {
         <LinkageRuleEditor
           rule={editingRule}
           onSave={async (r) => {
-            if (editingRule) { await handleSaveEdit(r); }
-            else {
-              const newRule = { ...r, id: `LK-${Date.now()}` };
-              setRules(prev => [...prev, newRule]);
+            if (editingRule) {
+              await handleSaveEdit(r);
+            } else {
               setShowEditor(false);
-              try { await syncRule(newRule, true); } catch { /* ignore */ }
+              setEditingRule(null);
+              try {
+                const created = (await legacyApi.createLinkageRule(ruleToDbPayload(r))) as Record<string, unknown>;
+                setRules((prev) => [...prev, rowToRule(created)]);
+              } catch (e) {
+                showError('保存失败', '请检查网络或稍后重试');
+                logger.error(e);
+              }
             }
           }}
           onClose={() => { setShowEditor(false); setEditingRule(null); }}
@@ -484,14 +599,62 @@ export default function SafetyLinkagePage() {
 /* ═══════════════════════════════════════════════
    Linkage Rule Editor Modal
    ═══════════════════════════════════════════════ */
+const ALARM_TYPE_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: '火警' },
+  { value: 2, label: '故障' },
+  { value: 3, label: '预警' },
+  { value: 4, label: '屏蔽' },
+  { value: 5, label: '其他' },
+];
+
+const RULE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'fire-video', label: '火警视频联动' },
+  { value: 'fault-video', label: '故障视频联动' },
+  { value: 'feedback', label: '反馈联动' },
+  { value: 'ai-recognition', label: 'AI 识别' },
+  { value: 'blockage', label: '通道堵塞' },
+  { value: 'vacancy', label: '离岗监测' },
+  { value: 'water-low', label: '水位/水压' },
+  { value: 'key-area', label: '重点区域' },
+];
+
 function LinkageRuleEditor({ rule, onSave, onClose }: { rule: LinkageRule | null; onSave: (r: LinkageRule) => void; onClose: () => void }) {
   const [form, setForm] = useState<Partial<LinkageRule>>(rule ? { ...rule } : {
     name: '', type: 'fire-video', trigger: '', triggerDesc: '', actions: [], targets: [],
     enabled: true, priority: 'medium', timeRange: '00:00-23:59', units: ['全部单位'], deviceTypes: [],
     lastTriggered: '-', triggerCount: 0, description: '',
+    triggerDeviceId: '', alarmTypes: [],
   });
 
   const actionOptions = ['调取最近摄像头视频', '弹窗显示告警画面', '自动录像', 'AI烟火识别分析', '生成巡检提醒工单', '推送运维人员', '启动事件录像', '记录联动结果', '生成预警事件', 'App推送', '短信通知', '现场抓拍', '生成隐患工单', '声光预警', '生成维保工单', '大屏高亮', '全开所有摄像头', '全通道录像', '启动应急预案', '通知119', '疏散广播', '释放全部门禁'];
+
+  const toFullRule = (): LinkageRule => ({
+    id: rule?.id ?? '0',
+    name: (form.name || '').trim() || '未命名规则',
+    type: form.type || 'fire-video',
+    trigger: form.trigger || '',
+    triggerDesc: form.triggerDesc || '',
+    actions: form.actions || [],
+    targets: form.targets || [],
+    enabled: form.enabled !== false,
+    priority: (form.priority as LinkageRule['priority']) || 'medium',
+    timeRange: form.timeRange || '00:00-23:59',
+    units: form.units?.length ? form.units : ['全部单位'],
+    deviceTypes: form.deviceTypes || [],
+    lastTriggered: form.lastTriggered || '-',
+    triggerCount: form.triggerCount ?? 0,
+    description: form.description || '',
+    triggerDeviceId: form.triggerDeviceId || '',
+    alarmTypes: Array.isArray(form.alarmTypes) ? form.alarmTypes : [],
+  });
+
+  const toggleAlarmType = (v: number) => {
+    const cur = form.alarmTypes || [];
+    setForm({
+      ...form,
+      alarmTypes: cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v].sort((a, b) => a - b),
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={onClose}>
@@ -504,6 +667,18 @@ function LinkageRuleEditor({ rule, onSave, onClose }: { rule: LinkageRule | null
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">规则名称</label>
             <input value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="输入规则名称" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">规则场景</label>
+            <select
+              value={form.type || 'fire-video'}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-slate-500/50 transition-colors"
+            >
+              {RULE_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -518,8 +693,39 @@ function LinkageRuleEditor({ rule, onSave, onClose }: { rule: LinkageRule | null
             </div>
           </div>
           <div>
-            <label className="text-[10px] text-slate-400 mb-1 block">触发条件</label>
-            <input value={form.trigger || ''} onChange={e => setForm({ ...form, trigger: e.target.value })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="输入触发条件" />
+            <label className="text-[10px] text-slate-400 mb-1 block">触发条件摘要</label>
+            <input value={form.trigger || ''} onChange={e => setForm({ ...form, trigger: e.target.value })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="列表中展示的触发说明" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">触发说明（详情）</label>
+            <input value={form.triggerDesc || ''} onChange={e => setForm({ ...form, triggerDesc: e.target.value })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="展开详情时展示" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">触发设备 ID（可选）</label>
+            <input
+              value={form.triggerDeviceId || ''}
+              onChange={(e) => setForm({ ...form, triggerDeviceId: e.target.value })}
+              className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors font-mono"
+              placeholder="留空 = 任意设备告警均可匹配（在火警/高级别策略下）"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">告警类型过滤（不选 = 不按类型过滤）</label>
+            <div className="flex flex-wrap gap-1.5">
+              {ALARM_TYPE_OPTIONS.map((o) => {
+                const on = (form.alarmTypes || []).includes(o.value);
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => toggleAlarmType(o.value)}
+                    className={`text-[9px] px-2 py-1 rounded-lg border transition-all ${on ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-slate-800/40 text-slate-400 border-slate-700/30 hover:bg-slate-700/30'}`}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">联动动作</label>
@@ -538,7 +744,7 @@ function LinkageRuleEditor({ rule, onSave, onClose }: { rule: LinkageRule | null
           </div>
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">联网单位</label>
-            <input value={(form.units || []).join(', ')} onChange={e => setForm({ ...form, units: e.target.value.split(',').map((s: any) => s.trim()) })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="全部单位, 万达广场, 兰州中心" />
+            <input value={(form.units || []).join(', ')} onChange={e => setForm({ ...form, units: e.target.value.split(',').map((s: any) => s.trim()) })} className="w-full bg-slate-800/40 backdrop-blur-sm border border-slate-700/30 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 focus:border-slate-500/50 transition-colors" placeholder="全部单位" />
           </div>
           <div>
             <label className="text-[10px] text-slate-400 mb-1 block">描述</label>
@@ -547,7 +753,7 @@ function LinkageRuleEditor({ rule, onSave, onClose }: { rule: LinkageRule | null
         </div>
         <div className="p-4 border-t border-slate-700/30 flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-700/30 rounded-lg bg-slate-800/40 backdrop-blur-sm hover:bg-slate-700/40 transition-all">取消</button>
-          <button onClick={() => onSave(form as LinkageRule)} className="px-4 py-2 bg-blue-500/90 hover:bg-blue-500 text-white text-xs rounded-lg flex items-center gap-1.5 backdrop-blur-sm transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"><Save className="w-3.5 h-3.5" />保存</button>
+          <button type="button" onClick={() => onSave(toFullRule())} className="px-4 py-2 bg-blue-500/90 hover:bg-blue-500 text-white text-xs rounded-lg flex items-center gap-1.5 backdrop-blur-sm transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"><Save className="w-3.5 h-3.5" />保存</button>
         </div>
       </div>
     </div>

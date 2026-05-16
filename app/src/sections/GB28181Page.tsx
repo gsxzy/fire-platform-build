@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Video, Search, Plus, X, AlertTriangle,
   Server, Activity, Save, Play, Wifi, WifiOff,
-  Settings, Power, PowerOff, RotateCw, Trash2
+  Settings, Power, PowerOff, RotateCw, Trash2,
+  Pencil
 } from 'lucide-react';
 import { useToast } from '@/core/ToastContext';
+import { logger } from '@/lib/logger';
 import { gb28181Service, sipServerService, deviceService } from '@/api/services';
 import type { Device } from '@/types/db';
 import DataContainer from '@/components/DataContainer';
@@ -25,15 +27,15 @@ export default function GB28181Page() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [playVideo, setPlayVideo] = useState<{ streamUrl: string; name: string } | null>(null);
   const [archiveDevices, setArchiveDevices] = useState<Device[]>([]);
+  const [editing, setEditing] = useState<GB28181Device | null>(null);
 
   useEffect(() => {
     deviceService.list({ pageSize: 9999 }).then((res: any) => {
       setArchiveDevices(res.data?.list || []);
-    }).catch(() => {});
+    }).catch((e) => { logger.error('[GB28181] load archive devices failed:', e); });
   }, []);
 
   const loadData = useCallback(async () => {
-    console.log('[GB28181.loadData] starting...');
     setLoading(true);
     setError(null);
     try {
@@ -41,27 +43,21 @@ export default function GB28181Page() {
         gb28181Service.list({ pageSize: 999 }),
         sipServerService.getStatus(),
       ]);
-      console.log('[GB28181.loadData] deviceRes=', deviceRes);
-      if (deviceRes.data?.list?.length) {
-        deviceRes.data.list.forEach((d: any, i: number) => {
-          console.log(`[GB28181.loadData] device[${i}] id=${d.deviceId} status=${d.status} name=${d.name}`);
-        });
-      }
-      console.log('[GB28181.loadData] statusRes=', statusRes);
+      // 设备列表已加载
       if (deviceRes.code !== 200) {
-        console.error('[GB28181.loadData] device list failed:', deviceRes.message);
+        logger.error('[GB28181.loadData] device list failed:', deviceRes.message);
         setDevices([]);
       } else {
         setDevices(deviceRes.data?.list || []);
       }
       if (statusRes.code !== 200) {
-        console.error('[GB28181.loadData] status failed:', statusRes.message);
-        setServerStatus({ running: false, port: 5060, transport: 'UDP', registered: 0, max: 1000 });
+        logger.error('[GB28181.loadData] status failed:', statusRes.message);
+        // 单次拉取失败不强行改为「已停止」，避免网络抖动造成 SIP 看起来自动停止
       } else {
         setServerStatus(statusRes.data || { running: true, port: 5060, transport: 'UDP', registered: 0, max: 1000 });
       }
     } catch (e) {
-      console.error('[GB28181.loadData] error=', e);
+      logger.error('[GB28181.loadData] error=', e);
       setError(e instanceof Error ? e : new Error('加载失败'));
     } finally {
       setLoading(false);
@@ -73,10 +69,9 @@ export default function GB28181Page() {
     try {
       const { DBUtils } = await import('@/db/Database');
       const stats = await DBUtils.getStats();
-      console.log('[GB28181.diagnose] DB stats=', stats);
       info('数据库诊断', `gb28181_devices: ${stats['gb28181_devices'] || 0} 条记录`);
     } catch (e) {
-      console.error('[GB28181.diagnose] error=', e);
+      logger.error('[GB28181.diagnose] error=', e);
       warning('诊断失败', String(e));
     }
   }, [info, warning]);
@@ -97,7 +92,7 @@ export default function GB28181Page() {
     online: devices.filter(d => d.status === 'online').length,
     offline: devices.filter(d => d.status === 'offline').length,
     fault: devices.filter(d => d.status === 'fault').length,
-    channels: devices.reduce((s, d) => s + d.channelCount, 0),
+    channels: devices.reduce((s, d) => s + (d.channelCount || 0), 0),
   };
 
   const handleSyncCatalog = async (device: GB28181Device) => {
@@ -106,7 +101,7 @@ export default function GB28181Page() {
       await gb28181Service.syncCatalog(device.id);
       success('同步完成', `${device.name} 通道目录已同步`);
       await loadData();
-    } catch (e) {
+    } catch {
       warning('同步失败', '请检查设备是否在线');
     } finally {
       setSyncingId(null);
@@ -123,7 +118,7 @@ export default function GB28181Page() {
         info('回放提示', '该通道暂无录像，显示模拟画面');
       }
     } catch (err) {
-      console.error('[handlePlayback] error:', err);
+      logger.error('[handlePlayback] error:', err);
       info('回放提示', '该通道暂无录像，显示模拟画面');
     }
   };
@@ -148,7 +143,6 @@ export default function GB28181Page() {
   };
 
   const handleAddDevice = async (formData: any) => {
-    console.log('[GB28181.handleAddDevice] formData.id=', formData.id);
     try {
       if (!serverStatus.running) {
         warning('添加失败', 'SIP服务已停止，请先启动SIP服务');
@@ -173,7 +167,6 @@ export default function GB28181Page() {
       }
 
       const res = await gb28181Service.create(formData);
-      console.log('[GB28181.handleAddDevice] create res=', res);
       if (res.code !== 200) {
         warning('添加失败', res.message || '请检查设备编码是否重复');
         return;
@@ -181,9 +174,9 @@ export default function GB28181Page() {
       success('添加成功', 'GB28181接入配置已创建，等待设备注册');
       setShowAdd(false);
       await loadData();
-    } catch (e: any) {
-      console.error('[GB28181.handleAddDevice] error=', e);
-      const errMsg = e?.message || String(e);
+    } catch (e: unknown) {
+      logger.error('[GB28181.handleAddDevice] error=', e);
+      const errMsg = e instanceof Error ? e.message : String(e);
       if (errMsg.includes('duplicate') || errMsg.includes('重复') || errMsg.includes('Duplicate')) {
         warning('添加失败', '请检查设备编码是否重复');
       } else if (errMsg.includes('SIP') || errMsg.includes('sip')) {
@@ -206,8 +199,24 @@ export default function GB28181Page() {
       success('删除成功', `已删除 ${device.name} 的GB28181接入配置`);
       await loadData();
     } catch (e) {
-      console.error('[GB28181.handleDeleteDevice] error=', e);
+      logger.error('[GB28181.handleDeleteDevice] error=', e);
       warning('删除失败', '请稍后重试');
+    }
+  };
+
+  const handleEditDevice = async (id: string, data: Partial<GB28181Device>) => {
+    try {
+      const res = await gb28181Service.update(id, data);
+      if (res.code !== 200) {
+        warning('修改失败', res.message || '请稍后重试');
+        return;
+      }
+      success('修改成功', 'GB28181设备信息已更新');
+      setEditing(null);
+      await loadData();
+    } catch (e) {
+      logger.error('[GB28181.handleEditDevice] error=', e);
+      warning('修改失败', '请稍后重试');
     }
   };
 
@@ -387,6 +396,12 @@ export default function GB28181Page() {
                           详情
                         </button>
                         <button
+                          onClick={(e) => { e.stopPropagation(); setEditing(d); }}
+                          className="text-[9px] px-2 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex items-center gap-1"
+                        >
+                          <Pencil className="w-2.5 h-2.5" />编辑
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteDevice(d); }}
                           className="text-[9px] px-2 py-1 rounded bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors flex items-center gap-1"
                         >
@@ -466,6 +481,9 @@ export default function GB28181Page() {
     {/* Add Device Modal - 移到 DataContainer 外部，确保空状态时也能显示 */}
     {showAdd && <AddDeviceModal onClose={() => setShowAdd(false)} onSubmit={handleAddDevice} archiveDevices={archiveDevices} gbDevices={devices} sipRunning={serverStatus.running} />}
 
+    {/* Edit Device Modal */}
+    {editing && <EditDeviceModal device={editing} onClose={() => setEditing(null)} onSubmit={handleEditDevice} />}
+
     {/* Video Player Modal */}
     {playVideo && <SimpleVideoPlayer streamUrl={playVideo.streamUrl} title={playVideo.name} onClose={() => setPlayVideo(null)} />}
   </div>
@@ -503,7 +521,6 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
   };
 
   const handleSubmit = () => {
-    console.log('[GB28181.handleSubmit] form.deviceId=', form.deviceId, 'form.name=', form.name);
     if (!sipRunning) {
       alert('SIP服务已停止，请先启动SIP服务后再添加设备');
       return;
@@ -529,7 +546,6 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
     if (selectedArchiveId) {
       data.archiveId = selectedArchiveId;
     }
-    console.log('[GB28181.handleSubmit] submitting data=', data);
     onSubmit(data);
   };
 
@@ -609,6 +625,100 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
           <button onClick={onClose} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors">取消</button>
           <button onClick={handleSubmit} disabled={!form.deviceId || !form.name} className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white text-xs rounded-md flex items-center gap-1.5 transition-colors">
             <Save className="w-3.5 h-3.5" />确认添加
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Edit Device Modal ───── */
+function EditDeviceModal({ device, onClose, onSubmit }: {
+  device: GB28181Device;
+  onClose: () => void;
+  onSubmit: (id: string, data: Partial<GB28181Device>) => void;
+}) {
+  const [form, setForm] = useState({
+    deviceId: device.deviceId || '',
+    name: device.name || '',
+    ip: device.ip || '',
+    port: String(device.port || 5060),
+    manufacturer: device.manufacturer || '',
+    model: device.model || '',
+    transport: (device.transport as 'UDP' | 'TCP') || 'UDP',
+    username: device.username || '',
+    password: device.password || '',
+    location: device.location || '',
+  });
+
+  const handleSubmit = () => {
+    if (!form.deviceId || !form.name) {
+      alert('请填写国标设备编码和设备名称');
+      return;
+    }
+    onSubmit(device.id, {
+      ...form,
+      port: Number(form.port),
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative w-full max-w-lg bg-slate-800 border border-slate-700/50 rounded-xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-slate-700/30 flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-orange-500/10">
+          <h3 className="text-sm font-medium text-slate-200 flex items-center gap-2"><Pencil className="w-4 h-4 text-amber-400" />编辑GB28181设备</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">国标设备编码 <span className="text-red-400">*</span></label>
+              <input value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })} placeholder="34020000001320000001" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono" />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">设备名称 <span className="text-red-400">*</span></label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="大厅摄像头" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">IP地址</label>
+              <input value={form.ip} onChange={e => setForm({ ...form, ip: e.target.value })} placeholder="192.168.1.xxx" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono" />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">端口</label>
+              <input value={form.port} onChange={e => setForm({ ...form, port: e.target.value })} className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">厂商</label>
+              <input value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })} placeholder="海康威视" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">型号</label>
+              <input value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} placeholder="DS-2CD3T25" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 mb-1 block">传输协议</label>
+              <select value={form.transport} onChange={e => setForm({ ...form, transport: e.target.value as 'UDP' | 'TCP' })} className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none">
+                <option>UDP</option><option>TCP</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">安装位置</label>
+            <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="1F大厅" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+          </div>
+          <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10 text-[10px] text-amber-400">
+            提示：修改国标编码后，如果该摄像头已在平面图中绑定，需要重新绑定关联关系。
+          </div>
+        </div>
+        <div className="p-4 border-t border-slate-700/30 flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors">取消</button>
+          <button onClick={handleSubmit} disabled={!form.deviceId || !form.name} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-xs rounded-md flex items-center gap-1.5 transition-colors">
+            <Save className="w-3.5 h-3.5" />确认修改
           </button>
         </div>
       </div>

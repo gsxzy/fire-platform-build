@@ -5,7 +5,7 @@
  */
 
 /* ───── 基础类型 ───── */
-export type DBStatus = 'normal' | 'fault' | 'maintenance' | 'offline' | 'disabled';
+export type DBStatus = 'normal' | 'fault' | 'maintenance' | 'offline' | 'disabled' | 'scrapped';
 export type AlarmLevel = 'urgent' | 'high' | 'normal' | 'low';
 export type AlarmType = 'fire' | 'fault' | 'supervisory' | 'warning' | 'test';
 export type AlarmStatus = 'new' | 'confirmed' | 'handled' | 'ignored';
@@ -35,9 +35,13 @@ export interface Unit {
   updatedAt: string;        // 更新时间
 }
 
+/* ───── 设备生命周期状态枚举（与后端 DeviceLifecycleStatus 对齐）───── */
+export type DeviceLifecycleStatus = 'draft' | 'registered' | 'accessed' | 'assigned' | 'maintenance' | 'scrapped';
+
 /* ───── 2. 设备表 (devices) ───── */
 export interface Device {
-  id: string;               // 设备编码
+  id: string;               // 档案主键（fire_device.id）
+  deviceNo?: string;         // 设备编号 device_no（展示用）
   name: string;             // 设备名称
   type: string;             // 设备类型 (detector/pump/fan/controller/etc)
   typeName?: string;        // 设备类型名称
@@ -45,13 +49,20 @@ export interface Device {
   unitName?: string;        // 所属单位名称（冗余）
   location: string;         // 安装位置
   status: DBStatus;         // 运行状态
-  archiveStatus?: string;   // 档案流程状态: unallocated/allocated/accessed/scrapped
+  /** 流程状态：draft草稿→registered已入库→accessed已接入→assigned已分配→maintenance维护中→scrapped报废 */
+  archiveStatus?: DeviceLifecycleStatus;
+  lifecycleStatus?: number;
   onlineStatus: OnlineStatus; // 在线状态
   manufacturer?: string;    // 制造商
   model?: string;           // 型号
   firmware?: string;        // 固件版本
+  serialNo?: string;        // 出厂序列号(SN)
   ip?: string;              // IP地址
   installDate?: string;     // 安装日期
+  productionDate?: string;  // 生产日期
+  warrantyPeriod?: number;  // 质保期(月)
+  warrantyExpire?: string;  // 质保到期日
+  maintenanceExpire?: string; // 维保到期日
   lastMaintDate?: string;   // 上次维保日期
   nextMaintDate?: string;   // 下次维保日期
   heartbeatInterval?: number; // 心跳间隔(秒)
@@ -61,6 +72,13 @@ export interface Device {
   gatewayId?: string;       // 关联的用户信息传输装置ID(FSCN8001)
   deviceUniqueId?: string;  // FSCN8001原始设备ID(HEX)
   remark?: string;          // 备注
+  /** 是否已有IoT接入配置（后端子查询返回） */
+  hasIotConfig?: boolean;
+  /** 分配阶段字段 */
+  projectCode?: string;     // 项目/工程编码
+  buildingId?: number;      // 所属建筑ID
+  floorId?: number;         // 所属楼层ID
+  pointId?: number;         // 平面图点位ID
   createdAt: string;
   updatedAt: string;
 }
@@ -68,6 +86,7 @@ export interface Device {
 /* ───── 3. 告警表 (alarms) ───── */
 export interface Alarm {
   id: string;               // 告警编号
+  alarmNo?: string;         // 业务报警编号 alarm_no
   type: AlarmType;          // 告警类型
   level: AlarmLevel;        // 告警等级
   deviceId: string;         // 设备ID
@@ -534,12 +553,33 @@ export interface SIPServerConfig {
   updatedAt: string;
 }
 
-/* ───── API 通用响应 ───── */
+/* ───── 31. 报警主机编码表 (host_device_codes) ───── */
+export interface HostDeviceCode {
+  id: string;
+  hostId: string;
+  loopNo: number;
+  pointNo: number;
+  deviceType: string;
+  deviceName: string;
+  installLocation: string;
+  floor: string;
+  parentDevice: string;
+  status: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ───── API 通用响应（与后端 apiEnvelope：msg + message + timestamp 对齐） ───── */
 export interface ApiResponse<T = unknown> {
   code: number;
-  message: string;
+  /** 与 msg 二选一或并存，见 getApiEnvelopeMessage */
+  message?: string;
+  msg?: string;
   data: T;
-  timestamp: number;
+  timestamp?: number;
+  /** 与响应头 X-Request-Id 对应（后端可选返回） */
+  requestId?: string;
+  _reqId?: string;
 }
 
 export interface PaginatedData<T> {

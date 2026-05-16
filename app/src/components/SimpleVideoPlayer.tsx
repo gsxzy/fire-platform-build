@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { X, Play, Pause, Volume2, VolumeX, Maximize2 } from 'lucide-react';
 
-function HlsVideoPlayer({
+export function HlsVideoPlayer({
   src,
   videoRef,
   onError,
@@ -47,7 +47,9 @@ function HlsVideoPlayer({
     };
 
     try {
-      if (Hls.isSupported() && (src.includes('.m3u8') || src.includes('/hls.'))) {
+      const looksLikeHls =
+        src.includes('.m3u8') || src.includes('/hls.') || /\.m3u8(\?|$)/i.test(src);
+      if (Hls.isSupported() && looksLikeHls) {
         const hls = new Hls({
           maxBufferLength: 30,
           maxMaxBufferLength: 60,

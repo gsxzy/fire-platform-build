@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/core/ToastContext';
 import { personnelService } from '@/api/services';
+import { getErrorMessage } from '@/types/api';
 import DataContainer from '@/components/DataContainer';
 import {
   Users, Search, Plus, Edit3, Trash2, X, Save, Shield,
-  UserCheck, UserCog, ClipboardList
+  UserCheck, UserCog, ClipboardList, Loader2
 } from 'lucide-react';
 
 /* ===== Types ===== */
@@ -40,17 +41,8 @@ const ROLE_TABS: { key: PersonnelRoleFilter; label: string }[] = [
   { key: 'inspector', label: '巡查员' },
 ];
 
-/* ===== Mock Data ===== */
-const mockPersonnel: PersonnelItem[] = [
-  { id: 'P-001', name: '张三', phone: '138****1234', unitId: 'U-001', unitName: '万达广场商业中心', role: 'manager', certType: '消防设施操作员', certNo: '消操证-甘2023-00158', status: 'normal' },
-  { id: 'P-002', name: '李四', phone: '139****5678', unitId: 'U-001', unitName: '万达广场商业中心', role: 'operator', certType: '消防设施操作员', certNo: '消操证-甘2023-00159', status: 'normal' },
-  { id: 'P-003', name: '王五', phone: '137****9012', unitId: 'U-002', unitName: '兰州大学第二医院', role: 'safety_officer', certType: '注册消防工程师', certNo: '注消证-甘2022-00087', status: 'normal' },
-  { id: 'P-004', name: '赵六', phone: '136****3456', unitId: 'U-002', unitName: '兰州大学第二医院', role: 'duty_officer', certType: '消防设施操作员', certNo: '消操证-甘2023-00201', status: 'normal' },
-  { id: 'P-005', name: '孙七', phone: '135****7890', unitId: 'U-003', unitName: '兰州中心', role: 'operator', certType: '消防设施操作员', certNo: '消操证-甘2024-00345', status: 'normal' },
-  { id: 'P-006', name: '周八', phone: '134****2345', unitId: 'U-003', unitName: '兰州中心', role: 'inspector', certType: '消防安全管理员', certNo: '安管证-甘2024-00412', status: 'disabled' },
-  { id: 'P-007', name: '吴九', phone: '133****6789', unitId: 'U-001', unitName: '万达广场商业中心', role: 'inspector', certType: '消防安全管理员', certNo: '安管证-甘2023-00567', status: 'normal' },
-  { id: 'P-008', name: '郑十', phone: '132****1111', unitId: 'U-004', unitName: '甘肃省博物馆', role: 'manager', certType: '消防设施操作员', certNo: '消操证-甘2022-00678', status: 'normal' },
-];
+/* ===== Mock Data Cleared ===== */
+const mockPersonnel: PersonnelItem[] = [];
 
 const roleStyle = (role: string) => {
   const map: Record<string, { color: string; bg: string }> = {
@@ -76,7 +68,7 @@ function PersonnelModal({
   onClose,
 }: {
   item: PersonnelItem | null;
-  onSave: (data: Omit<PersonnelItem, 'id'>) => void;
+  onSave: (data: Omit<PersonnelItem, 'id'>) => Promise<void> | void;
   onClose: () => void;
 }) {
   const [form, setForm] = useState({
@@ -89,6 +81,7 @@ function PersonnelModal({
     certType: '消防设施操作员',
     status: 'normal' as 'normal' | 'disabled',
   });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -166,9 +159,17 @@ function PersonnelModal({
           </div>
         </div>
         <div className="p-4 border-t border-slate-700/30 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors">取消</button>
-          <button onClick={() => onSave(form)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-md flex items-center gap-1.5 transition-colors">
-            <Save className="w-3.5 h-3.5" />保存
+          <button onClick={onClose} disabled={saving} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors disabled:opacity-50">取消</button>
+          <button
+            onClick={async () => {
+              setSaving(true);
+              try { await onSave(form); } finally { setSaving(false); }
+            }}
+            disabled={saving}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded-md flex items-center gap-1.5 transition-colors"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {saving ? '保存中…' : '保存'}
           </button>
         </div>
       </div>
@@ -177,7 +178,7 @@ function PersonnelModal({
 }
 
 /* ===== Delete Confirm ===== */
-function DeleteModal({ name, onConfirm, onClose }: { name: string; onConfirm: () => void; onClose: () => void }) {
+function DeleteModal({ name, onConfirm, onClose, loading }: { name: string; onConfirm: () => void; onClose: () => void; loading?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -188,8 +189,11 @@ function DeleteModal({ name, onConfirm, onClose }: { name: string; onConfirm: ()
         <h3 className="text-sm font-medium text-slate-200 mb-1">确认删除</h3>
         <p className="text-xs text-slate-400">确定要删除 <span className="text-red-400 font-medium">{name}</span> 吗？</p>
         <div className="mt-4 flex gap-2">
-          <button onClick={onClose} className="flex-1 h-8 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors">取消</button>
-          <button onClick={onConfirm} className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors">确认删除</button>
+          <button onClick={onClose} disabled={loading} className="flex-1 h-8 text-xs text-slate-400 hover:text-slate-200 border border-slate-600 rounded-md transition-colors disabled:opacity-50">取消</button>
+          <button onClick={onConfirm} disabled={loading} className="flex-1 h-8 text-xs bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white rounded-md transition-colors flex items-center justify-center gap-1.5">
+            {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+            确认删除
+          </button>
         </div>
       </div>
     </div>
@@ -198,7 +202,7 @@ function DeleteModal({ name, onConfirm, onClose }: { name: string; onConfirm: ()
 
 /* ===== Main Page ===== */
 export default function PersonnelPage() {
-  const { success } = useToast();
+  const { success, error: showError } = useToast();
   const [list, setList] = useState<PersonnelItem[]>(mockPersonnel);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -207,6 +211,7 @@ export default function PersonnelPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PersonnelItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<PersonnelItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -215,8 +220,8 @@ export default function PersonnelPage() {
       const res: any = await personnelService.list({ keyword, page: 1, pageSize: 100 });
       const data = Array.isArray(res.data) ? res.data : (res.data?.list || []);
       if (data.length > 0) setList(data);
-    } catch (e: any) {
-      setError(e);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e : new Error(getErrorMessage(e)));
     } finally {
       setLoading(false);
     }
@@ -262,16 +267,10 @@ export default function PersonnelPage() {
         setList(prev => [newItem, ...prev]);
         success('新增成功', `${data.name} 已添加`);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('人员保存API失败:', e);
-      if (editingItem) {
-        setList(prev => prev.map(p => p.id === editingItem.id ? { ...p, ...payload } : p));
-        success('保存成功（本地模式）', `${data.name} 的信息已更新`);
-      } else {
-        const newItem: PersonnelItem = { ...data, id: `P-${Date.now()}`, unitId: data.unitId || 'U-001' };
-        setList(prev => [newItem, ...prev]);
-        success('新增成功（本地模式）', `${data.name} 已添加`);
-      }
+      showError('保存失败', getErrorMessage(e, '请检查网络或稍后重试'));
+      return;
     }
     setModalOpen(false);
     setEditingItem(null);
@@ -279,14 +278,17 @@ export default function PersonnelPage() {
 
   const handleDelete = async () => {
     if (!deletingItem) return;
+    setDeleteLoading(true);
     try {
       await personnelService.delete(deletingItem.id);
       success('删除成功', `${deletingItem.name} 已删除`);
-    } catch (e) {
-      // fallback
+      setList(prev => prev.filter(p => p.id !== deletingItem.id));
+      setDeletingItem(null);
+    } catch (e: unknown) {
+      showError('删除失败', getErrorMessage(e, '请检查网络或稍后重试'));
+    } finally {
+      setDeleteLoading(false);
     }
-    setList(prev => prev.filter(p => p.id !== deletingItem.id));
-    setDeletingItem(null);
   };
 
   return (
@@ -394,7 +396,7 @@ export default function PersonnelPage() {
       </div>
 
       {modalOpen && <PersonnelModal item={editingItem} onSave={handleSave} onClose={() => { setModalOpen(false); setEditingItem(null); }} />}
-      {deletingItem && <DeleteModal name={deletingItem.name} onConfirm={handleDelete} onClose={() => setDeletingItem(null)} />}
+      {deletingItem && <DeleteModal name={deletingItem.name} onConfirm={handleDelete} onClose={() => setDeletingItem(null)} loading={deleteLoading} />}
     </div>
   );
 }

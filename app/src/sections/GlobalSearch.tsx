@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Search, Flame, Bell, Building2, Cpu, Wrench,
@@ -25,10 +25,10 @@ const searchItems: SearchItem[] = [
   { label: '接警处置', path: '/duty/dispatch', icon: PhoneCall, category: '值守中心', keywords: '接警 处置 值班' },
   { label: '值班日志', path: '/duty/log', icon: FileText, category: '值守中心', keywords: '日志 值班 交接' },
   { label: '设备档案', path: '/device/archive', icon: Cpu, category: '设备管理', keywords: '设备 档案 管理' },
+  { label: '设备接入', path: '/device/access', icon: Cpu, category: '设备管理', keywords: '设备 接入 协议 网络 IoT' },
   { label: '设备分配', path: '/device/allocate', icon: Cpu, category: '设备管理', keywords: '设备 分配 单位 绑定' },
   { label: '设备配置', path: '/device/config', icon: Settings, category: '设备管理', keywords: '设备 配置 参数' },
   { label: '设备维护', path: '/device/maintain', icon: Wrench, category: '设备管理', keywords: '设备 维护 工单' },
-  { label: '设备状态', path: '/device/status', icon: Cpu, category: '设备管理', keywords: '设备 状态 在线' },
   { label: '一般单位', path: '/unit/general', icon: Building2, category: '单位管理', keywords: '单位 一般 管理' },
   { label: '重点单位', path: '/unit/key', icon: Building2, category: '单位管理', keywords: '单位 重点 管理' },
   { label: '九小场所', path: '/unit/nine-small', icon: Building2, category: '单位管理', keywords: '九小 场所 单位' },
@@ -42,7 +42,7 @@ const searchItems: SearchItem[] = [
   { label: '消防知识库', path: '/knowledge/base', icon: BookOpen, category: '知识库', keywords: '知识 法规 标准' },
   { label: '智能预警', path: '/smart/warning', icon: Brain, category: '智能分析', keywords: '智能 预警 AI' },
   { label: '培训考核', path: '/training/manage', icon: GraduationCap, category: '培训管理', keywords: '培训 考核 证书' },
-  { label: '消防检查', path: '/inspection/manage', icon: ClipboardList, category: '检查管理', keywords: '检查 标准 合格' },
+  { label: '消防检查', path: '/fire-check/manage', icon: ClipboardList, category: '检查管理', keywords: '检查 标准 合格' },
   { label: '用户管理', path: '/system/user', icon: Users, category: '系统管理', keywords: '用户 管理 权限' },
   { label: '系统配置', path: '/system/config', icon: Settings, category: '系统管理', keywords: '系统 配置 设置' },
 ];

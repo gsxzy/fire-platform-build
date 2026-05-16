@@ -4,36 +4,55 @@
  * Node.js + Express + MySQL + WebSocket + IoT Gateway
  * ═══════════════════════════════════════════════════════════════════
  */
+import 'module-alias/register';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import path from 'path';
 import http from 'http';
 
 import sequelize from '@/config/database';
 import logger from '@/config/logger';
+import { getCorsOptions } from '@/config/corsOptions';
+import { fail, success } from '@/utils/response';
+import { HttpError } from '@/utils/httpError';
+import { ensureRefreshTokenTable } from '@/services/refreshToken.service';
 import { requestLogger, errorLogger } from '@/middleware/logger';
+import { globalRateLimiter } from '@/middleware/rateLimit';
+import { slowRequestWarning } from '@/middleware/slowRequest';
+import { requestTracer } from '@/middleware/requestTracer';
 import routes from '@/routes';
 import { initWebSocket } from '@/websocket';
 import { iotGateway } from '@/iot';
 import { initCronJobs } from '@/cron';
 import { NotificationService } from '@/services/notification.service';
 import { gb26875Server } from '@/protocols/gb26875.server';
+import { fscn8001Server } from '@/protocols/fscn8001.server';
+import { DeviceHeartbeatService } from '@/services/deviceHeartbeat.service';
 
 const app = express();
+
+/* Nginx 等反向代理后正确解析客户端 IP（限流、日志）；仅当 TRUST_PROXY=1 启用 */
+if (process.env.TRUST_PROXY === '1') {
+  const hops = parseInt(process.env.TRUST_PROXY_HOPS || '1', 10);
+  app.set('trust proxy', Number.isFinite(hops) && hops > 0 ? hops : 1);
+  logger.info(`[HTTP] trust proxy 已启用，hops=${Number.isFinite(hops) && hops > 0 ? hops : 1}`);
+}
 
 // 初始化通知服务
 NotificationService.init();
 const PORT = parseInt(process.env.PORT || '3000');
 
 /* ── 中间件 ── */
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors(getCorsOptions()));
 app.use(helmet());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(requestTracer);
 app.use(requestLogger);
+app.use(slowRequestWarning);
+app.use(globalRateLimiter);
 
 /* ── 静态文件 ── */
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
@@ -43,23 +62,45 @@ app.use('/api', routes);
 
 /* ── 健康检查 ── */
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() });
+  res.json(
+    success(
+      { status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() },
+      'ok',
+      req.reqId
+    )
+  );
 });
 
 /* ── 错误处理 ── */
 app.use(errorLogger);
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
-  res.status(err.status || 500).json({
-    code: err.status || 500,
-    message: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message,
-    timestamp: Date.now(),
-  });
+  if (err instanceof HttpError) {
+    return res.status(err.httpStatus).json(fail(err.message, err.businessCode, req.reqId));
+  }
+  const e = err as { status?: number; statusCode?: number; message?: string };
+  const status = e.status ?? e.statusCode ?? 500;
+  const msg =
+    process.env.NODE_ENV === 'production'
+      ? '服务器内部错误'
+      : (e.message || '服务器内部错误');
+  res.status(status).json(fail(msg, status, req.reqId));
 });
 
 /* ── 404 ── */
 app.use((req, res) => {
-  res.status(404).json({ code: 404, message: '接口不存在', timestamp: Date.now() });
+  res.status(404).json(fail('接口不存在', 404, req.reqId));
+});
+
+/* ── 进程级异常保护 ── */
+process.on('uncaughtException', (err) => {
+  logger.error('[Process] uncaughtException:', err);
+  // 给日志刷新时间后退出
+  setTimeout(() => process.exit(1), 3000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('[Process] unhandledRejection:', { reason, promise });
 });
 
 /* ── 启动 ── */
@@ -87,11 +128,29 @@ async function bootstrap() {
     await sequelize.authenticate();
     logger.info('[DB] MySQL connected');
 
+    await ensureRefreshTokenTable();
+    logger.info('[DB] sys_refresh_tokens 就绪');
+
     // 同步表结构（仅开发环境允许alter，生产环境强制禁用）
     // 生产环境请使用数据库迁移工具，禁止自动ALTER表
     const isDev = process.env.NODE_ENV === 'development';
     await sequelize.sync({ alter: isDev, force: false });
     logger.info(`[DB] Tables synchronized (alter=${isDev})`);
+
+    // 初始化设备心跳服务
+    const deviceHeartbeatService = DeviceHeartbeatService.getInstance(sequelize);
+    deviceHeartbeatService.initModel();
+    deviceHeartbeatService.setCallbacks({
+      onDeviceOffline: (device) => {
+        logger.warn(`[DeviceHeartbeat] 设备离线通知: ${device.deviceNo}`);
+        // 可在此处触发告警推送、短信通知等
+      },
+      onDeviceOnline: (device) => {
+        logger.info(`[DeviceHeartbeat] 设备恢复在线: ${device.deviceNo}`);
+      },
+    });
+    deviceHeartbeatService.startScheduler(process.env.HEARTBEAT_CRON || '* * * * *');
+    logger.info('[DeviceHeartbeat] 设备心跳检测已启动');
 
     // 启动WebSocket
     initWebSocket(server);
@@ -103,12 +162,21 @@ async function bootstrap() {
     await gb26875Server.start();
     logger.info(`[GB26875] TCP listening ${gb26875Server.getStatus().host}:${gb26875Server.getStatus().port}`);
 
+    // 启动FSCN8001协议服务器（默认 5201，与 app/backend 一致；可用 FSCN8001_PORT 覆盖）
+    await fscn8001Server.start();
+    logger.info(`[FSCN8001] TCP listening ${fscn8001Server.getStatus().host}:${fscn8001Server.getStatus().port}`);
+
     // 启动定时任务
     initCronJobs();
 
     // 启动HTTP服务
     server.listen(PORT, () => {
       logger.info(`[Server] Fire Platform running on port ${PORT}`);
+      if (process.env.NODE_ENV === 'production' && process.env.TRUST_PROXY !== '1') {
+        logger.warn(
+          '[HTTP] 生产环境若经 Nginx 反代，请在 .env 设置 TRUST_PROXY=1，否则限流与日志中的客户端 IP 可能均为代理地址'
+        );
+      }
     });
   } catch (err: any) {
     logger.error('[Bootstrap] Failed:', err.message);
@@ -124,6 +192,9 @@ process.on('SIGTERM', async () => {
 
   // 关闭GB26875服务器
   await gb26875Server.stop();
+
+  // 关闭FSCN8001服务器
+  await fscn8001Server.stop();
 
   server.close(() => {
     sequelize.close();

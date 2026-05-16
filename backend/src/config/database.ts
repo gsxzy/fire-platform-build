@@ -1,15 +1,22 @@
 import { Sequelize } from 'sequelize';
-import dotenv from 'dotenv';
 
-dotenv.config();
+const socketPath = process.env.DB_SOCKET_PATH;
+const host = process.env.DB_HOST || '127.0.0.1';
+const port = parseInt(process.env.DB_PORT || '3306');
+
+if (!process.env.DB_PASSWORD) {
+  console.error('[DB] 错误：未设置 DB_PASSWORD 环境变量，系统无法启动');
+  process.exit(1);
+}
 
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'fire_platform',
   process.env.DB_USER || 'fire_user',
-  process.env.DB_PASSWORD || 'Fire_Pass_2024!',
+  process.env.DB_PASSWORD,
   {
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: parseInt(process.env.DB_PORT || '3306'),
+    ...(socketPath
+      ? { dialectOptions: { socketPath } }
+      : { host, port }),
     dialect: 'mysql',
     pool: {
       min: parseInt(process.env.DB_POOL_MIN || '5'),

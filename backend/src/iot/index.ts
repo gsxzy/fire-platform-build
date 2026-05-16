@@ -7,7 +7,8 @@
 import mqtt from 'mqtt';
 import logger from '@/config/logger';
 import redis from '@/config/redis';
-import { Device, Alarm, IoTDevice } from '@/models';
+import { Alarm, IoTDevice } from '@/models';
+import { generateAlarmNo } from '@/utils/alarmNo';
 
 class IoTGateway {
   private mqttClient: mqtt.MqttClient | null = null;
@@ -58,7 +59,7 @@ class IoTGateway {
   }
 
   private async processAlarm(data: any, unitId: string, deviceSn: string) {
-    const alarmNo = `ALM${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const alarmNo = generateAlarmNo();
     const alarm = await Alarm.create({
       alarm_no: alarmNo,
       alarm_type: data.alarmType,

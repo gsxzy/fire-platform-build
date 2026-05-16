@@ -4,30 +4,10 @@ import { Bell, User, LogOut, Settings, Shield, ChevronDown, CheckCircle, AlertTr
 import { useState, useRef, useEffect } from 'react';
 import GlobalSearch from './GlobalSearch';
 import { useSidebar } from '@/core/SidebarContext';
+import { alarmService } from '@/api/services';
 
-const tickerItems = [
-  { type: 'fire', text: '万达广场 1F大厅烟感探测器触发火警信号', time: '2分钟前' },
-  { type: 'fire', text: '万达广场 B1停车场温感探测器触发火警信号', time: '5分钟前' },
-  { type: 'fault', text: '万达广场 排烟风机#3轴承异响，故障报警', time: '12分钟前' },
-  { type: 'fault', text: '兰州中心 消防栓泵控制器通讯中断', time: '30分钟前' },
-  { type: 'pre', text: '万达广场 水池液位下降至3.2m，触发低液位预警', time: '1小时前' },
-  { type: 'info', text: '维保工单已派发：喷淋泵定期巡检', time: '2小时前' },
-  { type: 'fire', text: '兰大二院 3F走廊烟感确认为误报，已解除', time: '3小时前' },
-  { type: 'fault', text: '西北师范大学 应急照明控制器离线', time: '4小时前' },
-  { type: 'pre', text: '兰州石化 电气线路温度异常，建议排查', time: '5小时前' },
-  { type: 'info', text: '系统完成每日自动巡检，生成报告', time: '6小时前' },
-];
-
-const notifications = [
-  { id: 1, type: 'fire', title: '火警报警', content: '万达广场 1F大厅烟感探测器触发火警', time: '2分钟前', read: false },
-  { id: 2, type: 'fire', title: '火警报警', content: '万达广场 B1停车场温感探测器触发火警', time: '5分钟前', read: false },
-  { id: 3, type: 'fault', title: '设备故障', content: '万达广场 排烟风机#3轴承异响', time: '12分钟前', read: false },
-  { id: 4, type: 'fault', title: '设备故障', content: '兰州中心 消防栓泵控制器通讯中断', time: '30分钟前', read: true },
-  { id: 5, type: 'pre', title: '预警通知', content: '万达广场 水池液位下降至3.2m', time: '1小时前', read: true },
-  { id: 6, type: 'workorder', title: '工单提醒', content: '新的维保工单已派发：喷淋泵定期巡检', time: '2小时前', read: true },
-  { id: 7, type: 'fire', title: '火警已确认', content: '兰大二院 3F走廊烟感确认为误报', time: '3小时前', read: true },
-  { id: 8, type: 'system', title: '系统通知', content: '平台完成每日自动数据备份', time: '4小时前', read: true },
-];
+// 通知面板数据：从后端 API 加载，当前为空库状态
+const notifications: Array<{ id: number; type: string; title: string; content: string; time: string; read: boolean }> = [];
 
 const notifIcon = (type: string) => {
   switch (type) {
@@ -51,14 +31,46 @@ const notifBg = (type: string) => {
 function AlarmTicker() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
+  const [tickerItems, setTickerItems] = useState<Array<{ type: string; text: string; time: string }>>([]);
+
+  /* 加载最近告警 */
+  const loadRecentAlarms = async () => {
+    try {
+      const res = await alarmService.recent();
+      if (res.code === 200 && Array.isArray(res.data)) {
+        const items = res.data.map((alarm: any) => {
+          const typeMap: Record<string, string> = { fire: 'fire', fault: 'fault', warning: 'pre', supervisory: 'pre', test: 'info' };
+          const text = `[${alarm.deviceName || '未知设备'}] ${alarm.message || alarm.alarmDesc || '告警'}`;
+          const time = alarm.createdAt
+            ? new Date(alarm.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            : '';
+          return { type: typeMap[alarm.type] || 'info', text, time };
+        });
+        setTickerItems(items);
+      }
+    } catch {
+      /* 静默失败，不影响头部渲染 */
+    }
+  };
+
+  useEffect(() => {
+    loadRecentAlarms();
+    const timer = setInterval(loadRecentAlarms, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || paused) return;
-    let raf: number, pos = 0, speed = 0.8;
+    if (!el || paused || tickerItems.length === 0) return;
+    let raf: number, pos = 0;
+    const speed = 0.8;
     const animate = () => { pos += speed; const half = el.scrollWidth / 2; if (pos >= half) pos = 0; el.style.transform = `translateX(-${pos}px)`; raf = requestAnimationFrame(animate); };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [paused]);
+  }, [paused, tickerItems]);
+
+  const displayItems = tickerItems.length > 0 ? tickerItems : [{ type: 'info', text: '暂无实时告警', time: '' }];
+
   return (
     <div className="h-7 bg-gradient-to-r from-red-950/30 via-slate-900/70 to-orange-950/30 border-y border-slate-700/20 flex items-center overflow-hidden relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="flex-shrink-0 flex items-center gap-1.5 px-3 border-r border-slate-700/20 z-10 bg-slate-800/80 backdrop-blur-sm">
@@ -67,14 +79,14 @@ function AlarmTicker() {
       </div>
       <div className="flex-1 overflow-hidden relative">
         <div ref={scrollRef} className="flex items-center gap-8 whitespace-nowrap">
-          {[...tickerItems, ...tickerItems].map((item: any, i: number) => (
+          {[...displayItems, ...displayItems].map((item: any, i: number) => (
             <div key={i} className="flex items-center gap-1.5 flex-shrink-0">
               {item.type === 'fire' && <Flame className="w-2.5 h-2.5 text-red-400 flex-shrink-0" />}
               {item.type === 'fault' && <AlertTriangle className="w-2.5 h-2.5 text-yellow-400 flex-shrink-0" />}
               {item.type === 'pre' && <Shield className="w-2.5 h-2.5 text-purple-400 flex-shrink-0" />}
               {item.type === 'info' && <CheckCircle className="w-2.5 h-2.5 text-blue-400 flex-shrink-0" />}
               <span className={`text-[10px] ${item.type === 'fire' ? 'text-red-300' : item.type === 'fault' ? 'text-yellow-300' : item.type === 'pre' ? 'text-purple-300' : 'text-slate-400'}`}>{item.text}</span>
-              <span className="text-[8px] text-slate-600">{item.time}</span>
+              {item.time && <span className="text-[8px] text-slate-600">{item.time}</span>}
             </div>
           ))}
         </div>

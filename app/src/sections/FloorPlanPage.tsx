@@ -1,19 +1,27 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { Stage, Layer, Image, Circle, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { api } from '@/lib/api';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { api } from '@/api/services';
+import { useToast } from '@/core/ToastContext';
 import {
   Layout, Upload, ZoomIn, ZoomOut, RotateCcw,
   Trash2, Eye, AlertTriangle, X, Layers,
   MonitorPlay, Volume2, VolumeX, Crosshair, Maximize, Minimize,
-  FileSpreadsheet
+  FileSpreadsheet, Loader2, Search, RefreshCw, Maximize2, Plus, Building2,
 } from 'lucide-react';
 import { DeviceIcon, DeviceTooltip } from '@/components/floorplan/DeviceIcons';
 import VideoPopup from '@/components/floorplan/VideoPopup';
 import CADRenderer from '@/components/floorplan/CADRenderer';
+import EmptyState from '@/components/EmptyState';
 
 /* ═══════════════════════════════════════════════════════════════
    类型定义
@@ -42,6 +50,32 @@ interface Floor {
   plan_image_url?: string;
   plan_width?: number;
   plan_height?: number;
+  plan_type?: string;
+  plan_cad_data?: string | Record<string, unknown>;
+}
+
+interface CadBounds {
+  minx?: number;
+  miny?: number;
+  maxx?: number;
+  maxy?: number;
+}
+
+/** 纯 CAD 或无栅格底图时，确定与设备百分比坐标一致的逻辑画布尺寸 */
+function resolveCadPlanDimensions(
+  floor: Pick<Floor, 'plan_width' | 'plan_height'>,
+  cadData: { bounds?: CadBounds } | null
+): { width: number; height: number } {
+  const pw = Number(floor.plan_width) || 0;
+  const ph = Number(floor.plan_height) || 0;
+  if (pw > 0 && ph > 0) return { width: pw, height: ph };
+  const b = cadData?.bounds;
+  if (b) {
+    const bw = Math.abs((b.maxx ?? 0) - (b.minx ?? 0));
+    const bh = Math.abs((b.maxy ?? 0) - (b.miny ?? 0));
+    if (bw > 1 && bh > 1) return { width: Math.max(200, bw), height: Math.max(200, bh) };
+  }
+  return { width: 1000, height: 800 };
 }
 
 interface FloorDevice {
@@ -105,6 +139,24 @@ const STATUS_LABEL: Record<number, string> = {
 /* ═══════════════════════════════════════════════════════════════
    辅助函数
    ═══════════════════════════════════════════════════════════════ */
+/** 兼容后端返回数组或 { list } */
+function normalizeList(res: unknown): any[] {
+  if (Array.isArray(res)) return res;
+  if (res && typeof res === 'object' && Array.isArray((res as { list?: unknown }).list)) {
+    return (res as { list: any[] }).list;
+  }
+  return [];
+}
+
+function mapUnitRow(u: Record<string, unknown>): Unit {
+  return {
+    id: String(u.id ?? ''),
+    name: String(u.name ?? u.unit_name ?? '未命名单位'),
+    type: String(u.type ?? u.unit_type ?? ''),
+    address: u.address != null ? String(u.address) : undefined,
+  };
+}
+
 function playBeep() {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -130,6 +182,9 @@ function playBeep() {
    主组件
    ═══════════════════════════════════════════════════════════════ */
 export default function FloorPlanPage() {
+  const navigate = useNavigate();
+  const { success, error: toastError } = useToast();
+
   /* ── 数据状态 ── */
   const [units, setUnits] = useState<Unit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
@@ -170,11 +225,21 @@ export default function FloorPlanPage() {
   /* ── 视频弹窗 ── */
   const [videoPopupOpen, setVideoPopupOpen] = useState(false);
   const [videoPopupCameraId, setVideoPopupCameraId] = useState<string>('');
+  const [videoPopupChannelId, setVideoPopupChannelId] = useState<string>('');
   const [videoPopupCameraName, setVideoPopupCameraName] = useState<string>('');
 
   /* ── Excel 导入 ── */
   const [importResult, setImportResult] = useState<{total:number;success:number;failed:number;unmatched:string[]}|null>(null);
   const [importLoading, setImportLoading] = useState(false);
+  const [deviceSearchQuery, setDeviceSearchQuery] = useState('');
+  const [addBuildingOpen, setAddBuildingOpen] = useState(false);
+  const [addBuildingLoading, setAddBuildingLoading] = useState(false);
+  const [newBuilding, setNewBuilding] = useState({
+    name: '',
+    type: '商业',
+    total_floors: 1,
+    address: '',
+  });
 
   /* ── 悬浮提示 ── */
   const [hoverDevice, setHoverDevice] = useState<FloorDevice | null>(null);
@@ -186,14 +251,18 @@ export default function FloorPlanPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const autoNavRef = useRef<{ deviceId: string; x: number; y: number } | null>(null);
+  const pendingSelectDeviceIdRef = useRef<string | null>(null);
+  const panLastRef = useRef({ x: 0, y: 0 });
+  const panAccumRef = useRef(0);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
 
   /* ═══════ 数据加载 ═══════ */
 
-  /* ── 加载单位列表 ── */
+  /* ── 加载单位列表（与单位档案一致使用 /units/list） ── */
   useEffect(() => {
-    api.get('/units').then((res: any) => {
-      setUnits(res || []);
+    api.get('/units/list', { pageSize: 500 }).then((res: unknown) => {
+      const list = normalizeList(res);
+      setUnits(list.map(mapUnitRow).filter(u => u.id));
     }).catch(() => { /* 401时client.ts会自动跳转登录页 */ });
   }, []);
 
@@ -204,8 +273,8 @@ export default function FloorPlanPage() {
       setSelectedBuilding(null);
       return;
     }
-    api.get(`/buildings?pageSize=100&unit_id=${selectedUnit}`).then((res: any) => {
-      const list = res.list || [];
+    api.get(`/buildings`, { pageSize: 100, unit_id: selectedUnit }).then((res: unknown) => {
+      const list = normalizeList(res);
       setBuildings(list);
       if (list.length > 0) {
         setSelectedBuilding(list[0].id);
@@ -218,8 +287,8 @@ export default function FloorPlanPage() {
   /* ── 加载楼层列表 ── */
   useEffect(() => {
     if (!selectedBuilding) { setFloors([]); setSelectedFloor(null); return; }
-    api.get(`/floors?building_id=${selectedBuilding}`).then((res: any) => {
-      const list = res || [];
+    api.get(`/floors`, { building_id: selectedBuilding }).then((res: unknown) => {
+      const list = normalizeList(res);
       setFloors(list);
       if (list.length > 0) setSelectedFloor(list[0].id);
     }).catch(() => { /* 401时client.ts会自动跳转登录页 */ });
@@ -235,9 +304,9 @@ export default function FloorPlanPage() {
         api.get(`/floors/${floorId}/cameras`),
       ]);
       setCurrentFloor(fRes);
-      setDevices(dRes || []);
-      setUnmarked(uRes || []);
-      setCameras(cRes || []);
+      setDevices(normalizeList(dRes));
+      setUnmarked(normalizeList(uRes));
+      setCameras(normalizeList(cRes));
       setStageScale(1);
       setStagePos({ x: 0, y: 0 });
       // 解析 CAD 数据
@@ -261,6 +330,7 @@ export default function FloorPlanPage() {
   }, []);
 
   useEffect(() => {
+    setDeviceSearchQuery('');
     if (!selectedFloor) { setCurrentFloor(null); setDevices([]); return; }
     loadFloorData(selectedFloor);
   }, [selectedFloor, loadFloorData]);
@@ -281,24 +351,102 @@ export default function FloorPlanPage() {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
+  /** 按给定逻辑尺寸适配容器（栅格图 / CAD 共用） */
+  const fitPlanDimensionsToContainer = useCallback((w: number, h: number) => {
+    if (!containerRef.current || w <= 0 || h <= 0) return;
+    const cw = containerRef.current.clientWidth;
+    const ch = containerRef.current.clientHeight;
+    const pad = 32;
+    const sx = (cw - pad) / w;
+    const sy = (ch - pad) / h;
+    const next = Math.max(0.08, Math.min(4, Math.min(sx, sy)));
+    setStageScale(next);
+    setStagePos({
+      x: (cw - w * next) / 2,
+      y: (ch - h * next) / 2,
+    });
+  }, []);
+
+  /** 告警自动定位：在已知逻辑宽高下缩放到 1.8× 并居中到点位 */
+  const applyPendingAutoNav = useCallback((w: number, h: number) => {
+    if (!autoNavRef.current || !containerRef.current) return;
+    const { x, y } = autoNavRef.current;
+    const containerW = containerRef.current.clientWidth;
+    const containerH = containerRef.current.clientHeight;
+    const targetScale = 1.8;
+    const px = (x / 100) * w;
+    const py = (y / 100) * h;
+    setStageScale(targetScale);
+    setStagePos({
+      x: containerW / 2 - px * targetScale,
+      y: containerH / 2 - py * targetScale,
+    });
+    autoNavRef.current = null;
+  }, []);
+
+  const fitPlanToStage = useCallback(() => {
+    fitPlanDimensionsToContainer(imageSize.width, imageSize.height);
+  }, [imageSize.width, imageSize.height, fitPlanDimensionsToContainer]);
+
   useEffect(() => {
     if (!currentFloor?.plan_image_url) { setImageObj(null); return; }
     const img = new window.Image();
     img.src = currentFloor.plan_image_url;
     img.onload = () => {
+      const w = currentFloor.plan_width || img.naturalWidth || 1000;
+      const h = currentFloor.plan_height || img.naturalHeight || 800;
       setImageObj(img);
-      setImageSize({
-        width: currentFloor.plan_width || img.naturalWidth || 1000,
-        height: currentFloor.plan_height || img.naturalHeight || 800,
-      });
-      // 自动导航：如果有待跳转的设备，居中定位
-      if (autoNavRef.current) {
-        const { x, y } = autoNavRef.current;
-        centerOnDevice(x, y);
-        autoNavRef.current = null;
-      }
+      setImageSize({ width: w, height: h });
+      applyPendingAutoNav(w, h);
     };
-  }, [currentFloor?.plan_image_url]);
+  }, [currentFloor?.plan_image_url, currentFloor?.plan_width, currentFloor?.plan_height, applyPendingAutoNav]);
+
+  /* 纯 CAD、无栅格底图：解析逻辑画布尺寸并首次适配；告警导航与栅格图相同 */
+  useEffect(() => {
+    if (!currentFloor) return;
+    const cadOnly = !currentFloor.plan_image_url && currentFloor.plan_type === 'cad' && cadData;
+    if (!cadOnly) return;
+    const { width: w, height: h } = resolveCadPlanDimensions(currentFloor, cadData);
+    setImageSize({ width: w, height: h });
+    if (autoNavRef.current) applyPendingAutoNav(w, h);
+    else requestAnimationFrame(() => fitPlanDimensionsToContainer(w, h));
+  }, [
+    currentFloor?.id,
+    currentFloor?.plan_image_url,
+    currentFloor?.plan_type,
+    currentFloor?.plan_width,
+    currentFloor?.plan_height,
+    cadData,
+    applyPendingAutoNav,
+    fitPlanDimensionsToContainer,
+  ]);
+
+  /* ── 自动跳转到告警设备（选中逻辑在 devices 加载后由 effect 完成，避免闭包陈旧） ── */
+  const autoNavigateToDevice = useCallback(async (deviceId: string) => {
+    try {
+      const res: unknown = await api.get(`/devices/${deviceId}/position`);
+      const pos = res as { floor_id?: number; x?: number; y?: number } | null;
+      if (!pos || pos.floor_id == null || pos.x == null || pos.y == null) return;
+      const fRes = await api.get(`/floors/${pos.floor_id}`);
+      const floor = fRes as Floor;
+      setSelectedBuilding(floor.building_id);
+      setSelectedFloor(floor.id);
+      autoNavRef.current = { deviceId, x: pos.x, y: pos.y };
+      pendingSelectDeviceIdRef.current = deviceId;
+    } catch {
+      // 401时client.ts会自动跳转登录页，无需额外处理
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = pendingSelectDeviceIdRef.current;
+    if (!id) return;
+    const dev = devices.find(d => d.device_id === id);
+    if (dev) {
+      setSelectedDevice(dev);
+      pendingSelectDeviceIdRef.current = null;
+    }
+  }, [devices]);
 
   /* ═══════ WebSocket 告警监听 ═══════ */
   useEffect(() => {
@@ -326,7 +474,7 @@ export default function FloorPlanPage() {
     };
     ws.addEventListener('message', handler);
     return () => ws.removeEventListener('message', handler);
-  }, [soundEnabled]);
+  }, [soundEnabled, autoNavigateToDevice]);
 
   /* ── 告警闪烁动画 ── */
   useEffect(() => {
@@ -335,47 +483,24 @@ export default function FloorPlanPage() {
     return () => clearInterval(id);
   }, [alarmIds.size]);
 
-  /* ── 自动跳转到告警设备 ── */
-  const autoNavigateToDevice = useCallback(async (deviceId: string) => {
-    try {
-      const res: any = await api.get(`/devices/${deviceId}/position`);
-      const pos = res;
-      if (!pos) return;
-      // 切到对应建筑/楼层
-      const [fRes] = await Promise.all([
-        api.get(`/floors/${pos.floor_id}`),
-      ]);
-      const floor: Floor = fRes;
-      // 设置建筑
-      setSelectedBuilding(floor.building_id);
-      // 设置楼层（会触发 loadFloorData）
-      setSelectedFloor(floor.id);
-      // 记录待居中坐标
-      autoNavRef.current = { deviceId, x: pos.x, y: pos.y };
-      // 选中设备
-      setTimeout(() => {
-        const dev = devices.find(d => d.device_id === deviceId);
-        if (dev) setSelectedDevice(dev);
-      }, 500);
-    } catch {
-      // 401时client.ts会自动跳转登录页，无需额外处理
-    }
-  }, [devices]);
-
   /* ═══════ 画布交互 ═══════ */
 
-  const centerOnDevice = (pctX: number, pctY: number) => {
-    if (!containerRef.current) return;
-    const containerW = containerRef.current.clientWidth;
-    const containerH = containerRef.current.clientHeight;
-    const targetScale = 1.8;
-    const px = (pctX / 100) * imageSize.width;
-    const py = (pctY / 100) * imageSize.height;
-    const newX = containerW / 2 - px * targetScale;
-    const newY = containerH / 2 - py * targetScale;
-    setStageScale(targetScale);
-    setStagePos({ x: newX, y: newY });
-  };
+  /* ── Esc 退出标点 / 连续标点 ── */
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      if (batchMode) {
+        setBatchMode(false);
+        setBatchQueue([]);
+        setBatchIndex(0);
+        setActiveDevice(null);
+      } else if (activeDevice) {
+        setActiveDevice(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [batchMode, activeDevice]);
 
   const handleWheel = (e: any) => {
     e.evt.preventDefault();
@@ -402,6 +527,8 @@ export default function FloorPlanPage() {
   const handleStageMouseDown = (e: any) => {
     // 只有点击空白处（Stage 本身）才进入平移模式
     if (e.target === e.target.getStage()) {
+      panAccumRef.current = 0;
+      panLastRef.current = { x: e.evt.clientX, y: e.evt.clientY };
       setIsPanning(true);
       setPanStart({ x: e.evt.clientX - stagePos.x, y: e.evt.clientY - stagePos.y });
     }
@@ -409,6 +536,10 @@ export default function FloorPlanPage() {
 
   const handleStageMouseMove = (e: any) => {
     if (!isPanning) return;
+    const dx = e.evt.clientX - panLastRef.current.x;
+    const dy = e.evt.clientY - panLastRef.current.y;
+    panAccumRef.current += Math.abs(dx) + Math.abs(dy);
+    panLastRef.current = { x: e.evt.clientX, y: e.evt.clientY };
     setStagePos({
       x: e.evt.clientX - panStart.x,
       y: e.evt.clientY - panStart.y,
@@ -419,7 +550,11 @@ export default function FloorPlanPage() {
 
   /* ── 点击画布标点 ── */
   const handleStageClick = (e: any) => {
-    if (isPanning) return;
+    if (panAccumRef.current > 10) {
+      panAccumRef.current = 0;
+      return;
+    }
+    panAccumRef.current = 0;
     if (!activeDevice && !batchMode) return;
     if (e.target !== e.target.getStage()) return; // 点击设备时不触发标点
 
@@ -444,6 +579,7 @@ export default function FloorPlanPage() {
       const dev = batchQueue[batchIndex];
       if (!dev) return;
       placeDevice(dev).then(() => {
+        success('已标点');
         const next = batchIndex + 1;
         if (next >= batchQueue.length) {
           setBatchMode(false); setBatchQueue([]); setBatchIndex(0); setActiveDevice(null);
@@ -451,11 +587,16 @@ export default function FloorPlanPage() {
           setBatchIndex(next); setActiveDevice(batchQueue[next]);
         }
         if (selectedFloor) loadFloorData(selectedFloor);
+      }).catch(() => {
+        toastError('标点失败', '请检查网络或设备是否仍在本层待标点列表中');
       });
     } else if (activeDevice) {
       placeDevice(activeDevice).then(() => {
+        success('已标点');
         setActiveDevice(null);
         if (selectedFloor) loadFloorData(selectedFloor);
+      }).catch(() => {
+        toastError('标点失败', '请检查网络或设备是否仍在本层待标点列表中');
       });
     }
   };
@@ -464,23 +605,33 @@ export default function FloorPlanPage() {
 
   const deletePosition = async (positionId: number) => {
     if (!selectedFloor) return;
-    await api.delete(`/floors/${selectedFloor}/devices/${positionId}`);
-    setDevices(prev => prev.filter(d => d.position_id !== positionId));
-    setSelectedDevice(null);
-    if (selectedFloor) {
-      const uRes: any = await api.get(`/floors/${selectedFloor}/devices/unmarked`);
-      setUnmarked(uRes || []);
+    if (!window.confirm('确定从本层平面图移除该设备点位？不会删除设备档案。')) return;
+    try {
+      await api.delete(`/floors/${selectedFloor}/devices/${positionId}`);
+      setDevices(prev => prev.filter(d => d.position_id !== positionId));
+      setSelectedDevice(null);
+      const uRes = await api.get(`/floors/${selectedFloor}/devices/unmarked`);
+      setUnmarked(normalizeList(uRes));
+      success('已删除点位');
+    } catch {
+      // 错误由 API 客户端统一提示
     }
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedFloor) return;
-    const form = new FormData();
-    form.append('file', file);
-    await api.post(`/floors/${selectedFloor}/plan`, form);
-    loadFloorData(selectedFloor);
-    if (fileRef.current) fileRef.current.value = '';
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      await api.post(`/floors/${selectedFloor}/plan`, form);
+      success('平面图已更新');
+      await loadFloorData(selectedFloor);
+    } catch {
+      // 错误由 API 客户端统一提示
+    } finally {
+      if (fileRef.current) fileRef.current.value = '';
+    }
   };
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -500,14 +651,54 @@ export default function FloorPlanPage() {
           unmatched: res.unmatched || [],
         });
         if (res.success > 0) {
+          success(`导入完成：成功 ${res.success} 条`);
           loadFloorData(selectedFloor);
+        } else if (res.total > 0) {
+          toastError('导入未成功', '请检查 Excel 格式与设备编码是否与本层匹配');
         }
       }
-    } catch (err: any) {
+    } catch {
       // 错误提示由 api client 统一处理
     } finally {
       setImportLoading(false);
       if (importRef.current) importRef.current.value = '';
+    }
+  };
+
+  const submitNewBuilding = async () => {
+    const name = newBuilding.name.trim();
+    if (!selectedUnit) {
+      toastError('无法创建', '请先选择单位');
+      return;
+    }
+    if (!name) {
+      toastError('请填写建筑名称', '名称为必填项');
+      return;
+    }
+    setAddBuildingLoading(true);
+    try {
+      const data = await api.post<{ id?: number }>('/buildings', {
+        name,
+        unit_id: selectedUnit,
+        type: newBuilding.type.trim() || '商业',
+        total_floors: Math.max(1, Math.floor(Number(newBuilding.total_floors)) || 1),
+        address: newBuilding.address.trim(),
+      });
+      const newId =
+        data && typeof data === 'object' && data.id != null ? Number(data.id) : undefined;
+      success('建筑已创建');
+      setAddBuildingOpen(false);
+      setNewBuilding({ name: '', type: '商业', total_floors: 1, address: '' });
+      const res = await api.get('/buildings', { pageSize: 100, unit_id: selectedUnit });
+      const list = normalizeList(res) as Building[];
+      setBuildings(list);
+      if (newId != null && list.some(b => b.id === newId)) setSelectedBuilding(newId);
+      else if (list.length > 0) setSelectedBuilding(list[0].id);
+      else setSelectedBuilding(null);
+    } catch {
+      // 错误由 API 客户端统一提示
+    } finally {
+      setAddBuildingLoading(false);
     }
   };
 
@@ -524,6 +715,7 @@ export default function FloorPlanPage() {
     // 查找关联摄像头（优先使用 bind_camera_id，其次查找 camera_binding）
     if (device.bind_camera_id) {
       setVideoPopupCameraId(device.bind_camera_id);
+      setVideoPopupChannelId(device.bind_camera_channel || device.bind_camera_id);
       setVideoPopupCameraName(device.device_name + ' 关联视频');
       setVideoPopupOpen(true);
       return;
@@ -535,6 +727,7 @@ export default function FloorPlanPage() {
       setLinkedCamera(linked);
       setShowVideo(true);
       setVideoPopupCameraId(linked.camera_device_id);
+      setVideoPopupChannelId(linked.camera_device_id);
       setVideoPopupCameraName(linked.camera_name || '关联摄像头');
       setVideoPopupOpen(true);
     } else {
@@ -552,6 +745,31 @@ export default function FloorPlanPage() {
     const alarm = devices.filter(d => alarmIds.has(d.device_id)).length;
     return { total, online, fault, offline, alarm };
   }, [devices, alarmIds]);
+
+  const filteredUnmarked = useMemo(() => {
+    const q = deviceSearchQuery.trim().toLowerCase();
+    if (!q) return unmarked;
+    return unmarked.filter(d =>
+      d.device_name.toLowerCase().includes(q) ||
+      d.device_code.toLowerCase().includes(q) ||
+      String(d.device_type || '').toLowerCase().includes(q)
+    );
+  }, [unmarked, deviceSearchQuery]);
+
+  const filteredDevices = useMemo(() => {
+    const q = deviceSearchQuery.trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter(d =>
+      d.device_name.toLowerCase().includes(q) ||
+      d.device_code.toLowerCase().includes(q) ||
+      String(d.device_type || '').toLowerCase().includes(q)
+    );
+  }, [devices, deviceSearchQuery]);
+
+  const hasPlanCanvas = useMemo(
+    () => !!(currentFloor && (currentFloor.plan_image_url || (currentFloor.plan_type === 'cad' && cadData))),
+    [currentFloor, cadData]
+  );
 
   /* ═══════ 渲染：设备点位 ═══════ */
   const renderDeviceNodes = () => {
@@ -656,17 +874,33 @@ export default function FloorPlanPage() {
           ))}
         </select>
 
-        <select
-          className="h-8 px-2 text-xs bg-slate-800 border border-slate-700 rounded text-slate-200 outline-none focus:border-blue-500"
-          value={selectedBuilding || ''}
-          onChange={e => setSelectedBuilding(+e.target.value || null)}
-          disabled={!selectedUnit}
-        >
-          <option value="">选择建筑物</option>
-          {buildings.map(b => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1">
+          <select
+            className="h-8 min-w-[132px] px-2 text-xs bg-slate-800 border border-slate-700 rounded text-slate-200 outline-none focus:border-blue-500"
+            value={selectedBuilding || ''}
+            onChange={e => setSelectedBuilding(+e.target.value || null)}
+            disabled={!selectedUnit}
+          >
+            <option value="">选择建筑物</option>
+            {buildings.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 w-8 p-0 border-slate-600 text-slate-300 hover:bg-slate-700"
+            disabled={!selectedUnit}
+            title="添加建筑"
+            onClick={() => {
+              setNewBuilding({ name: '', type: '商业', total_floors: 1, address: '' });
+              setAddBuildingOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
 
         <select
           className="h-8 px-2 text-xs bg-slate-800 border border-slate-700 rounded text-slate-200 outline-none focus:border-blue-500"
@@ -679,6 +913,17 @@ export default function FloorPlanPage() {
             <option key={f.id} value={f.id}>{f.name}</option>
           ))}
         </select>
+
+        <div className="relative flex items-center">
+          <Search className="absolute left-2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <Input
+            value={deviceSearchQuery}
+            onChange={e => setDeviceSearchQuery(e.target.value)}
+            placeholder="筛选设备…"
+            disabled={!selectedFloor}
+            className="h-8 w-36 pl-8 text-[10px] bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500"
+          />
+        </div>
 
         <div className="flex-1" />
 
@@ -696,6 +941,24 @@ export default function FloorPlanPage() {
           <button onClick={() => { setStageScale(1); setStagePos({ x: 0, y: 0 }); }}
             className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded" title="还原">
             <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => selectedFloor && loadFloorData(selectedFloor)}
+            disabled={!selectedFloor || loading}
+            className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded disabled:opacity-40"
+            title="刷新本层数据"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={fitPlanToStage}
+            disabled={!hasPlanCanvas}
+            className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded disabled:opacity-40"
+            title="平面图适配画布"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => setSoundEnabled(v => !v)}
             className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded" title="声音">
@@ -745,7 +1008,7 @@ export default function FloorPlanPage() {
               <Badge variant="outline" className="text-[9px] bg-slate-700/30 text-slate-400">{unmarked.length}</Badge>
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1">
-              {unmarked.map((d) => (
+              {filteredUnmarked.map((d) => (
                 <div
                   key={d.id}
                   className={`flex items-center gap-2 p-2 rounded-lg cursor-grab active:cursor-grabbing transition-all ${
@@ -760,8 +1023,16 @@ export default function FloorPlanPage() {
                   </div>
                 </div>
               ))}
+              {unmarked.length > 0 && filteredUnmarked.length === 0 && (
+                <div className="text-[10px] text-slate-500 py-3 text-center">无匹配设备，请调整筛选关键词</div>
+              )}
               {unmarked.length === 0 && (
-                <div className="text-center py-4 text-[10px] text-slate-600">暂无未标点设备</div>
+                <EmptyState
+                  type="data"
+                  title="暂无待标点设备"
+                  description="当前楼层设备均已上图，或设备清单为空。可切换楼层或先在设备档案中绑定本建筑。"
+                  className="py-4 px-1"
+                />
               )}
             </div>
             {activeDevice && !batchMode && (
@@ -784,15 +1055,20 @@ export default function FloorPlanPage() {
         <Card className="flex-1 border-slate-700/50 bg-slate-900 flex flex-col relative overflow-hidden">
           <CardContent className="p-0 flex-1 relative" ref={containerRef}>
             {loading && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/80">
-                <div className="text-xs text-slate-400">加载中...</div>
+              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-2 bg-slate-900/80">
+                <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+                <div className="text-xs text-slate-400">平面图与设备点位加载中，请稍候…</div>
               </div>
             )}
 
-            {!currentFloor?.plan_image_url ? (
+            {!hasPlanCanvas ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
                 <Layers className="w-12 h-12 mb-3 opacity-30" />
-                <div className="text-sm">请先选择楼层并上传平面图</div>
+                <div className="text-sm text-center px-4">
+                  {currentFloor?.plan_type === 'cad' && !cadData
+                    ? '本层为 CAD 图纸，但未解析到有效矢量数据。请检查楼层 CAD 导入或改上传栅格平面图。'
+                    : '请先选择楼层并上传平面图，或使用已导入的 CAD 矢量图纸。'}
+                </div>
                 <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700 text-[10px]"
                   onClick={() => fileRef.current?.click()} disabled={!selectedFloor}>
                   <Upload className="w-3 h-3 mr-1" />上传平面图
@@ -869,8 +1145,8 @@ export default function FloorPlanPage() {
                     <Crosshair className="w-3.5 h-3.5 text-blue-400" />
                     <span className="text-[11px] text-slate-300">
                       {batchMode
-                        ? `连续标点：${currentBatchDevice?.device_name} (${batchIndex + 1}/${batchQueue.length})`
-                        : `标点模式：${activeDevice?.device_name}`}
+                        ? `连续标点：${currentBatchDevice?.device_name} (${batchIndex + 1}/${batchQueue.length}) · Esc 退出`
+                        : `标点模式：${activeDevice?.device_name} · Esc 取消`}
                     </span>
                   </div>
                 )}
@@ -911,13 +1187,13 @@ export default function FloorPlanPage() {
                 {/* 统计卡片 */}
                 <div className="grid grid-cols-2 gap-2 mb-3">
                   {[
-                    { label: '已标点', value: stats.total, color: 'blue' },
-                    { label: '在线', value: stats.online, color: 'emerald' },
-                    { label: '故障', value: stats.fault, color: 'yellow' },
-                    { label: '离线', value: stats.offline, color: 'red' },
+                    { label: '已标点', value: stats.total, valueClass: 'text-blue-400' },
+                    { label: '在线', value: stats.online, valueClass: 'text-emerald-400' },
+                    { label: '故障', value: stats.fault, valueClass: 'text-amber-400' },
+                    { label: '离线', value: stats.offline, valueClass: 'text-red-400' },
                   ].map(s => (
                     <div key={s.label} className="bg-slate-700/20 rounded-lg p-2 text-center">
-                      <div className={`text-lg font-bold text-${s.color}-400`}>{s.value}</div>
+                      <div className={`text-lg font-bold ${s.valueClass}`}>{s.value}</div>
                       <div className="text-[9px] text-slate-500">{s.label}</div>
                     </div>
                   ))}
@@ -926,7 +1202,7 @@ export default function FloorPlanPage() {
                 {/* 设备列表 */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1">
                   <div className="text-[10px] text-slate-500 mb-1">楼层设备列表</div>
-                  {devices.map(d => (
+                  {filteredDevices.map(d => (
                     <div
                       key={d.position_id}
                       className="flex items-center gap-2 p-2 rounded-lg bg-slate-700/20 hover:bg-slate-700/40 cursor-pointer transition-all"
@@ -942,8 +1218,16 @@ export default function FloorPlanPage() {
                       )}
                     </div>
                   ))}
+                  {devices.length > 0 && filteredDevices.length === 0 && (
+                    <div className="text-[10px] text-slate-500 py-3 text-center">无匹配设备</div>
+                  )}
                   {devices.length === 0 && (
-                    <div className="text-center py-4 text-[10px] text-slate-600">暂无设备标点</div>
+                    <EmptyState
+                      type="data"
+                      title="本层暂无已标点设备"
+                      description="上传平面图后，在左侧将设备拖放或点击上图，即可在此列表查看。"
+                      className="py-4 px-1"
+                    />
                   )}
                 </div>
               </div>
@@ -1006,8 +1290,9 @@ export default function FloorPlanPage() {
                           className="w-full h-32 rounded bg-black mt-2 object-contain"
                         />
                       ) : (
-                        <div className="w-full h-24 rounded bg-slate-900 flex items-center justify-center text-[10px] text-slate-600 mt-2">
-                          暂无视频流
+                        <div className="w-full h-24 rounded bg-slate-900 flex flex-col items-center justify-center gap-1 px-2 text-center mt-2">
+                          <span className="text-[10px] text-slate-500">暂无视频流</span>
+                          <span className="text-[9px] text-slate-600 leading-snug">请确认摄像头在线、取流地址已配置，或检查 GB28181 / 平台视频服务状态。</span>
                         </div>
                       )}
                     </div>
@@ -1016,7 +1301,7 @@ export default function FloorPlanPage() {
                 <div className="flex-1" />
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1 h-8 text-[10px] border-slate-600 text-slate-300"
-                    onClick={() => { /* 跳转设备档案 */ }}>
+                    onClick={() => navigate(`/device/archive?deviceId=${encodeURIComponent(selectedDevice.device_id)}`)}>
                     <Eye className="w-3 h-3 mr-1" />查看档案
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-500/10"
@@ -1030,10 +1315,96 @@ export default function FloorPlanPage() {
         </Card>
       </div>
 
+      <Dialog open={addBuildingOpen} onOpenChange={setAddBuildingOpen}>
+        <DialogContent className="bg-slate-800 border-slate-600 text-slate-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-slate-100 flex items-center gap-2 text-base">
+              <Building2 className="w-5 h-5 text-blue-400 shrink-0" />
+              新建建筑
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              将归入当前所选单位。创建后请在本页选择该建筑，再添加楼层与平面图。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-new-building-name" className="text-slate-400 text-xs">建筑名称 *</Label>
+              <Input
+                id="fp-new-building-name"
+                value={newBuilding.name}
+                onChange={e => setNewBuilding(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="例如：1号楼、主楼"
+                className="h-9 text-sm bg-slate-900/80 border-slate-600 text-slate-200"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-new-building-type" className="text-slate-400 text-xs">建筑类型</Label>
+                <Input
+                  id="fp-new-building-type"
+                  value={newBuilding.type}
+                  onChange={e => setNewBuilding(prev => ({ ...prev, type: e.target.value }))}
+                  placeholder="商业 / 住宅…"
+                  className="h-9 text-sm bg-slate-900/80 border-slate-600 text-slate-200"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fp-new-building-floors" className="text-slate-400 text-xs">地上层数</Label>
+                <Input
+                  id="fp-new-building-floors"
+                  type="number"
+                  min={1}
+                  value={newBuilding.total_floors}
+                  onChange={e => setNewBuilding(prev => ({ ...prev, total_floors: Number(e.target.value) || 1 }))}
+                  className="h-9 text-sm bg-slate-900/80 border-slate-600 text-slate-200"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="fp-new-building-address" className="text-slate-400 text-xs">地址（选填）</Label>
+              <Input
+                id="fp-new-building-address"
+                value={newBuilding.address}
+                onChange={e => setNewBuilding(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="建筑地址或备注位置"
+                className="h-9 text-sm bg-slate-900/80 border-slate-600 text-slate-200"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-slate-600 text-slate-300"
+              onClick={() => setAddBuildingOpen(false)}
+              disabled={addBuildingLoading}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              className="bg-blue-600 hover:bg-blue-700 inline-flex items-center gap-2"
+              onClick={() => void submitNewBuilding()}
+              disabled={addBuildingLoading}
+            >
+              {addBuildingLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  创建中…
+                </>
+              ) : (
+                '创建'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 视频联动弹窗 */}
       <VideoPopup
         open={videoPopupOpen}
         cameraId={videoPopupCameraId}
+        channelId={videoPopupChannelId}
         cameraName={videoPopupCameraName}
         onClose={() => setVideoPopupOpen(false)}
       />

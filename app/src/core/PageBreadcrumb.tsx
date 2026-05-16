@@ -44,12 +44,19 @@ export default function PageBreadcrumb() {
       const matchedChild = children.find(c => pathname === c.path || pathname.startsWith(c.path + '/'));
 
       if (matchedChild) {
-        // 首页
         items.push({ label: '首页', path: '/workbench', isLast: false });
-        // 父级菜单
         items.push({ label: mod.menu.label || mod.name, path: menuPath, isLast: false });
-        // 当前页面
-        items.push({ label: matchedChild.label, path: matchedChild.path, isLast: true });
+
+        const isControlRoomDetail =
+          matchedChild.path === '/monitor/control' &&
+          /^\/monitor\/control\/room(\/|$)/.test(pathname);
+
+        if (isControlRoomDetail) {
+          items.push({ label: matchedChild.label, path: matchedChild.path, isLast: false });
+          items.push({ label: '消控室详情', path: pathname, isLast: true });
+        } else {
+          items.push({ label: matchedChild.label, path: matchedChild.path, isLast: true });
+        }
         return items;
       }
 
@@ -158,6 +165,8 @@ const MODULE_PATH_LABELS: Record<string, string> = {
   '/duty': '值守中心',
   '/duty/dispatch': '接警处置',
   '/duty/log': '值班日志',
+  '/duty/shift': '班次管理',
+  '/duty/handover': '交接班记录',
   '/subsystem': '子系统监控',
   '/subsystem/water': '消防给水',
   '/subsystem/elec': '电气火灾',
@@ -167,13 +176,16 @@ const MODULE_PATH_LABELS: Record<string, string> = {
   '/unit/key': '重点单位',
   '/unit/nine-small': '九小场所',
   '/unit/stats': '单位统计',
+  '/floor-plans': '建筑平面图',
   '/device': '设备管理',
-  '/device/archive': '设备档案',
+  '/device/archive': '入库管理',
+  '/device/access': '设备接入',
+  '/device/access/ctwing': 'CTWing 4G 接入',
   '/device/allocate': '设备分配',
   '/device/config': '设备配置',
   '/device/maintain': '设备维护',
-  '/device/status': '设备状态',
   '/device/control': '设备反控',
+  '/iot/access': '设备接入',
   '/maintenance': '消防维保',
   '/maintenance/contract': '维保合同',
   '/maintenance/company': '维保单位',
@@ -202,7 +214,7 @@ const MODULE_PATH_LABELS: Record<string, string> = {
   '/ai': 'AI决策中心',
   '/ai/center': 'AI决策中心',
   '/iot': 'IoT设备接入',
-  '/iot/access': '设备接入管理',
+  '/iot/gb28181': 'GB28181接入',
   '/iot/protocol': '协议解析配置',
   '/iot/pipeline': '数据流转管道',
   '/smart': '智能预警',
@@ -213,6 +225,7 @@ const MODULE_PATH_LABELS: Record<string, string> = {
   '/fire-check/manage': '检查管理',
   '/system': '系统管理',
   '/system/user': '用户管理',
+  '/system/personnel': '人员管理',
   '/system/role': '角色权限',
   '/system/org': '组织架构',
   '/system/log': '日志管理',

@@ -1,14 +1,15 @@
 import { Router } from 'express';
-import { authMiddleware, requirePermission } from '@/middleware/auth';
+import { success } from '@/utils/response';
+import { authMiddleware } from '@/middleware/auth';
+import { authRateLimiter } from '@/middleware/rateLimit';
 import { AuthController } from '@/controllers/auth.controller';
 import { UserController } from '@/controllers/user.controller';
 import { RoleController } from '@/controllers/role.controller';
 import { UnitController } from '@/controllers/unit.controller';
 import { DeviceController } from '@/controllers/device.controller';
-import { AlarmController } from '@/controllers/alarm.controller';
-import { MaintenanceController } from '@/controllers/maintenance.controller';
+import { DeviceAllocationController } from '@/controllers/deviceAllocation.controller';
+import { DeviceMaintenanceController } from '@/controllers/deviceMaintenance.controller';
 import { PatrolController } from '@/controllers/patrol.controller';
-import { ControlRoomController } from '@/controllers/controlRoom.controller';
 import { PlanController } from '@/controllers/plan.controller';
 import { KnowledgeController } from '@/controllers/knowledge.controller';
 import { IoTController } from '@/controllers/iot.controller';
@@ -22,145 +23,150 @@ import { DeviceControlController } from '@/controllers/deviceControl.controller'
 import { AIDecisionController } from '@/controllers/aiDecision.controller';
 import { IoTProtocolController } from '@/controllers/iotProtocol.controller';
 import { LinkageController } from '@/controllers/linkage.controller';
-import { VideoController } from '@/controllers/video.controller';
+import { AILearningController } from '@/controllers/aiLearning.controller';
+import { Hikvision4GController } from '@/controllers/hikvision4g.controller';
+import { CTWingController } from '@/controllers/ctwing.controller';
+import floorPlanAppRouter from '@/routes/floorPlanApp.routes';
+import stubRouter from '@/routes/stub.routes';
+
+/* ── 模块级子路由 ── */
+import alarmRoutes from './modules/alarm.routes';
+import controlRoomRoutes from './modules/controlRoom.routes';
+import deviceRoutes from './modules/device.routes';
+import maintenanceRoutes from './modules/maintenance.routes';
+import videoRoutes from './modules/video.routes';
 
 const router = Router();
 
-/* ═══════ 公开接口 ═══════ */
-router.post('/auth/login', AuthController.login);
-router.post('/auth/register', AuthController.register);
-router.get('/health', (req, res) => res.json({ code: 200, data: { status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() } }));
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 公开接口
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.post('/auth/login', authRateLimiter, AuthController.login);
+router.post('/auth/register', authRateLimiter, AuthController.register);
+router.post('/auth/refresh', AuthController.refresh);
+router.post('/auth/logout', AuthController.logout);
+router.get('/health', (req, res) =>
+  res.json(success({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() }, 'ok', req.reqId))
+);
+router.get('/public/stats', SystemController.dashboard);
 
-/* ═══════ 认证中间件（此后所有接口需登录） ═══════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 海康4G IoT 设备接入（无需JWT，设备直接4G上报）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.post('/iot/hikvision/report', Hikvision4GController.report);
+router.post('/iot/hikvision/heartbeat', Hikvision4GController.heartbeat);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CTWing（天翼物联网平台）设备接入（无需JWT，平台HTTP推送）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.post('/iot/ctwing/report', CTWingController.report);
+router.post('/iot/ctwing/status', CTWingController.status);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 认证中间件（此后所有接口需登录）
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.use(authMiddleware);
 
-/* ═══════════════════════════════════════════════════════════
-   1. 工作台
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 平面图
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use(floorPlanAppRouter);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 1. 工作台
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/workbench', DashboardController.workbench);
 
-/* ═══════════════════════════════════════════════════════════
-   2. 监控中心
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 2. 监控中心
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/monitor/overview', DashboardController.monitorOverview);
 
-/* ═══════════════════════════════════════════════════════════
-   3. 告警中心
-   ═══════════════════════════════════════════════════════════ */
-router.get('/alarms', AlarmController.list);
-router.post('/alarms', AlarmController.create);
-router.get('/alarms/stats', AlarmController.stats);
-router.get('/alarms/recent', AlarmController.recent);
-router.get('/alarms/trend', AlarmController.trend);
-router.put('/alarms/:id/confirm', AlarmController.confirm);
-router.put('/alarms/:id/handle', AlarmController.handle);
-router.put('/alarms/:id/dismiss', AlarmController.dismiss);
-router.put('/alarms/:id/silence', AlarmController.silence);
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 3. 告警中心（子路由）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use('/alarms', alarmRoutes);
 
-/* ═══════════════════════════════════════════════════════════
-   4. 数智消控室 - 通过报警主机控制
-   ═══════════════════════════════════════════════════════════ */
-router.get('/control-rooms', ControlRoomController.list);
-router.post('/control-rooms', ControlRoomController.create);
-router.put('/control-rooms/:id', ControlRoomController.update);
-router.delete('/control-rooms/:id', ControlRoomController.delete);
-router.get('/control-rooms/:id', ControlRoomController.detail);
-// 报警主机
-router.get('/control-rooms/hosts', ControlRoomController.hostList);
-router.post('/control-rooms/hosts', ControlRoomController.hostCreate);
-router.put('/control-rooms/hosts/:id', ControlRoomController.hostUpdate);
-router.delete('/control-rooms/hosts/:id', ControlRoomController.hostDelete);
-router.get('/control-rooms/hosts/:id', ControlRoomController.hostDetail);
-// 主机控制指令（消音/复位/手自动/多线盘 - 均通过报警主机下发）
-router.post('/control-rooms/silence', ControlRoomController.silence);
-router.post('/control-rooms/reset', ControlRoomController.reset);
-router.post('/control-rooms/mode', ControlRoomController.switchMode);
-router.post('/control-rooms/multiline/control', ControlRoomController.controlMultiline);
-// 多线盘/总线点位
-router.get('/control-rooms/multiline', ControlRoomController.multilineList);
-router.post('/control-rooms/multiline', ControlRoomController.multilineCreate);
-router.put('/control-rooms/multiline/:id', ControlRoomController.multilineUpdate);
-router.get('/control-rooms/bus-points', ControlRoomController.busPointList);
-router.post('/control-rooms/bus-points', ControlRoomController.busPointCreate);
-router.put('/control-rooms/bus-points/:id', ControlRoomController.busPointUpdate);
-// 控制日志
-router.get('/control-rooms/command-logs', ControlRoomController.commandLogs);
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 4. 数智消控室（子路由）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use('/control-rooms', controlRoomRoutes);
 
-/* ═══════════════════════════════════════════════════════════
-   5. 值守中心
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 5. 值守中心
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/duty/schedules', DutyController.scheduleList);
+router.get('/duty/schedules/:id', DutyController.scheduleById);
 router.post('/duty/schedules', DutyController.scheduleCreate);
+router.put('/duty/schedules/:id', DutyController.scheduleUpdate);
+router.delete('/duty/schedules/:id', DutyController.scheduleDelete);
 router.post('/duty/check-in', DutyController.checkIn);
 router.post('/duty/check-out', DutyController.checkOut);
 router.get('/duty/logs', DutyController.logList);
 router.get('/duty/current', DutyController.currentDuty);
 router.get('/duty/absence-alert', DutyController.absenceAlert);
 
-/* ═══════════════════════════════════════════════════════════
-   5. 子系统监控
-   ═══════════════════════════════════════════════════════════ */
-// 消防给水/电气火灾/防排烟 - 统一走设备告警数据
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 6. 子系统监控
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/subsystem/water', DeviceController.list);
 router.get('/subsystem/elec', DeviceController.list);
 router.get('/subsystem/vent', DeviceController.list);
 
-/* ═══════════════════════════════════════════════════════════
-   6. 单位管理
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 7. 单位管理
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/units/list', UnitController.list);
-router.get('/units', UnitController.list);
 router.post('/units', UnitController.create);
 router.put('/units/:id', UnitController.update);
 router.delete('/units/:id', UnitController.delete);
 router.get('/units/stats', UnitController.stats);
 
-/* ═══════════════════════════════════════════════════════════
-   7. 设备管理
-   ═══════════════════════════════════════════════════════════ */
-router.get('/devices', DeviceController.list);
-router.post('/devices', DeviceController.create);
-router.put('/devices/:id', DeviceController.update);
-router.delete('/devices/:id', DeviceController.delete);
-router.get('/devices/stats', DeviceController.stats);
-router.get('/devices/types', DeviceController.types);
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 8. 设备管理（子路由 + 独立前缀）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use('/devices', deviceRoutes);
 
-/* ═══════════════════════════════════════════════════════════
-   8. 消防维保管理
-   ═══════════════════════════════════════════════════════════ */
-router.get('/maintenance/companies', MaintenanceController.companyList);
-router.post('/maintenance/companies', MaintenanceController.companyCreate);
-router.put('/maintenance/companies/:id', MaintenanceController.companyUpdate);
-router.delete('/maintenance/companies/:id', MaintenanceController.companyDelete);
-router.get('/maintenance/contracts', MaintenanceController.contractList);
-router.post('/maintenance/contracts', MaintenanceController.contractCreate);
-router.put('/maintenance/contracts/:id', MaintenanceController.contractUpdate);
-router.delete('/maintenance/contracts/:id', MaintenanceController.contractDelete);
-router.get('/maintenance/work-orders', MaintenanceController.workOrderList);
-router.post('/maintenance/work-orders', MaintenanceController.workOrderCreate);
-router.put('/maintenance/work-orders/:id', MaintenanceController.workOrderUpdate);
-router.delete('/maintenance/work-orders/:id', MaintenanceController.workOrderDelete);
-router.put('/maintenance/work-orders/:id/assign', MaintenanceController.workOrderAssign);
-router.put('/maintenance/work-orders/:id/complete', MaintenanceController.workOrderComplete);
-router.get('/maintenance/stats', MaintenanceController.stats);
+// 设备分配（独立前缀，保留在聚合层）
+router.get('/device-allocations/pending', DeviceAllocationController.listPending);
+router.post('/device-allocations/allocate', DeviceAllocationController.allocate);
+router.post('/device-allocations/unallocate', DeviceAllocationController.unallocate);
+router.post('/device-allocations/reallocate', DeviceAllocationController.reallocate);
+router.get('/device-allocations/list', DeviceAllocationController.listLogs);
 
-/* ═══════════════════════════════════════════════════════════
-   9. 巡检管理
-   ═══════════════════════════════════════════════════════════ */
+// 设备维护记录（独立前缀，保留在聚合层）
+router.get('/device-maintenances/stats', DeviceMaintenanceController.stats);
+router.get('/device-maintenances/list', DeviceMaintenanceController.list);
+router.post('/device-maintenances', DeviceMaintenanceController.create);
+router.put('/device-maintenances/:id', DeviceMaintenanceController.update);
+router.delete('/device-maintenances/:id', DeviceMaintenanceController.delete);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 9. 消防维保管理（子路由）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use('/maintenance', maintenanceRoutes);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 10. 巡检管理
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/patrol/plans', PatrolController.planList);
 router.post('/patrol/plans', PatrolController.planCreate);
 router.put('/patrol/plans/:id', PatrolController.planUpdate);
 router.delete('/patrol/plans/:id', PatrolController.planDelete);
 router.get('/patrol/records', PatrolController.recordList);
+router.get('/patrol/records/:id', PatrolController.recordById);
 router.post('/patrol/records', PatrolController.recordCreate);
+router.put('/patrol/records/:id', PatrolController.recordUpdate);
+router.delete('/patrol/records/:id', PatrolController.recordDelete);
 router.get('/patrol/hazards', PatrolController.hazardList);
 router.post('/patrol/hazards', PatrolController.hazardCreate);
 router.put('/patrol/hazards/:id', PatrolController.hazardUpdate);
+router.delete('/patrol/hazards/:id', PatrolController.hazardDelete);
 router.put('/patrol/hazards/:id/rectify', PatrolController.hazardRectify);
 
-/* ═══════════════════════════════════════════════════════════
-   10. 应急预案
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 11. 应急预案
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/plans', PlanController.planList);
 router.post('/plans', PlanController.planCreate);
 router.put('/plans/:id', PlanController.planUpdate);
@@ -170,25 +176,25 @@ router.post('/drills', PlanController.drillCreate);
 router.put('/drills/:id', PlanController.drillUpdate);
 router.delete('/drills/:id', PlanController.drillDelete);
 
-/* ═══════════════════════════════════════════════════════════
-   11. GIS地图
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 12. GIS 地图
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/gis/points', DashboardController.gisPoints);
 router.get('/gis/situation', DashboardController.gisSituation);
 router.get('/gis/alarm-points', DashboardController.gisAlarmPoints);
 
-/* ═══════════════════════════════════════════════════════════
-   12. 数据分析
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 13. 数据分析
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/analysis/device', DashboardController.deviceAnalysis);
 router.get('/analysis/alarm', DashboardController.alarmAnalysis);
 router.get('/analysis/maintenance', DashboardController.maintenanceAnalysis);
 router.get('/analysis/hazard', DashboardController.hazardAnalysis);
 router.get('/analysis/patrol', DashboardController.patrolCompletion);
 
-/* ═══════════════════════════════════════════════════════════
-   13. 报表管理
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 14. 报表管理
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/reports/daily', DashboardController.dailyReport);
 router.get('/reports/weekly', DashboardController.weeklyReport);
 router.get('/reports/monthly', DashboardController.monthlyReport);
@@ -196,23 +202,23 @@ router.get('/reports/device', DashboardController.deviceReport);
 router.get('/reports/maintenance', DashboardController.maintenanceReport);
 router.get('/reports/patrol', DashboardController.patrolReport);
 
-/* ═══════════════════════════════════════════════════════════
-   14. 消防知识库
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 15. 消防知识库
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/knowledge', KnowledgeController.list);
 router.post('/knowledge', KnowledgeController.create);
 router.put('/knowledge/:id', KnowledgeController.update);
 router.delete('/knowledge/:id', KnowledgeController.delete);
 router.get('/knowledge/categories', KnowledgeController.categories);
 
-/* ═══════════════════════════════════════════════════════════
-   15. 大屏模式
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 16. 大屏模式
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/bigscreen/data', DashboardController.bigScreen);
 
-/* ═══════════════════════════════════════════════════════════
-   16. 设备反控
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 17. 设备反控
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.post('/device-control/command', DeviceControlController.sendCommand);
 router.post('/device-control/start-stop', DeviceControlController.remoteStartStop);
 router.post('/device-control/reset', DeviceControlController.remoteReset);
@@ -220,9 +226,9 @@ router.post('/device-control/silence', DeviceControlController.silence);
 router.post('/device-control/batch', DeviceControlController.batchCommand);
 router.get('/device-control/history', DeviceControlController.commandHistory);
 
-/* ═══════════════════════════════════════════════════════════
-   17. AI决策中心
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 18. AI 决策中心
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/ai/decisions', AIController.decisionList);
 router.post('/ai/decisions', AIController.decisionCreate);
 router.post('/ai/risk-analysis', AIDecisionController.riskAnalysis);
@@ -234,34 +240,36 @@ router.get('/ai/alerts', AIController.alertList);
 router.put('/ai/alerts/:id/confirm', AIController.alertConfirm);
 router.put('/ai/alerts/:id/handle', AIController.alertHandle);
 
-/* ═══════════════════════════════════════════════════════════
-   18. IoT设备接入
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 19. IoT 设备接入（统一走 /iot-devices，/iot/devices 保留兼容）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.get('/iot-devices/list', IoTController.deviceList);
+router.post('/iot-devices', IoTController.deviceCreate);
+router.put('/iot-devices/:id', IoTController.deviceUpdate);
+router.delete('/iot-devices/:id', IoTController.deviceDelete);
+/* 旧路径兼容（前端已统一使用 /iot-devices，保留 1 个版本防止外部集成断裂） */
 router.get('/iot/devices', IoTController.deviceList);
-router.post('/iot/devices', IoTController.deviceCreate);
-router.put('/iot/devices/:id', IoTController.deviceUpdate);
-router.delete('/iot/devices/:id', IoTController.deviceDelete);
 router.get('/iot/protocols', IoTController.protocolList);
 router.post('/iot/protocols', IoTController.protocolCreate);
 router.put('/iot/protocols/:id', IoTController.protocolUpdate);
 router.delete('/iot/protocols/:id', IoTController.protocolDelete);
 router.get('/iot/pipelines', IoTController.pipelineList);
 router.post('/iot/pipelines', IoTController.pipelineCreate);
-// IoT协议接口
 router.post('/iot/modbus/read', IoTProtocolController.readModbus);
 router.post('/iot/snmp/read', IoTProtocolController.readSNMP);
 router.post('/iot/control', IoTProtocolController.sendControl);
 router.post('/iot/batch-read', IoTProtocolController.batchRead);
 router.post('/iot/mqtt/parse', IoTProtocolController.parseMQTT);
+router.get('/iot/hikvision/devices/:sn/data', Hikvision4GController.getDeviceData);
+router.post('/iot/hikvision/batch-data', Hikvision4GController.batchDeviceData);
 
-/* ═══════════════════════════════════════════════════════════
-   19. 智能预警
-   ═══════════════════════════════════════════════════════════ */
-// 复用AI预警接口
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 20. 智能预警
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════
-   20. 培训考核
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 21. 培训考核
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/training/courses', TrainingController.courseList);
 router.post('/training/courses', TrainingController.courseCreate);
 router.put('/training/courses/:id', TrainingController.courseUpdate);
@@ -269,19 +277,20 @@ router.delete('/training/courses/:id', TrainingController.courseDelete);
 router.get('/training/exams', TrainingController.examList);
 router.post('/training/exams', TrainingController.examCreate);
 
-/* ═══════════════════════════════════════════════════════════
-   21. 消防检查
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 22. 消防检查
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/inspections', InspectionController.list);
 router.post('/inspections', InspectionController.create);
 router.put('/inspections/:id', InspectionController.update);
 router.delete('/inspections/:id', InspectionController.delete);
 
-/* ═════════════════════════════════════════════════════════════
-   23. 系统管理
-   ══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 23. 系统管理
+ * ═══════════════════════════════════════════════════════════════════════════ */
 // 用户管理
 router.get('/users', UserController.list);
+router.get('/users/list', UserController.list);
 router.post('/users', UserController.create);
 router.put('/users/:id', UserController.update);
 router.delete('/users/:id', UserController.delete);
@@ -315,11 +324,9 @@ router.get('/system/modules', SystemController.modules);
 router.put('/system/modules/toggle', SystemController.toggleModule);
 router.get('/system/dashboard', SystemController.dashboard);
 
-export default router;
-
-/* ═════════════════════════════════════════════════════════════
-   23. 安消联动（新增）
-   ══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 24. 安消联动
+ * ═══════════════════════════════════════════════════════════════════════════ */
 router.get('/linkage/rules', LinkageController.list);
 router.post('/linkage/rules', LinkageController.create);
 router.put('/linkage/rules/:id', LinkageController.update);
@@ -329,13 +336,24 @@ router.get('/linkage/status/:alarmId', LinkageController.getStatus);
 router.post('/linkage/preset', LinkageController.applyPreset);
 router.get('/linkage/records', LinkageController.getRecords);
 
-/* ═════════════════════════════════════════════════════════════
-   24. 视频监控（新增）
-   ══════════════════════════════════════════════════════════════ */
-router.get('/video/devices', VideoController.list);
-router.get('/video/stream/:deviceId', VideoController.getStream);
-router.post('/video/ptz/:deviceId', VideoController.ptzControl);
-router.post('/video/preset/:deviceId', VideoController.presetControl);
-router.get('/video/playback/:deviceId', VideoController.getPlayback);
-router.get('/video/snapshot/:deviceId', VideoController.snapshot);
-router.get('/video/live/:deviceId', VideoController.livePreview);
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 25. 视频监控（子路由）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use('/video', videoRoutes);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 26. AI 故障自学习
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.post('/ai/learn', AILearningController.record);
+router.get('/ai/diagnose', AILearningController.diagnose);
+router.get('/ai/stats/type', AILearningController.statsByType);
+router.get('/ai/stats/device', AILearningController.statsByDevice);
+router.get('/ai/learn/list', AILearningController.list);
+router.put('/ai/learn/:id', AILearningController.update);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 兼容旧版前端路径：Stub 兜底路由（须挂在所有显式路由之后）
+ * ═══════════════════════════════════════════════════════════════════════════ */
+router.use(stubRouter);
+
+export default router;

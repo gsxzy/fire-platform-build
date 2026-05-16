@@ -7,6 +7,11 @@
 #   - 后端API服务
 #   - MQTT Broker (可选，IoT设备接入)
 #
+# 使用前请确保：
+#   1. 复制 .env.example 为 .env 并填写所有必填项
+#   2. 生成强密码替换默认值
+#   3. 生产环境切勿使用默认密码
+#
 # 使用：docker-compose up -d
 # ═══════════════════════════════════════════════════════════════════
 
@@ -17,11 +22,11 @@ services:
     image: mysql:8.0
     container_name: fire_mysql
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: FireRoot2024!
-      MYSQL_DATABASE: fire_platform
-      MYSQL_USER: fire_user
-      MYSQL_PASSWORD: Fire_Pass_2024!
+      MYSQL_DATABASE: ${DB_NAME:-fire_platform}
+      MYSQL_USER: ${DB_USER:-fire_user}
       TZ: Asia/Shanghai
     ports:
       - "3306:3306"
@@ -30,7 +35,7 @@ services:
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pFireRoot2024!"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,27 +72,13 @@ services:
       dockerfile: Dockerfile
     container_name: fire_backend
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: fire_platform
-      DB_USER: fire_user
-      DB_PASSWORD: Fire_Pass_2024!
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: xzy_fire_platform_secret_key_2024_production
-      MQTT_PORT: 1883
-      MQTT_BROKER: mosquitto
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: admin123
-      ADMIN_PHONE: 13800138000
     ports:
       - "3000:3000"
     volumes:

@@ -35,7 +35,7 @@ import { useToast } from '@/core/ToastContext';
 import { useAlarmPopup } from '@/core/AlarmPopupContext';
 
 /* ───── Constants ───── */
-const SECONDARY_PWD = '888888';
+const SECONDARY_PWD = import.meta.env.VITE_SECONDARY_VERIFY_PWD || ''; // 二次验证密码，生产环境必须在 .env 中设置
 
 const LEVEL_MAP: Record<string, { label: string; color: string }> = {
   urgent: { label: '紧急', color: 'bg-red-500/20 text-red-400 border-red-500/40' },
@@ -223,10 +223,8 @@ export default function AlarmPopup() {
   };
 
   const handlePhoneCall = (phone: string) => {
-    info('正在拨打电话...', `模拟拨打 ${phone}`);
-    setTimeout(() => {
-      success('拨号成功', `已拨通 ${phone}`);
-    }, 800);
+    if (!phone || phone === '未设置') return;
+    window.location.href = `tel:${phone}`;
   };
 
   /* ───── Render guards ───── */
@@ -559,14 +557,29 @@ export default function AlarmPopup() {
               建筑平面图
             </DialogTitle>
           </DialogHeader>
-          <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-slate-700/40 bg-slate-800/30 py-8">
-            <div className="text-center">
-              <Building2 className="mx-auto h-10 w-10 text-slate-600" />
-              <p className="mt-2 text-xs text-slate-500">建筑平面图加载区域</p>
-              <p className="mt-0.5 text-[11px] text-slate-600">
-                单位：{unitName || alarm.unitName || '未知单位'}
-              </p>
-            </div>
+          <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed border-slate-700/40 bg-slate-800/30 py-8 relative overflow-hidden">
+            {data.floorPlan?.image_url ? (
+              <img
+                src={data.floorPlan.image_url}
+                alt="建筑平面图"
+                className="w-full h-full object-contain max-h-[400px]"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="text-center">
+                <Building2 className="mx-auto h-10 w-10 text-slate-600" />
+                <p className="mt-2 text-xs text-slate-500">暂无建筑平面图</p>
+                <p className="mt-0.5 text-[11px] text-slate-600">
+                  单位：{unitName || alarm.unitName || '未知单位'}
+                </p>
+              </div>
+            )}
+            {data.floorPlan?.x !== undefined && data.floorPlan?.y !== undefined && (
+              <div
+                className="absolute w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse"
+                style={{ left: `${data.floorPlan.x}%`, top: `${data.floorPlan.y}%`, transform: 'translate(-50%, -50%)' }}
+              />
+            )}
           </div>
           <DialogFooter>
             <Button

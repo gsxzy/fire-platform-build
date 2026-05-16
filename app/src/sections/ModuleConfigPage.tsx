@@ -29,8 +29,8 @@ export default function ModuleConfigPage() {
 
   useLayoutEffect(() => {
     refresh();
-    const unsub = ModuleEngine.subscribe((id, status) => {
-      console.log(`[ModuleConfig] ${id} → ${status}`);
+    const unsub = ModuleEngine.subscribe(() => {
+      // 模块状态变更已触发刷新
       refresh();
     });
     return () => unsub();

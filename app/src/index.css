@@ -8,3 +8,635 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    min-height: 100vh;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GIS 地图容器调色 - 统一为平台深蓝风格
+   ═══════════════════════════════════════════════════════════════ */
+.amap-container {
+  filter: brightness(0.75) saturate(0.35) contrast(1.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GIS 地图 Marker 样式 - 高可见度设计
+   ═══════════════════════════════════════════════════════════════ */
+.gis-marker-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.gis-marker-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.6),
+    0 0 12px 2px currentColor,
+    0 0 24px 4px currentColor;
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.gis-marker-wrap:hover .gis-marker-dot {
+  transform: scale(1.4);
+}
+
+.gis-marker-pulse {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid;
+  opacity: 0.7;
+  animation: gis-marker-pulse 1.8s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes gis-marker-pulse {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.gis-marker-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 6px rgba(239,68,68,0.8);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.gis-marker-label {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   全局科技感增强样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 玻璃态卡片统一 */
+.glass {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.glass-strong {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+/* 自定义滚动条 - 暗色科技风 */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* 火警脉冲动画 */
+@keyframes alarm-pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@keyframes alarm-pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); }
+}
+
+.alarm-pulse-red {
+  animation: alarm-pulse-red 1.5s ease-out infinite;
+}
+.alarm-pulse-yellow {
+  animation: alarm-pulse-yellow 1.5s ease-out infinite;
+}
+
+/* 扫描线效果 */
+.scan-line-overlay {
+  position: relative;
+  overflow: hidden;
+}
+.scan-line-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+  animation: scan-line 4s linear infinite;
+  pointer-events: none;
+}
+
+/* 输入框焦点光晕 */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* 表格行悬停增强 */
+tr.hover-glow:hover {
+  background: rgba(56, 189, 248, 0.05);
+  box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.03);
+}
+
+/* 状态指示点 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot-online {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+.status-dot-offline {
+  background: #64748b;
+}
+.status-dot-fault {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+.status-dot-warning {
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
+}
+
+/* 科技边框 */
+.tech-border {
+  position: relative;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+}
+.tech-border::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+.tech-border::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: 20px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * 新致远智慧消防平台 - 全局样式入口
+ * Tailwind 基础框架 + 自定义模块样式（通过 main.tsx 导入）
+ * ═══════════════════════════════════════════════════════════════
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    min-height: 100vh;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GIS 地图容器调色 - 统一为平台深蓝风格
+   ═══════════════════════════════════════════════════════════════ */
+.amap-container {
+  filter: brightness(0.75) saturate(0.35) contrast(1.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GIS 地图 Marker 样式 - 高可见度设计
+   ═══════════════════════════════════════════════════════════════ */
+.gis-marker-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.gis-marker-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,0.6),
+    0 0 12px 2px currentColor,
+    0 0 24px 4px currentColor;
+  position: relative;
+  z-index: 2;
+  transition: transform 0.2s ease;
+}
+
+.gis-marker-wrap:hover .gis-marker-dot {
+  transform: scale(1.4);
+}
+
+.gis-marker-pulse {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid;
+  opacity: 0.7;
+  animation: gis-marker-pulse 1.8s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes gis-marker-pulse {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.gis-marker-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 0 4px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 6px rgba(239,68,68,0.8);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.gis-marker-label {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   全局科技感增强样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 玻璃态卡片统一 */
+.glass {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.glass-strong {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+/* 自定义滚动条 - 暗色科技风 */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* 火警脉冲动画 */
+@keyframes alarm-pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@keyframes alarm-pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); }
+}
+
+.alarm-pulse-red {
+  animation: alarm-pulse-red 1.5s ease-out infinite;
+}
+.alarm-pulse-yellow {
+  animation: alarm-pulse-yellow 1.5s ease-out infinite;
+}
+
+/* 扫描线效果 */
+.scan-line-overlay {
+  position: relative;
+  overflow: hidden;
+}
+.scan-line-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+  animation: scan-line 4s linear infinite;
+  pointer-events: none;
+}
+
+/* 输入框焦点光晕 */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* 表格行悬停增强 */
+tr.hover-glow:hover {
+  background: rgba(56, 189, 248, 0.05);
+  box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.03);
+}
+
+/* 状态指示点 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot-online {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+.status-dot-offline {
+  background: #64748b;
+}
+.status-dot-fault {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+.status-dot-warning {
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
+}
+
+/* 科技边框 */
+.tech-border {
+  position: relative;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+}
+.tech-border::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+.tech-border::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: 20px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   新增：商业级视觉增强样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 页面元素淡入动画 */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+/* 卡片悬停光晕 */
+.card-hover-glow {
+  transition: all 0.3s ease;
+}
+.card-hover-glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+/* 按钮按压反馈 */
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* 统计卡片闪光效果 */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 60%
+  );
+  transform: rotate(30deg);
+  transition: all 0.6s ease;
+  pointer-events: none;
+}
+.card-shine:hover::after {
+  left: 100%;
+}
+
+/* 脉冲发光 - 用于重要状态 */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(56, 189, 248, 0.1);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 表格现代样式 */
+.table-modern {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.table-modern th {
+  background: rgba(15, 23, 42, 0.6);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+.table-modern td {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  transition: background 0.2s ease;
+}
+.table-modern tr:hover td {
+  background: rgba(56, 189, 248, 0.04);
+}
+
+/* 标签徽章发光 */
+.badge-glow {
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* 渐变文字 */
+.text-gradient {
+  background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 骨架屏动画 */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 41, 59, 0.5) 25%,
+    rgba(51, 65, 85, 0.5) 50%,
+    rgba(30, 41, 59, 0.5) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* 分割线渐变 */
+.divider-gradient {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148, 163, 184, 0.2),
+    transparent
+  );
+}
+
+/* 数据面板角标装饰 */
+.corner-accent {
+  position: relative;
+}
+.corner-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 24px;
+  height: 24px;
+  border-top: 2px solid rgba(56, 189, 248, 0.4);
+  border-left: 2px solid rgba(56, 189, 248, 0.4);
+  border-radius: 4px 0 0 0;
+  pointer-events: none;
+}
+
+/* 滚动数字效果容器 */
+.number-roll {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* 响应式字体平滑 */
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

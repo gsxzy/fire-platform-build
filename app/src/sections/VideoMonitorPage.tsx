@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import Hls from 'hls.js';
 import { cameraService, gb28181Service } from '@/api/services';
+import * as videoApi from '@/api/videoService';
+import { logger } from '@/lib/logger';
 
 const WVP_ENABLED = import.meta.env.VITE_WVP_ENABLED === 'true';
 import DataContainer from '@/components/DataContainer';
@@ -84,7 +86,9 @@ function HlsVideoPlayer({
     };
 
     try {
-      if (Hls.isSupported() && src.includes('.m3u8')) {
+      const looksLikeHls =
+        src.includes('.m3u8') || src.includes('/hls.') || /\.m3u8(\?|$)/i.test(src);
+      if (Hls.isSupported() && looksLikeHls) {
         const hls = new Hls({
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
@@ -102,7 +106,7 @@ function HlsVideoPlayer({
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (!destroyed) {
             video.play().catch((err) => {
-              console.warn('[HLS] autoplay blocked:', err);
+              logger.warn('[HLS] autoplay blocked:', err);
             });
           }
         });
@@ -110,12 +114,12 @@ function HlsVideoPlayer({
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (destroyed) return;
           if (data.fatal) {
-            console.warn('[HLS] fatal error:', data.type, data.details);
+            logger.warn('[HLS] fatal error:', data.type, data.details);
             setError(true);
             onErrorProp?.();
             cleanup();
           } else {
-            console.warn('[HLS] non-fatal error:', data.type, data.details);
+            logger.warn('[HLS] non-fatal error:', data.type, data.details);
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -149,7 +153,7 @@ function HlsVideoPlayer({
         onErrorProp?.();
       }
     } catch (e) {
-      console.warn('[HLS] init error:', e);
+      logger.warn('[HLS] init error:', e);
       setError(true);
       onErrorProp?.();
     }
@@ -184,8 +188,8 @@ function SimulatedVideo({ label }: { label: string }) {
 
     let frame = 0;
     let raf: number;
-    let w = canvas.width;
-    let h = canvas.height;
+    const w = canvas.width;
+    const h = canvas.height;
 
     const draw = () => {
       frame++;
@@ -292,17 +296,45 @@ function InlineCameraPanel({
   const [ptzLog, setPtzLog] = useState<string | null>(null);
   const [streamUrl, setStreamUrl] = useState<string>(camera.streamUrl || '');
   const [streamLoading, setStreamLoading] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!streamUrl && camera.deviceId && camera.channelId) {
+    const devId = camera.deviceId;
+    const chId = camera.channelId;
+    if (!streamUrl && devId && chId) {
       setStreamLoading(true);
-      gb28181Service.getStreamUrl(camera.deviceId, camera.channelId)
+      setStreamError(null);
+      gb28181Service.getStreamUrl(devId, chId)
         .then(res => {
           if (res.data?.streamUrl) {
             setStreamUrl(res.data.streamUrl);
+          } else {
+            videoApi.getStream(devId, chId)
+              .then(s => {
+                if (s.streamUrl) {
+                  setStreamUrl(s.streamUrl);
+                } else {
+                  setStreamError('取流返回空地址');
+                }
+              })
+              .catch(err => {
+                setStreamError(err?.message || '取流失败');
+              });
           }
         })
-        .catch(err => console.warn('[InlineCameraPanel] getStreamUrl failed:', err))
+        .catch(() => {
+          videoApi.getStream(devId, chId)
+            .then(s => {
+              if (s.streamUrl) {
+                setStreamUrl(s.streamUrl);
+              } else {
+                setStreamError('取流返回空地址');
+              }
+            })
+            .catch(err => {
+              setStreamError(err?.message || '取流失败');
+            });
+        })
         .finally(() => setStreamLoading(false));
     }
   }, [camera.deviceId, camera.channelId, streamUrl]);
@@ -404,7 +436,16 @@ function InlineCameraPanel({
                   videoRef={videoRef}
                 />
               ) : (
-                <SimulatedVideo label={camera.name} />
+                <>
+                  <SimulatedVideo label={camera.name} />
+                  {streamError && (
+                    <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center gap-2">
+                      <AlertCircle className="w-6 h-6 text-red-400" />
+                      <span className="text-xs text-red-300">视频加载失败</span>
+                      <span className="text-[10px] text-slate-500 max-w-[80%] text-center">{streamError}</span>
+                    </div>
+                  )}
+                </>
               )
             ) : (
               <SimulatedVideo label={camera.name} />
@@ -546,7 +587,7 @@ export default function VideoMonitorPage() {
       // WVP 真实模式下只取 GB28181 设备，避免 cameraService fallback mock 混入模拟数据
       if (WVP_ENABLED) {
         const gbRes = await gb28181Service.list({ pageSize: 999 });
-        const gbDevices: GB28181Device[] = gbRes.data?.list || [];
+        const gbDevices: GB28181Device[] = Array.isArray(gbRes.data?.list) ? gbRes.data.list : [];
         const gbCameras: CameraType[] = gbDevices.flatMap(d =>
           (d.channels || []).map(ch => ({
             id: ch.channelId,
@@ -567,12 +608,15 @@ export default function VideoMonitorPage() {
         );
         setCameras(gbCameras);
       } else {
-        const [camRes, gbRes] = await Promise.all([
+        const [camRes, gbRes, videoRes] = await Promise.allSettled([
           cameraService.list({ pageSize: 999 }),
           gb28181Service.list({ pageSize: 999 }),
+          videoApi.getVideoDevices({ count: 999 }),
         ]);
-        const camList = camRes.data?.list || [];
-        const gbDevices: GB28181Device[] = gbRes.data?.list || [];
+        const camList = camRes.status === 'fulfilled' ? (camRes.value.data?.list || []) : [];
+        const gbDevices: GB28181Device[] = gbRes.status === 'fulfilled' ? (gbRes.value.data?.list || []) : [];
+        const videoDevices = videoRes.status === 'fulfilled' ? (videoRes.value.list || []) : [];
+
         const gbCameras: CameraType[] = gbDevices.flatMap(d =>
           (d.channels || []).map(ch => ({
             id: ch.channelId,
@@ -591,7 +635,26 @@ export default function VideoMonitorPage() {
             channelId: ch.channelId,
           }))
         );
-        setCameras([...camList, ...gbCameras]);
+
+        // ZLM 直连摄像头
+        const zlmCameras: CameraType[] = videoDevices.map((d: any) => ({
+          id: d.deviceId,
+          name: d.name || d.deviceId,
+          unitId: '',
+          unitName: '',
+          location: d.ip || '',
+          rtspUrl: '',
+          streamUrl: '',
+          type: 'outdoor' as const,
+          status: 'normal' as const,
+          onlineStatus: d.onLine !== false ? 'online' : 'offline',
+          createdAt: '',
+          updatedAt: '',
+          deviceId: d.deviceId,
+          channelId: '1',
+        }));
+
+        setCameras([...camList, ...gbCameras, ...zlmCameras]);
       }
     } catch (e) {
       setError(e instanceof Error ? e : new Error('加载失败'));
@@ -838,15 +901,27 @@ function CameraCard({
   const [streamLoading, setStreamLoading] = useState(false);
 
   useEffect(() => {
-    if (!streamUrl && camera.deviceId && camera.channelId && isOnline) {
+    const devId = camera.deviceId;
+    const chId = camera.channelId;
+    if (!streamUrl && devId && chId && isOnline) {
       setStreamLoading(true);
-      gb28181Service.getStreamUrl(camera.deviceId, camera.channelId)
+      gb28181Service.getStreamUrl(devId, chId)
         .then(res => {
           if (res.data?.streamUrl) {
             setStreamUrl(res.data.streamUrl);
+          } else {
+            // fallback: try ZLM unified stream
+            videoApi.getStream(devId, chId)
+              .then(s => { if (s.streamUrl) setStreamUrl(s.streamUrl); })
+              .catch(() => {});
           }
         })
-        .catch(err => console.warn('[CameraCard] getStreamUrl failed:', err))
+        .catch(() => {
+          // fallback: try ZLM unified stream
+          videoApi.getStream(devId, chId)
+            .then(s => { if (s.streamUrl) setStreamUrl(s.streamUrl); })
+            .catch(() => {});
+        })
         .finally(() => setStreamLoading(false));
     }
   }, [camera.deviceId, camera.channelId, streamUrl, isOnline]);
@@ -881,7 +956,7 @@ function CameraCard({
             ) : streamLoading ? (
               <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center gap-2">
                 <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-                <span className="text-[10px] text-slate-400">加载视频...</span>
+                <span className="text-[10px] text-slate-400">视频流加载中，请稍候…</span>
               </div>
             ) : (
               <SimulatedVideo label={camera.name} />

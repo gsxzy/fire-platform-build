@@ -1,6 +1,7 @@
-import { Component, type ReactNode } from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -23,8 +24,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary] caught error:', error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    logger.error('[ErrorBoundary]', error?.message, errorInfo?.componentStack);
   }
 
   handleReset = () => {
@@ -45,7 +46,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           <div className="text-center">
             <h3 className="text-body font-medium text-slate-200 mb-1">页面渲染出错</h3>
             <p className="text-caption text-slate-500 max-w-sm">
-              {this.state.error?.message || '组件发生未知错误，请尝试刷新页面'}
+              {this.state.error?.message || '组件发生未知错误，请尝试刷新页面。若问题持续，请联系技术支持并说明当前菜单与操作步骤。'}
             </p>
           </div>
           <Button

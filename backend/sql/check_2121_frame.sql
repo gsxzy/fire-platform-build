@@ -1,0 +1,1 @@
+SELECT hex_data, cmd_type, created_at FROM fire_platform.fscn8001_raw_log WHERE created_at BETWEEN '2026-05-10 21:21:00' AND '2026-05-10 21:22:00' AND device_sn = '2211AA3B0000000000000000' ORDER BY id;

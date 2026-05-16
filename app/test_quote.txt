@@ -1,2 +1,0 @@
-import { x } from 'y';
-const s = 'data:image/svg+xml,' + encodeURIComponent("<svg></svg>");

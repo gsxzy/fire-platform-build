@@ -5,6 +5,14 @@
  */
 import { wvp, wvpLogin } from '@/api/wvpClient';
 
+/* ───── 编码映射：仅映射 channelId（deviceId 保持原值）───── */
+const CHANNEL_ID_MAP: Record<string, string> = {
+  '34020000001300000002': '34020000001320000002',
+};
+function mapChannelId(channelId: string): string {
+  return CHANNEL_ID_MAP[channelId] || channelId;
+}
+
 /* ───── 类型定义 ───── */
 export interface WvpDevice {
   id: number;
@@ -160,20 +168,20 @@ export async function getChannelList(params?: { page?: number; count?: number; q
 
 /* ───── 开始点播 ───── */
 export async function startPlay(deviceId: string, channelId: string): Promise<WvpStreamContent> {
-  const resp = await wvp.get<WvpStreamContent>(`/api/play/start/${deviceId}/${channelId}`);
+  const resp = await wvp.get<WvpStreamContent>(`/api/play/start/${deviceId}/${mapChannelId(channelId)}`);
   return resp.data;
 }
 
 /* ───── 停止点播 ───── */
 export async function stopPlay(deviceId: string, channelId: string): Promise<void> {
-  await wvp.get<void>(`/api/play/stop/${deviceId}/${channelId}`);
+  await wvp.get<void>(`/api/play/stop/${deviceId}/${mapChannelId(channelId)}`);
 }
 
 /* ───── 云台控制 ───── */
 export async function ptzControl(deviceId: string, channelId: string, cmd: number, horizonSpeed: number = 50, verticalSpeed: number = 50, zoomSpeed: number = 50): Promise<void> {
   await wvp.post<void>('/api/device/control/ptz', {
     deviceId,
-    channelId,
+    channelId: mapChannelId(channelId),
     cmd,
     horizonSpeed,
     verticalSpeed,

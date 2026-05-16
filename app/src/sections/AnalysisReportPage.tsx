@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { legacyApi } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import PageTemplate from '@/sections/PageTemplate';
@@ -33,37 +33,13 @@ const FIELDS = [
 ];
 
 /* ═══════ Chart Data ═══════ */
-const monthlyAlarmsInit = [
-  { month: '1月', fire: 12, fault: 45, warn: 23 },
-  { month: '2月', fire: 8, fault: 38, warn: 18 },
-  { month: '3月', fire: 15, fault: 52, warn: 31 },
-  { month: '4月', fire: 10, fault: 41, warn: 25 },
-  { month: '5月', fire: 0, fault: 0, warn: 0 },
-  { month: '6月', fire: 0, fault: 0, warn: 0 },
-];
+const monthlyAlarmsInit: any[] = [];
 
-const unitCompareInit = [
-  { subject: '火警处理', A: 95, B: 88, fullMark: 100 },
-  { subject: '故障响应', A: 92, B: 75, fullMark: 100 },
-  { subject: '巡检完成', A: 98, B: 82, fullMark: 100 },
-  { subject: '维保及时', A: 85, B: 90, fullMark: 100 },
-  { subject: '隐患整改', A: 90, B: 70, fullMark: 100 },
-  { subject: '设备在线', A: 96, B: 91, fullMark: 100 },
-];
+const unitCompareInit: any[] = [];
 
-const typeDistInit = [
-  { name: '火警', value: 45, color: '#ef4444' },
-  { name: '故障', value: 176, color: '#f59e0b' },
-  { name: '预警', value: 97, color: '#3b82f6' },
-  { name: '监管', value: 34, color: '#10b981' },
-];
+const typeDistInit: any[] = [];
 
-const workorderTrendInit = [
-  { month: '1月', total: 32, completed: 30 },
-  { month: '2月', total: 28, completed: 26 },
-  { month: '3月', total: 45, completed: 42 },
-  { month: '4月', total: 38, completed: 35 },
-];
+const workorderTrendInit: any[] = [];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -131,7 +107,7 @@ export default function AnalysisReportPage() {
   return (
     <DataContainer loading={loading} error={error} data={monthlyAlarms} onRetry={loadData} emptyText="暂无数据">
     <div className="space-y-4">
-      <PageTemplate title="统计报表" icon={BarChart3} badge="7份" columns={COLUMNS} service={reportService} fields={FIELDS} addable={false} />
+      <PageTemplate title="统计报表" icon={BarChart3} badge="7份" columns={COLUMNS} service={reportService} fields={FIELDS} addable={false} emptyDescription="固定格式报表由后端生成后在此列出。若为空请确认报表任务已配置或联系管理员开放导出接口。" />
 
       {/* Charts Section */}
       <div className="bg-slate-800/50 border border-slate-700/30 rounded-lg p-4">
@@ -199,8 +175,8 @@ export default function AnalysisReportPage() {
                   <PolarGrid stroke="#1e293b" />
                   <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#94a3b8' }} />
                   <PolarRadiusAxis tick={{ fontSize: 9, fill: '#64748b' }} angle={30} domain={[0, 100]} />
-                  <Radar name="万达广场" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} />
-                  <Radar name="兰州中心" dataKey="B" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name="单位A" dataKey="A" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name="单位B" dataKey="B" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} strokeWidth={2} />
                   <Legend wrapperStyle={{ fontSize: '10px', color: '#94a3b8' }} iconSize={8} />
                   <Tooltip content={<CustomTooltip />} />
                 </RadarChart>
@@ -208,12 +184,7 @@ export default function AnalysisReportPage() {
             </div>
             <div className="space-y-3">
               <div className="text-[10px] text-slate-400 mb-2">单位关键指标</div>
-              {[
-                { label: '万达广场 - 综合评分', score: 93, color: '#3b82f6' },
-                { label: '兰州中心 - 综合评分', score: 83, color: '#ef4444' },
-                { label: '兰大二院 - 综合评分', score: 91, color: '#10b981' },
-                { label: '兰州石化 - 综合评分', score: 88, color: '#f59e0b' },
-              ].map((u: any, i: number) => (
+              {[].map((u: any, i: number) => (
                 <div key={i} className="p-3 bg-slate-900/30 rounded-lg">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[10px] text-slate-300">{u.label}</span>

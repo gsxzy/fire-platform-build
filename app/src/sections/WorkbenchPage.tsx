@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router';
@@ -18,81 +18,40 @@ import { legacyApi } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 
 /* ---------- 默认数据 ---------- */
-const DEFAULT_ALARM_TREND = [
-  { day: '周一', fire: 2, fault: 5, warn: 3 },
-  { day: '周二', fire: 1, fault: 8, warn: 4 },
-  { day: '周三', fire: 3, fault: 4, warn: 2 },
-  { day: '周四', fire: 0, fault: 6, warn: 5 },
-  { day: '周五', fire: 4, fault: 3, warn: 6 },
-  { day: '周六', fire: 1, fault: 7, warn: 4 },
-  { day: '周日', fire: 2, fault: 5, warn: 3 },
-];
+const DEFAULT_ALARM_TREND: { day: string; fire: number; fault: number; warn: number }[] = [];
 
-const DEFAULT_DEVICE_ONLINE = [
-  { name: '报警主机', total: 15, online: 14 },
-  { name: '探测器', total: 2800, online: 2765 },
-  { name: '消防泵', total: 45, online: 43 },
-  { name: '风机', total: 32, online: 30 },
-  { name: '监控器', total: 156, online: 150 },
-  { name: '传感器', total: 250, online: 248 },
-];
+const DEFAULT_DEVICE_ONLINE: { name: string; total: number; online: number }[] = [];
 
-const DEFAULT_UNIT_STATUS = [
-  { name: '重点单位', value: 4, color: '#ef4444' },
-  { name: '一般单位', value: 3, color: '#3b82f6' },
-  { name: '九小场所', value: 2, color: '#f59e0b' },
-  { name: '离线单位', value: 1, color: '#64748b' },
-];
+const DEFAULT_UNIT_STATUS: { name: string; value: number; color: string }[] = [];
 
-const DEFAULT_WEEKLY_STATS = [
-  { week: '第1周', alarms: 45, handled: 42 },
-  { week: '第2周', alarms: 38, handled: 35 },
-  { week: '第3周', alarms: 52, handled: 48 },
-  { week: '第4周', alarms: 41, handled: 39 },
-];
+const DEFAULT_WEEKLY_STATS: { week: string; alarms: number; handled: number }[] = [];
 
-const DEFAULT_SHORTCUTS = [
-  { label: '告警中心', icon: Bell, path: '/alarm/center', badge: '3', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  { label: '接警处置', icon: PhoneCall, path: '/duty/dispatch', badge: '', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-  { label: '设备控制', icon: Cpu, path: '/device/control', badge: '', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  { label: '维保工单', icon: Wrench, path: '/maintenance/workorder', badge: '2', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  { label: '巡检任务', icon: ClipboardList, path: '/patrol/plan', badge: '1', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-  { label: '隐患管理', icon: Shield, path: '/patrol/hazard', badge: '4', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-  { label: 'GIS地图', icon: LayoutDashboard, path: '/map/gis', badge: '', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-  { label: '知识库', icon: BookOpen, path: '/knowledge/base', badge: '', color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-];
+const DEFAULT_SHORTCUTS: any[] = [];
 
-const DEFAULT_TODOS = [
-  { id: 1, title: '万达广场火警待确认', type: 'alarm', priority: 'urgent', time: '10:23', done: false },
-  { id: 2, title: '排烟风机#3故障待处理', type: 'fault', priority: 'high', time: '09:56', done: false },
-  { id: 3, title: '喷淋泵定期巡检工单', type: 'workorder', priority: 'normal', time: '14:00', done: false },
-  { id: 4, title: '兰州石化漏电故障跟进', type: 'fault', priority: 'high', time: '昨日', done: false },
-  { id: 5, title: '月度维保报告导出', type: 'report', priority: 'normal', time: '今日', done: false },
-  { id: 6, title: '隐患整改验收：防火门', type: 'hazard', priority: 'normal', time: '明日', done: true },
-];
+const DEFAULT_TODOS: any[] = [];
 
-const STAT_ITEMS = [
-  { label: '今日火警', value: 4, icon: Flame, color: 'red', trend: '+1', up: true },
-  { label: '今日故障', value: 8, icon: AlertTriangle, color: 'yellow', trend: '-2', up: false },
-  { label: '待确认告警', value: 3, icon: Bell, color: 'orange', trend: '0', up: false },
-  { label: '维保工单', value: 2, icon: Wrench, color: 'emerald', trend: '+1', up: true },
-  { label: '巡检任务', value: 1, icon: ClipboardList, color: 'cyan', trend: '0', up: false },
-  { label: '待整改隐患', value: 4, icon: Shield, color: 'yellow', trend: '-1', up: false },
-  { label: '单位在线率', value: '91%', icon: Building2, color: 'blue', trend: '+2%', up: true },
-  { label: '设备在线率', value: '96.5%', icon: Cpu, color: 'emerald', trend: '+0.5%', up: true },
+interface StatItem {
+  label: string;
+  value: number | string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  trend: string;
+  up: boolean;
+}
+
+const STAT_ITEMS: StatItem[] = [
+  { label: '今日火警', value: 0, icon: Flame, color: 'red', trend: '0', up: false },
+  { label: '今日故障', value: 0, icon: AlertTriangle, color: 'yellow', trend: '0', up: false },
+  { label: '待确认告警', value: 0, icon: Bell, color: 'orange', trend: '0', up: false },
+  { label: '维保工单', value: 0, icon: Wrench, color: 'emerald', trend: '0', up: false },
+  { label: '巡检任务', value: 0, icon: ClipboardList, color: 'cyan', trend: '0', up: false },
+  { label: '待整改隐患', value: 0, icon: Shield, color: 'yellow', trend: '0', up: false },
+  { label: '联网单位', value: 0, icon: Building2, color: 'blue', trend: '0', up: false },
+  { label: '在线设备', value: 0, icon: Cpu, color: 'emerald', trend: '0', up: false },
 ];
 
 /* ---------- Sparkline 数据 ---------- */
-const sparkDataMap: Record<string, number[]> = {
-  '今日火警': [2, 3, 1, 4, 2, 5, 4],
-  '今日故障': [12, 10, 14, 8, 11, 9, 8],
-  '待确认告警': [5, 4, 6, 3, 4, 5, 3],
-  '维保工单': [3, 2, 4, 2, 1, 3, 2],
-  '巡检任务': [2, 1, 3, 2, 1, 2, 1],
-  '待整改隐患': [6, 5, 7, 4, 5, 6, 4],
-  '单位在线率': [88, 89, 90, 90, 91, 91, 91],
-  '设备在线率': [95, 95.5, 96, 96.2, 96.3, 96.5, 96.5],
-};
+const sparkDataMap: Record<string, number[]> = {};
 
 /* ---------- 颜色映射 ---------- */
 const colorMap: Record<string, { text: string; bg: string; border: string; iconColor: string }> = {
@@ -157,7 +116,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function AnimatedStatCard({
   s, index
 }: {
-  s: typeof STAT_ITEMS[number];
+  s: StatItem;
   index: number;
 }) {
   const Icon = s.icon;
@@ -233,6 +192,10 @@ export default function WorkbenchPage() {
   const [weeklyStats, setWeeklyStats] = useState(DEFAULT_WEEKLY_STATS);
   const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
   const [todos, setTodos] = useState(DEFAULT_TODOS);
+  const [statRows, setStatRows] = useState(STAT_ITEMS);
+  const [dutyInfo, setDutyInfo] = useState<{ name: string; phone: string }>({ name: '—', phone: '' });
+  const [monthSummary, setMonthSummary] = useState({ alarmTotal: 0, handled: 0, handleRate: '0' });
+  const [inspectionMonthCount, setInspectionMonthCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -245,30 +208,93 @@ export default function WorkbenchPage() {
   const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
   const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' });
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await legacyApi.workbench() as any;
-      const data = res.data || {};
+      const raw = await legacyApi.workbench() as Record<string, unknown>;
+      const hasTrend =
+        Array.isArray(raw.alarmTrend as unknown[]) ||
+        (raw.alarm && typeof raw.alarm === 'object' && Array.isArray((raw.alarm as { trend?: unknown }).trend));
+      const data: Record<string, unknown> = (
+        raw && typeof raw === 'object' && hasTrend
+          ? raw
+          : raw && typeof raw === 'object' && raw.data && typeof raw.data === 'object'
+            ? raw.data
+            : {}
+      ) as Record<string, unknown>;
       if (Array.isArray(data.alarmTrend) && data.alarmTrend.length > 0) setAlarmTrend(data.alarmTrend);
       if (Array.isArray(data.deviceOnline) && data.deviceOnline.length > 0) setDeviceOnline(data.deviceOnline);
       if (Array.isArray(data.unitStatus) && data.unitStatus.length > 0) setUnitStatus(data.unitStatus);
       if (Array.isArray(data.weeklyStats) && data.weeklyStats.length > 0) setWeeklyStats(data.weeklyStats);
-      if (Array.isArray(data.shortcuts) && data.shortcuts.length > 0) setShortcuts(data.shortcuts);
-      if (Array.isArray(data.todos) && data.todos.length > 0) setTodos(data.todos);
-      if (data.alarm && Array.isArray(data.alarm.trend) && data.alarm.trend.length > 0) setAlarmTrend(data.alarm.trend);
-      if (data.device && Array.isArray(data.device.online) && data.device.online.length > 0) setDeviceOnline(data.device.online);
-      if (data.workOrder) {
-        if (Array.isArray(data.workOrder.weeklyStats) && data.workOrder.weeklyStats.length > 0) setWeeklyStats(data.workOrder.weeklyStats);
-        if (Array.isArray(data.workOrder.todos) && data.workOrder.todos.length > 0) setTodos(data.workOrder.todos);
+      if (Array.isArray(data.shortcuts) && data.shortcuts.length > 0) {
+        const iconMap: Record<string, typeof Bell> = {
+          Bell, PhoneCall, Cpu, Wrench, ClipboardList, Shield, LayoutDashboard, BookOpen,
+        };
+        const mapped = data.shortcuts.map((s: any) => {
+          const Ico = typeof s.icon === 'string' ? iconMap[s.icon] : s.icon;
+          if (!Ico) return null;
+          return { ...s, icon: Ico };
+        }).filter(Boolean) as typeof DEFAULT_SHORTCUTS;
+        if (mapped.length > 0) setShortcuts(mapped);
       }
+      if (Array.isArray(data.todos)) setTodos(data.todos);
+
+      const alarmObj = data.alarm as Record<string, unknown>;
+      if (alarmObj && Array.isArray(alarmObj.trend) && alarmObj.trend.length > 0) setAlarmTrend(alarmObj.trend as typeof DEFAULT_ALARM_TREND);
+      const deviceObj = data.device as Record<string, unknown>;
+      if (deviceObj && Array.isArray(deviceObj.byType) && (deviceObj.byType as unknown[]).length > 0) {
+        setDeviceOnline(deviceObj.byType as typeof DEFAULT_DEVICE_ONLINE);
+      } else if (deviceObj && Array.isArray(deviceObj.online) && (deviceObj.online as unknown[]).length > 0) {
+        setDeviceOnline(deviceObj.online as typeof DEFAULT_DEVICE_ONLINE);
+      }
+      const workOrderObj = data.workOrder as Record<string, unknown>;
+      if (workOrderObj) {
+        if (Array.isArray(workOrderObj.weeklyStats) && workOrderObj.weeklyStats.length > 0) setWeeklyStats(workOrderObj.weeklyStats as typeof DEFAULT_WEEKLY_STATS);
+      }
+
+      if (data.stats && typeof data.stats === 'object') {
+        const st = data.stats as Record<string, unknown>;
+        setStatRows(
+          STAT_ITEMS.map((item) => {
+            if (item.label === '今日火警') return { ...item, value: Number(st.todayFire ?? 0) };
+            if (item.label === '今日故障') return { ...item, value: Number(st.todayFault ?? 0) };
+            if (item.label === '待确认告警') return { ...item, value: Number(st.alarmPending ?? 0) };
+            if (item.label === '维保工单') return { ...item, value: Number(st.workOrderPending ?? 0) };
+            if (item.label === '巡检任务') return { ...item, value: Number(st.patrolToday ?? 0) };
+            if (item.label === '待整改隐患') return { ...item, value: Number(st.hazardPending ?? 0) };
+            if (item.label === '联网单位') return { ...item, value: Number(st.unitTotal ?? 0) };
+            if (item.label === '在线设备') return { ...item, value: Number(st.deviceOnline ?? 0) };
+            return item;
+          })
+        );
+      }
+
+      if (data.duty && typeof data.duty === 'object') {
+        const d = data.duty as { name?: string; phone?: string };
+        setDutyInfo({ name: d.name || '—', phone: d.phone || '' });
+      }
+
+      if (data.summaryMonth && typeof data.summaryMonth === 'object') {
+        const m = data.summaryMonth as { alarmTotal?: number; handled?: number; handleRate?: string };
+        setMonthSummary({
+          alarmTotal: Number(m.alarmTotal ?? 0),
+          handled: Number(m.handled ?? 0),
+          handleRate: String(m.handleRate ?? '0'),
+        });
+      }
+
+      if (data.inspection && typeof data.inspection === 'object') {
+        setInspectionMonthCount(Number((data.inspection as { month?: number }).month ?? 0));
+      }
+
+      setChecked([]);
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useVisibilityPolling(loadData, 30000);
 
@@ -301,7 +327,7 @@ export default function WorkbenchPage() {
   const [activeUnitIndex, setActiveUnitIndex] = useState<number | null>(null);
 
   return (
-    <DataContainer loading={loading} error={error} data={alarmTrend} onRetry={loadData} emptyText="暂无数据">
+    <DataContainer loading={loading} error={error} data={statRows} onRetry={loadData} emptyText="暂无数据">
       <div className="p-4 space-y-4 h-full overflow-y-auto scrollbar-thin">
 
         {/* ====== Header ====== */}
@@ -329,12 +355,14 @@ export default function WorkbenchPage() {
                 <User className="w-3.5 h-3.5 text-blue-400" />
               </div>
               <div>
-                <div className="text-[10px] text-slate-400">值班人员</div>
+                <div className="text-[10px] text-slate-400">值班人员（排班）</div>
                 <div className="text-[11px] text-slate-200 font-medium flex items-center gap-1">
-                  张三
-                  <span className="flex items-center gap-0.5 text-[9px] text-emerald-400">
-                    <Phone className="w-2.5 h-2.5" />138****1234
-                  </span>
+                  {dutyInfo.name}
+                  {dutyInfo.phone ? (
+                    <span className="flex items-center gap-0.5 text-[9px] text-emerald-400">
+                      <Phone className="w-2.5 h-2.5" />{dutyInfo.phone}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -374,7 +402,7 @@ export default function WorkbenchPage() {
 
         {/* ====== Stats Row ====== */}
         <div className="grid grid-cols-4 xl:grid-cols-8 gap-3">
-          {STAT_ITEMS.map((s, i) => (
+          {statRows.map((s, i) => (
             <AnimatedStatCard key={i} s={s} index={i} />
           ))}
         </div>
@@ -465,7 +493,7 @@ export default function WorkbenchPage() {
               </div>
               <div className="flex-1 space-y-2">
                 {deviceOnline.map((d, i) => {
-                  const pct = Math.round((d.online / d.total) * 100);
+                  const pct = d.total > 0 ? Math.round((d.online / d.total) * 100) : 0;
                   return (
                     <div key={i} className="group/item">
                       <div className="flex items-center justify-between mb-0.5">
@@ -650,7 +678,7 @@ export default function WorkbenchPage() {
                 <BarChart3 className="w-4 h-4 text-emerald-400" />
                 告警处理统计
               </h3>
-              <span className="text-[9px] text-emerald-400 font-medium">处理率 92%</span>
+              <span className="text-[9px] text-emerald-400 font-medium">处理率 {monthSummary.handleRate}%</span>
             </div>
             <div className="p-3 flex flex-col h-full">
               <ResponsiveContainer width="100%" height={90}>
@@ -666,19 +694,19 @@ export default function WorkbenchPage() {
               <div className="mt-3 pt-3 border-t border-slate-700/30 space-y-2">
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-slate-400">本月告警总数</span>
-                  <span className="text-slate-200 font-medium">176 起</span>
+                  <span className="text-slate-200 font-medium">{monthSummary.alarmTotal} 起</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-slate-400">已处理</span>
-                  <span className="text-emerald-400 font-medium">164 起 (93.2%)</span>
+                  <span className="text-emerald-400 font-medium">{monthSummary.handled} 起 ({monthSummary.handleRate}%)</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-slate-400">平均响应时间</span>
-                  <span className="text-blue-400 font-medium">3.2 分钟</span>
+                  <span className="text-slate-400">本月防火巡查</span>
+                  <span className="text-blue-400 font-medium">{inspectionMonthCount} 次</span>
                 </div>
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-slate-400">消防演练</span>
-                  <span className="text-purple-400 font-medium">本月2次</span>
+                  <span className="text-slate-400">说明</span>
+                  <span className="text-slate-500 font-medium text-[9px]">指标来自实时库表聚合</span>
                 </div>
               </div>
             </div>

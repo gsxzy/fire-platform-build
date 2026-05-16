@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { legacyApi } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 import {
@@ -13,40 +13,7 @@ import {
 
 /* ═══════ 设备运行分析 ═══════ */
 
-const onlineTrendInit = [
-  { day: '周一', rate: 97.2 },
-  { day: '周二', rate: 96.8 },
-  { day: '周三', rate: 95.5 },
-  { day: '周四', rate: 96.1 },
-  { day: '周五', rate: 97.5 },
-  { day: '周六', rate: 96.9 },
-  { day: '周日', rate: 96.5 },
-];
-
-const deviceTypesInit = [
-  { name: '烟感探测器', total: 1850, online: 1823, offline: 27 },
-  { name: '温感探测器', total: 620, online: 612, offline: 8 },
-  { name: '手动报警', total: 156, online: 150, offline: 6 },
-  { name: '消防泵', total: 45, online: 43, offline: 2 },
-  { name: '排烟风机', total: 32, online: 30, offline: 2 },
-  { name: '防火阀', total: 89, online: 87, offline: 2 },
-  { name: '电气监控', total: 120, online: 118, offline: 2 },
-  { name: '应急照明', total: 386, online: 383, offline: 3 },
-];
-
-const faultTrendInit = [
-  { month: '1月', new: 12, resolved: 10 },
-  { month: '2月', new: 8, resolved: 9 },
-  { month: '3月', new: 15, resolved: 14 },
-  { month: '4月', new: 10, resolved: 8 },
-];
-
-const statusDistInit = [
-  { name: '在线正常', value: 3246, color: '#10b981' },
-  { name: '离线', value: 42, color: '#64748b' },
-  { name: '故障', value: 18, color: '#ef4444' },
-  { name: '维修中', value: 8, color: '#f59e0b' },
-];
+const statusDistInit: any[] = [];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -63,9 +30,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DeviceAnalysisPage() {
-  const [onlineTrend, setOnlineTrend] = useState(onlineTrendInit as any);
-  const [deviceTypes, setDeviceTypes] = useState(deviceTypesInit as any);
-  const [faultTrend, setFaultTrend] = useState(faultTrendInit as any);
+  const [onlineTrend, setOnlineTrend] = useState([] as any);
+  const [deviceTypes, setDeviceTypes] = useState([] as any);
+  const [faultTrend, setFaultTrend] = useState([] as any);
   const [statusDist, setStatusDist] = useState(statusDistInit as any);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -97,9 +64,9 @@ export default function DeviceAnalysisPage() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const totalDevices = 3314;
-  const onlineDevices = 3246;
-  const onlineRate = ((onlineDevices / totalDevices) * 100).toFixed(1);
+  const totalDevices = '--';
+  const onlineDevices = '--';
+  const onlineRate = '--';
 
   return (
     <DataContainer loading={loading} error={error} data={onlineTrend} onRetry={loadData} emptyText="暂无数据">
@@ -128,9 +95,9 @@ export default function DeviceAnalysisPage() {
         {[
           { label: '设备总数', value: totalDevices.toLocaleString(), icon: Cpu, color: '#3b82f6', sub: '全部联网' },
           { label: '在线设备', value: onlineDevices.toLocaleString(), icon: Wifi, color: '#10b981', sub: `在线率 ${onlineRate}%` },
-          { label: '离线设备', value: '42', icon: WifiOff, color: '#64748b', sub: '需排查' },
-          { label: '故障设备', value: '18', icon: AlertTriangle, color: '#ef4444', sub: '待维修' },
-          { label: '维修中', value: '8', icon: Wrench, color: '#f59e0b', sub: '处理中' },
+          { label: '离线设备', value: '--', icon: WifiOff, color: '#64748b', sub: '需排查' },
+          { label: '故障设备', value: '--', icon: AlertTriangle, color: '#ef4444', sub: '待维修' },
+          { label: '维修中', value: '--', icon: Wrench, color: '#f59e0b', sub: '处理中' },
         ].map((s: any, i: number) => {
           const Icon = s.icon;
           return (
@@ -211,7 +178,7 @@ export default function DeviceAnalysisPage() {
         </div>
         <div className="space-y-2">
           {deviceTypes.map((d: any, i: number) => {
-            const rate = ((d.online / d.total) * 100).toFixed(1);
+            const rate = (d.total > 0 ? ((d.online / d.total) * 100) : 0).toFixed(1);
             const isGood = parseFloat(rate) >= 98;
             return (
               <div key={i} className="flex items-center gap-3 p-2.5 bg-slate-900/30 rounded-lg">

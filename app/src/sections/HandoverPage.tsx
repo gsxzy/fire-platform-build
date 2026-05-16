@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/core/ToastContext";
-import { dutyHandoverService } from "@/api/services";
+import { legacyRaw } from "@/api/client";
+import { getErrorMessage } from "@/types/api";
 import DataContainer from "@/components/DataContainer";
 import {
   ClipboardList, Eye, X, Shield, Monitor, Bell, CheckCircle, AlertTriangle,
@@ -21,15 +22,42 @@ interface HandoverItem {
   status: "normal" | "abnormal";
 }
 
-/* ===== Mock Data ===== */
-const mockHandovers: HandoverItem[] = [
-  { id: "H-001", handoverTime: "2025-02-01 08:00", shiftName: "早班", outgoingName: "王五", incomingName: "张三", equipmentStatus: "正常", monitorStatus: "正常", pendingAlarms: 2, notes: "兰州石化漏电待跟进", status: "normal" },
-  { id: "H-002", handoverTime: "2025-01-31 20:00", shiftName: "晚班", outgoingName: "李四", incomingName: "王五", equipmentStatus: "正常", monitorStatus: "正常", pendingAlarms: 0, notes: "无异常", status: "normal" },
-  { id: "H-003", handoverTime: "2025-01-31 08:00", shiftName: "早班", outgoingName: "赵六", incomingName: "李四", equipmentStatus: "正常", monitorStatus: "正常", pendingAlarms: 1, notes: "消防水池液位偏低，已记录", status: "normal" },
-  { id: "H-004", handoverTime: "2025-01-30 20:00", shiftName: "晚班", outgoingName: "张三", incomingName: "赵六", equipmentStatus: "异常", monitorStatus: "正常", pendingAlarms: 3, notes: "应急照明3处通讯中断，已报修", status: "abnormal" },
-  { id: "H-005", handoverTime: "2025-01-30 08:00", shiftName: "早班", outgoingName: "王五", incomingName: "张三", equipmentStatus: "正常", monitorStatus: "正常", pendingAlarms: 0, notes: "设备运行正常", status: "normal" },
-  { id: "H-006", handoverTime: "2025-01-29 20:00", shiftName: "晚班", outgoingName: "李四", incomingName: "王五", equipmentStatus: "正常", monitorStatus: "异常", pendingAlarms: 2, notes: "监控主机2号摄像头离线", status: "abnormal" },
-];
+function formatDutyDt(d: unknown): string {
+  if (d == null || d === "") return "";
+  try {
+    const t = typeof d === "string" ? d : new Date(d as string | number | Date).toISOString();
+    return t.replace("T", " ").slice(0, 19);
+  } catch {
+    return String(d);
+  }
+}
+
+/** 将值班日志（签退）映射为交接班列表项 */
+function mapDutyLogToHandover(log: Record<string, unknown>): HandoverItem | null {
+  const off = log.off_duty_time ?? log.offDutyTime;
+  if (!off) return null;
+  const handoverTime = formatDutyDt(off);
+  const content = String(log.handover_content ?? log.handoverContent ?? "").trim();
+  const incidents = String(log.incidents ?? "").trim();
+  const notes = [content, incidents].filter(Boolean).join("；") || "无";
+  let pendingAlarms = 0;
+  const m = incidents.match(/(\d+)\s*条/);
+  if (m) pendingAlarms = parseInt(m[1], 10);
+  const abnormal =
+    /异常|故障|未处理|alarm/i.test(content + incidents) || pendingAlarms > 0;
+  return {
+    id: String(log.id ?? ""),
+    handoverTime,
+    shiftName: "值班签退",
+    outgoingName: String(log.user_name ?? log.userName ?? "—"),
+    incomingName: "—",
+    equipmentStatus: abnormal ? "异常" : "正常",
+    monitorStatus: abnormal ? "异常" : "正常",
+    pendingAlarms,
+    notes,
+    status: abnormal ? "abnormal" : "normal",
+  };
+}
 
 /* ===== Detail Modal ===== */
 function DetailModal({ item, onClose }: { item: HandoverItem | null; onClose: () => void }) {
@@ -133,11 +161,15 @@ function DetailModal({ item, onClose }: { item: HandoverItem | null; onClose: ()
 /* ===== Main Page ===== */
 export default function HandoverPage() {
   const { success: _showSuccess } = useToast();
-  const [list, setList] = useState<HandoverItem[]>(mockHandovers);
+  const [list, setList] = useState<HandoverItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [startDate, setStartDate] = useState("2025-01-01");
-  const [endDate, setEndDate] = useState("2025-02-01");
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [selectedItem, setSelectedItem] = useState<HandoverItem | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -145,11 +177,17 @@ export default function HandoverPage() {
     setLoading(true);
     setError(null);
     try {
-      const res: any = await dutyHandoverService.list({ page: 1, pageSize: 100, startDate, endDate });
-      const data = Array.isArray(res?.data) ? res.data : (res?.data?.list || []);
-      if (data.length > 0) setList(data);
-    } catch (e: any) {
-      setError(e);
+      const pageData = await legacyRaw.get<{ list: Record<string, unknown>[]; total?: number }>("/duty/logs", {
+        pageNum: 1,
+        pageSize: 200,
+      });
+      const rows = Array.isArray(pageData?.list) ? pageData.list : [];
+      const mapped = rows
+        .map((row) => mapDutyLogToHandover(row))
+        .filter((x): x is HandoverItem => x != null);
+      setList(mapped);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e : new Error(getErrorMessage(e)));
     } finally {
       setLoading(false);
     }

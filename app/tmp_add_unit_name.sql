@@ -1,1 +1,0 @@
-ALTER TABLE devices ADD COLUMN unit_name VARCHAR(100) DEFAULT NULL AFTER device_type;

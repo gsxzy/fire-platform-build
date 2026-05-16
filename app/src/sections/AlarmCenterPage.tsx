@@ -21,6 +21,7 @@ import {
 import AlarmDetailModal from './AlarmDetailModal';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
+import { logger } from '@/lib/logger';
 
 const typeTabs = [
   { key: 'all', label: '全部', icon: Bell, activeClass: 'bg-blue-500 text-white shadow-sm shadow-blue-500/20' },
@@ -67,6 +68,7 @@ export default function AlarmCenterPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmResult, setConfirmResult] = useState<'true' | 'false'>('true');
   const [remark, setRemark] = useState('');
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   const [loadError, setLoadError] = useState<Error | null>(null);
 
@@ -83,7 +85,7 @@ export default function AlarmCenterPage() {
         setTotal(res.data?.total || 0);
       }
     } catch (e: any) {
-      console.error('加载告警失败', e);
+      logger.error('加载告警失败', e);
       setLoadError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setLoading(false);
@@ -104,14 +106,17 @@ export default function AlarmCenterPage() {
 
   const handleConfirm = async () => {
     if (!selectedAlarm) return;
+    setConfirmLoading(true);
     try {
       await alarmService.confirm(selectedAlarm.id, '当前用户', remark);
       success('告警确认成功');
       setConfirmOpen(false);
       fetchAlarms();
     } catch (e: any) {
-      console.error('确认失败', e);
+      logger.error('确认失败', e);
       showError('告警确认失败', e.message || '请检查网络或稍后重试');
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -406,7 +411,8 @@ export default function AlarmCenterPage() {
             <Button variant="outline" onClick={() => setConfirmOpen(false)} className="h-8 text-xs border-slate-600 text-slate-300 hover:bg-slate-700/40 rounded-lg">
               取消
             </Button>
-            <Button onClick={handleConfirm} className="h-8 text-xs bg-red-600 hover:bg-red-700 rounded-lg">
+            <Button onClick={handleConfirm} disabled={confirmLoading} className="h-8 text-xs bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-1.5">
+              {confirmLoading && <Loader2 className="w-3 h-3 animate-spin" />}
               确认
             </Button>
           </DialogFooter>

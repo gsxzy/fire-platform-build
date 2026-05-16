@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '@/components/ui/dialog';
 
-import { workOrderService } from '@/api/services';
+import { alarmService } from '@/api/services';
+import type { Alarm } from '@/types/db';
 import DataContainer from '@/components/DataContainer';
 import {
   PhoneCall, Flame, CheckCircle, XCircle, Clock, MapPin,
@@ -45,14 +46,45 @@ function use135Timer() {
   return { elapsed, running, start, pause, reset, fmt, m1, m3, m5 };
 }
 
-/* ===== Mock Dispatch Orders ===== */
-const mockOrdersInit = [
-  { id: 'JJ250201001', alarmId: 'FJ250201001', unit: '万达广场商业中心', device: '1F大厅烟感探测器', location: '1F大厅东侧', alarmTime: '2025-02-01 10:23:15', level: '紧急', type: '火警', handler: '值班员A', status: 'confirmed_true', phase: 'response', contact: '张明华/13919881234', security: '王队长/13800138001' },
-  { id: 'JJ250201002', alarmId: 'FJ250201002', unit: '万达广场商业中心', device: 'B1停车场温感探测器', location: 'B1 A区', alarmTime: '2025-02-01 10:18:42', level: '紧急', type: '火警', handler: '值班员B', status: 'confirmed_false', phase: 'archived', contact: '张明华/13919881234', security: '王队长/13800138001' },
-  { id: 'JJ250201003', alarmId: 'GZ250201001', unit: '万达广场商业中心', device: '排烟风机#3', location: '屋顶机房B', alarmTime: '2025-02-01 09:56:33', level: '严重', type: '故障', handler: '值班员A', status: 'handling', phase: 'verify', contact: '张明华/13919881234', security: '王队长/13800138001' },
-  { id: 'JJ250201004', alarmId: 'FJ250201004', unit: '兰州石化', device: '配电室电气火灾监控器', location: '3#配电室', alarmTime: '2025-02-01 09:45:21', level: '紧急', type: '火警', handler: '值班员B', status: 'confirmed_true', phase: 'response', contact: '马国庆/13919198888', security: '李队长/13900139002' },
-  { id: 'JJ250201005', alarmId: 'GZ250201002', unit: '兰州中心', device: '消防栓泵', location: '地下泵房', alarmTime: '2025-02-01 09:30:18', level: '严重', type: '故障', handler: '值班员A', status: 'pending', phase: 'receive', contact: '陈小红/13909311234', security: '赵队长/13700137003' },
-];
+const LEVEL_LABEL: Record<string, string> = {
+  urgent: '紧急', high: '严重', normal: '一般', low: '低',
+};
+
+/** 告警列表 → 接警处置列表展示结构 */
+function alarmToDispatchOrder(a: Alarm) {
+  const typeLabel = a.type === 'fire' ? '火警' : a.type === 'fault' ? '故障' : '预警';
+  const levelLabel = LEVEL_LABEL[a.level] || a.level;
+  let phase = 'receive';
+  let status = 'pending';
+  if (a.status === 'confirmed') {
+    phase = 'verify';
+    status = 'handling';
+  }
+  if (a.status === 'handled') {
+    phase = 'archive';
+    status = 'resolved';
+  }
+  if (a.status === 'ignored') {
+    phase = 'archive';
+    status = 'confirmed_false';
+  }
+  return {
+    id: `JJ-${a.id}`,
+    alarmId: a.alarmNo || String(a.id),
+    type: typeLabel,
+    unit: a.unitName,
+    device: a.deviceName,
+    phase,
+    handler: a.handler || '-',
+    alarmTime: a.createdAt,
+    status,
+    level: levelLabel,
+    location: a.location,
+    message: a.message,
+    contact: '-/-',
+    security: '-/-',
+  };
+}
 
 const phaseLabels: Record<string, { label: string; color: string }> = {
   receive: { label: '接警登记', color: 'bg-blue-500/20 text-blue-400' },
@@ -139,7 +171,7 @@ function ResponseTimer135() {
 
 /* ===== Main Page ===== */
 export default function AlarmDispatchPage() {
-  const [orders, setOrders] = useState(mockOrdersInit as any);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -147,11 +179,11 @@ export default function AlarmDispatchPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await workOrderService.list();
-      const data = res?.data ?? res;
-      if (data && (Array.isArray(data) || typeof data === 'object')) {
-        const list = Array.isArray(data) ? data : (data.list || []);
-        if (list.length) setOrders(list as any);
+      const res = await alarmService.list({ pageNum: 1, pageSize: 100 });
+      if (res.code === 200 && Array.isArray(res.data?.list)) {
+        setOrders(res.data.list.map(alarmToDispatchOrder));
+      } else {
+        setOrders([]);
       }
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
@@ -170,7 +202,7 @@ export default function AlarmDispatchPage() {
   const openAction = (o: any, action: string) => { setSelectedOrder(o); setActionDialog(action); setRemark(''); };
 
   const pendingCount = orders.filter((o: any) => o.status === 'pending').length;
-  const handlingCount = orders.filter((o: any) => o.status === 'handling' || o.status === 'confirmed_true').length;
+  const handlingCount = orders.filter((o: any) => o.status === 'handling').length;
 
   return (
     <DataContainer loading={loading} error={error} data={orders} onRetry={loadData} emptyText="暂无接警数据">
@@ -248,8 +280,14 @@ export default function AlarmDispatchPage() {
                 <span className="col-span-1 text-[10px] text-slate-400">{o.handler}</span>
                 <span className="col-span-2 text-[9px] text-slate-400 font-mono">{o.alarmTime}</span>
                 <span className="col-span-1">
-                  <Badge variant="outline" className={`text-[8px] px-1 ${o.status === 'pending' ? 'bg-red-500/20 text-red-400' : o.status === 'confirmed_true' ? 'bg-red-500/20 text-red-400' : o.status === 'confirmed_false' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                    {o.status === 'pending' ? '待处理' : o.status === 'confirmed_true' ? '真警' : o.status === 'confirmed_false' ? '误报' : '处理中'}
+                  <Badge variant="outline" className={`text-[8px] px-1 ${
+                    o.status === 'pending' ? 'bg-red-500/20 text-red-400' :
+                    o.status === 'confirmed_true' ? 'bg-red-500/20 text-red-400' :
+                    o.status === 'confirmed_false' ? 'bg-yellow-500/20 text-yellow-400' :
+                    o.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-400' :
+                    'bg-blue-500/20 text-blue-400'
+                  }`}>
+                    {o.status === 'pending' ? '待处理' : o.status === 'confirmed_true' ? '真警' : o.status === 'confirmed_false' ? '误报' : o.status === 'resolved' ? '已处理' : '处理中'}
                   </Badge>
                 </span>
                 <span className="col-span-2 flex gap-0.5">

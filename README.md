@@ -1,165 +1,196 @@
-# 新致远智慧消防远程监控中心 V2.0.0
+# 新致远智慧消防远程监控中心 V2.0
 
-## 系统概述
-
-新致远智慧消防远程监控中心是一个城市级智慧消防物联网监控管理平台，按照GB 26875《城市消防远程监控系统》和GB 50016《建筑设计防火规范》设计开发，采用微服务架构、前后端分离技术方案。
+> 城市级智慧消防物联网监控管理平台，符合 GB 26875《城市消防远程监控系统》标准设计。
 
 ## 技术架构
 
-### 前端技术栈
-- React 18 + TypeScript + Vite 7
-- Tailwind CSS + shadcn/ui 组件库
-- Recharts 数据可视化图表
-- Lucide React 图标库
+### 前端
+- **React 19.2** + **TypeScript 5.9** + **Vite 7.2**
+- **Tailwind CSS 3.4** + shadcn/ui 组件库
+- **Recharts** 数据可视化
+- **HashRouter** 单页应用
 
-### 后端技术栈
-- Python Flask + SQLite3
-- JWT认证 (flask-jwt-extended)
-- RESTful API设计
+### 后端
+- **Node.js 20+** + **Express 4.19**
+- **Sequelize 6.37** + **MySQL 8.0** + **Redis**
+- **JWT** 认证 + **WebSocket** 实时推送
+- **PM2** 进程管理（生产环境）
 
-## 功能模块
+### 第三方服务
+- **WVP-PRO** — GB28181 视频监控平台
+- **ZLMediaKit** — 流媒体服务器
+- **CTWing** — 天翼物联网平台（海康4G设备接入）
 
-### 1. 监控中心
-- **实时监控**: 联网单位、消防设备、报警总数等核心指标实时展示
-- **报警管理**: 火警/故障/反馈三类报警的接收、确认、处理、关闭全生命周期管理
-- **视频监控**: GB28181协议摄像头管理，实时视频查看
-- **控制界面**: 消音/复位/手自动切换/屏蔽等快捷控制操作
-- **安消联动**: 联动规则配置、视频关联映射、联动记录查询、AI智能识别配置
-
-### 2. 单位管理
-- 单位档案管理（单位类型、建筑信息、消防设施、消防安全责任人）
-- 单位统计与查询
-
-### 3. 设备管理
-- 设备档案（设备类型、设备编号、位置信息、生产厂家、安装日期）
-- 设备配置与控制
-- 设备维护记录
-
-### 4. 巡检管理
-- 巡检计划（日常巡检、专项检查、临时巡检）
-- 巡检任务与记录
-- 隐患管理（发现、上报、整改、验收）
-
-### 5. 应急预案
-- 预案库（建筑火灾、电气火灾、危化品火灾等类型）
-- 预案启动与演练记录
-
-### 6. 数据分析
-- 报警分析（报警趋势、时段分布、类型统计）
-- 趋势分析（月度数据趋势对比）
-- 统计报表（设备类型分布、单位报警统计）
-
-### 7. 系统管理
-- 用户管理（系统管理员、管理员、操作员三级权限）
-- 角色权限管理
-- 组织架构管理
-- 操作日志与登录日志
-- 系统参数配置
-
-## 安装与启动
+## 快速开始
 
 ### 环境要求
-- Node.js 20+
-- Python 3.10+
-- SQLite3
+- Node.js >= 20.0.0
+- MySQL 8.0
+- Redis 7.x
 
-### 安装依赖
+### 1. 安装依赖
 
 ```bash
-# 前端依赖
-cd app
+# 后端
+cd backend
 npm install
 
-# 后端依赖
-cd backend
-pip install -r requirements.txt
+# 前端
+cd app
+npm install
 ```
 
-### 启动服务
+### 2. 配置环境变量
 
 ```bash
-# 一键启动（推荐）
-chmod +x start.sh
-./start.sh
+# 后端：复制示例配置并修改
+cp backend/.env.example backend/.env
+# 编辑 backend/.env，填写数据库密码、JWT 密钥等必填项
 
-# 或手动启动
-# 1. 启动后端
+# 前端：复制示例配置并修改
+cp app/.env.example app/.env
+# 编辑 app/.env，填写 API 地址、地图 Key 等
+```
+
+> ⚠️ **安全警告**：生产环境必须生成强密码和随机 JWT 密钥，切勿使用默认值。
+
+### 3. 数据库迁移
+
+```bash
 cd backend
-python app.py
 
-# 2. 启动前端（开发模式）
+# 首次初始化（创建表结构）
+npx sequelize-cli db:migrate
+
+# 回滚最近一次迁移
+npx sequelize-cli db:migrate:undo
+
+# 查看迁移状态
+npx sequelize-cli db:migrate:status
+```
+
+> 旧版 `npm run db:sync` 仍可用（开发环境），但生产环境请务必使用 migration。
+
+### 4. 导入种子数据（可选）
+
+```bash
+cd backend
+npm run seed
+```
+
+> 需先设置 `ADMIN_PASSWORD` 环境变量，否则将跳过管理员创建。
+
+### 5. 启动服务
+
+```bash
+# 后端开发模式
+cd backend
+npm run dev
+
+# 前端开发模式
 cd app
 npm run dev
 
-# 3. 构建前端（生产模式）
+# 生产构建
 cd app
 npm run build
 ```
 
-### 访问系统
+### 6. 访问系统
 
-- 前端地址: http://localhost:5173
-- 后端API: http://localhost:5000
+- 前端开发地址：`http://localhost:5173`
+- 后端 API 地址：`http://localhost:5003`
 
-### 默认账号
+## 部署指南
 
-| 角色 | 用户名 | 密码 |
-|------|--------|------|
-| 超级管理员 | admin | admin123 |
-| 操作员 | operator | op123456 |
-| 消防主管 | manager | mgr123456 |
+### Docker Compose 部署
 
-## API接口
+```bash
+cd backend
+# 1. 确保 .env 已配置
+cp .env.example .env
+# 2. 启动全部服务
+docker-compose up -d
+```
 
-系统提供完整的RESTful API，主要接口包括：
+### 手动部署（生产环境）
 
-### 认证接口
-- POST /api/auth/login - 用户登录
-- GET /api/auth/current-user - 获取当前用户
-- POST /api/auth/logout - 退出登录
+详见 [DEPLOY.md](./DEPLOY.md)
 
-### 控制接口
-- POST /api/control/silence/confirm - 消音确认
-- POST /api/control/reset/confirm - 复位确认
-- GET /api/control/mode/{deviceId} - 获取手自动模式
-- POST /api/control/mode/switch - 切换手自动模式
-- GET/POST /api/control/shields - 屏蔽管理
+## 项目结构
 
-### 报警接口
-- GET /api/alarm/fire - 火警列表
-- POST /api/alarm/fire/{eventCode}/confirm - 火警确认
-- GET /api/alarm/fault - 故障列表
-- GET /api/alarm/feedback - 反馈列表
+```
+├── app/                    # 前端（React + Vite）
+│   ├── src/
+│   │   ├── sections/       # 页面模块
+│   │   ├── components/     # 通用组件
+│   │   ├── api/            # API 客户端
+│   │   └── hooks/          # 自定义 Hooks
+│   └── .env.example
+├── backend/                # 后端（Express + Sequelize）
+│   ├── src/
+│   │   ├── controllers/    # 控制器
+│   │   ├── services/       # 业务服务
+│   │   ├── models/         # Sequelize 模型
+│   │   ├── routes/         # 路由定义
+│   │   ├── middleware/     # 中间件
+│   │   ├── config/         # 配置文件
+│   │   ├── seeders/        # 种子数据
+│   │   └── utils/          # 工具函数
+│   ├── sql/                # 数据库迁移文件（Sequelize CLI）
+│   └── .env.example
+├── deploy/                 # 部署脚本与资源
+└── AGENTS.md               # Agent 工作记忆（架构/配置/密钥）
+```
 
-### 联动接口
-- GET/POST /api/linkage/rules - 联动规则
-- GET /api/linkage/records - 联动记录
-- GET/PUT /api/linkage/ai/configs - AI配置
+## 核心功能模块
 
-### 设备接口
-- GET /api/device/devices - 设备列表
-- GET /api/device/types - 设备类型
+| 模块 | 说明 |
+|------|------|
+| 监控中心 | 实时指标、告警弹窗、视频监控、消控室联动 |
+| 告警管理 | 火警/故障/反馈全生命周期处理 |
+| 单位管理 | 单位档案、建筑信息、消防设施 |
+| 设备管理 | 设备档案、IoT 接入、生命周期、维保记录 |
+| 巡检管理 | 巡检计划、任务派发、隐患整改 |
+| 应急预案 | 预案库、演练记录 |
+| 数据分析 | 报警趋势、统计报表、大屏展示 |
+| 系统管理 | 用户/角色/权限、操作日志、系统配置 |
 
-### 单位接口
-- GET /api/resource/units - 单位列表
-- GET /api/resource/buildings - 建筑列表
+## 环境变量参考
 
-## 数据库
+### 后端必填项
 
-系统使用SQLite3数据库，包含以下核心表：
-- sys_user/sys_role/sys_menu - 用户权限
-- dev_device/dev_type - 设备管理
-- alarm_fire/alarm_fault/alarm_feedback - 报警管理
-- ctrl_command/ctrl_shield/ctrl_mode_log - 控制操作
-- link_rule/link_record/link_ai_config - 安消联动
-- res_unit/res_building - 单位资源
-- patrol_plan/patrol_task/patrol_hazard - 巡检管理
-- plan_preplan/plan_record - 应急预案
+| 变量 | 说明 |
+|------|------|
+| `DB_PASSWORD` | MySQL 密码（不能为空） |
+| `JWT_SECRET` | JWT 签名密钥（建议 64 位随机字符串） |
+| `ZLM_SECRET` | ZLMediaKit Secret |
+| `HIKVISION_4G_API_KEY` | 海康4G设备接入鉴权密钥 |
+
+### 前端必填项
+
+| 变量 | 说明 |
+|------|------|
+| `VITE_API_BASE` | API 基础路径（如 `/api`） |
+| `VITE_WS_URL` | WebSocket 地址 |
+| `VITE_AMAP_KEY` | 高德地图 Key |
+
+完整变量列表请参阅 `.env.example` 文件。
+
+## 安全加固
+
+1. **生产环境必须修改所有默认密码和密钥**
+2. `.env`、`.env.production` 文件不应提交到版本控制
+3. 定期轮换 `JWT_SECRET`、`ZLM_SECRET` 和数据库密码
+4. IoT 接入建议配置 `IOT_IP_WHITELIST` 限制来源 IP
 
 ## 开发规范
 
-- 前端遵循React + TypeScript开发规范
-- 后端遵循RESTful API设计规范
-- 数据库操作使用参数化查询防止SQL注入
-- JWT Token认证，过期时间24小时
-- 统一API响应格式: { code, message, data, timestamp }
+- 前端遵循 React + TypeScript 规范，组件使用函数式 + Hooks
+- 后端遵循 RESTful API 设计，统一响应格式 `{ code, message, data, timestamp }`
+- 数据库变更必须通过 Sequelize Migration，禁止手工 ALTER 生产表
+- 敏感配置（密码、密钥）必须走环境变量，禁止硬编码
+
+## 许可证
+
+COMMERCIAL — 新致远科技版权所有

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/hooks/useAuth';
+import { getErrorMessage } from '@/types/api';
+import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Shield, Eye, EyeOff, Activity, Building2, Cpu, Bell, Zap, Lock, User, Fingerprint } from 'lucide-react';
+import { Shield, Eye, EyeOff, Activity, Building2, Cpu, Bell, Zap, Lock, User, Fingerprint, type LucideIcon } from 'lucide-react';
 
 /* Animated Particle Background */
 function ParticleBackground() {
@@ -96,6 +98,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [publicStats, setPublicStats] = useState({ unitCount: 0, onlineDevices: 0, alarmPending: 0 });
 
   // 已登录时自动跳转（优先跳转到 redirect 参数指定的页面）
   useEffect(() => {
@@ -111,9 +114,24 @@ export default function LoginPage() {
           }
         } catch { /* ignore invalid redirect */ }
       }
-      navigate('/workbench', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate, searchParams]);
+
+  // 加载公开统计数据（供登录页展示真实平台概览）
+  useEffect(() => {
+    api.get<{ unitCount: number; onlineDevices: number; alarmPending: number }>('/public/stats')
+      .then(res => {
+        if (res.code === 200 && res.data) {
+          setPublicStats({
+            unitCount: Number(res.data.unitCount) || 0,
+            onlineDevices: Number(res.data.onlineDevices) || 0,
+            alarmPending: Number(res.data.alarmPending) || 0,
+          });
+        }
+      })
+      .catch(() => { /* 静默失败，保持默认值 0 */ });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,8 +139,8 @@ export default function LoginPage() {
     try {
       await login(username, password);
       // 跳转由 useEffect 监听 isAuthenticated 自动处理，避免状态不同步
-    } catch (err: any) {
-      setError(err.message || '登录失败');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, '登录失败'));
     }
   };
 
@@ -155,11 +173,11 @@ export default function LoginPage() {
           </p>
 
           <div className="grid grid-cols-3 gap-4">
-            {[
-              { icon: Building2, label: '联网单位', value: 156, suffix: '家', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-              { icon: Cpu, label: '在线设备', value: 12412, suffix: '台', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-              { icon: Bell, label: '今日告警', value: 23, suffix: '条', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-            ].map((stat: any, i: number) => {
+            {([
+              { icon: Building2, label: '联网单位', value: publicStats.unitCount, suffix: '家', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+              { icon: Cpu, label: '在线设备', value: publicStats.onlineDevices, suffix: '台', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+              { icon: Bell, label: '待处理告警', value: publicStats.alarmPending, suffix: '条', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+            ] as const satisfies ReadonlyArray<{ icon: LucideIcon; label: string; value: number; suffix: string; color: string; bg: string; border: string }>).map((stat, i) => {
               const Icon = stat.icon;
               return (
                 <div key={i} className={`${stat.bg} border ${stat.border} rounded-xl p-4 hover:scale-[1.03] transition-all duration-300 backdrop-blur-sm`}>
@@ -287,10 +305,10 @@ export default function LoginPage() {
                   <>
                     <p className="text-[10px] text-slate-500 text-center mb-2">演示账号（仅开发环境）</p>
                     <div className="flex gap-2">
-                      <button onClick={() => { setUsername('admin'); setPassword('admin123'); }} className="flex-1 py-1.5 text-[10px] text-slate-400 bg-slate-800/50 border border-slate-700/30 rounded-lg hover:bg-slate-700/40 hover:border-slate-600/40 transition-all">
+                      <button onClick={() => { setUsername('admin'); setPassword('__dev_pass__'); }} className="flex-1 py-1.5 text-[10px] text-slate-400 bg-slate-800/50 border border-slate-700/30 rounded-lg hover:bg-slate-700/40 hover:border-slate-600/40 transition-all">
                         管理员: admin
                       </button>
-                      <button onClick={() => { setUsername('operator'); setPassword('op123456'); }} className="flex-1 py-1.5 text-[10px] text-slate-400 bg-slate-800/50 border border-slate-700/30 rounded-lg hover:bg-slate-700/40 hover:border-slate-600/40 transition-all">
+                      <button onClick={() => { setUsername('operator'); setPassword('__dev_pass__'); }} className="flex-1 py-1.5 text-[10px] text-slate-400 bg-slate-800/50 border border-slate-700/30 rounded-lg hover:bg-slate-700/40 hover:border-slate-600/40 transition-all">
                         操作员: operator
                       </button>
                     </div>

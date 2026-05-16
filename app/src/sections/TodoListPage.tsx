@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   CheckCircle2, Circle, Clock, Calendar, ChevronRight, Plus, X,
   Trash2, Edit3, Flag, AlertTriangle, Flame, Wrench, ClipboardCheck,
-  Save, Filter, SortAsc
+  Save, Filter, SortAsc, Loader2,
 } from 'lucide-react';
+import { raw } from '@/api/client';
+import EmptyState from '@/components/EmptyState';
 
 interface TodoItem {
   id: number;
@@ -17,16 +19,12 @@ interface TodoItem {
   tag?: string;
 }
 
-const initialTodos: TodoItem[] = [
-  { id: 1, title: '处理万达广场火警告警', desc: '1F大厅烟感探测器触发火警，需现场核实', priority: 'high', status: 'pending', category: '告警处理', dueDate: '2026-04-19', createdAt: '2026-04-19 09:15', tag: '火警' },
-  { id: 2, title: '喷淋泵维保到期处理', desc: '万达广场喷淋泵维保2天后到期，安排维保人员', priority: 'high', status: 'doing', category: '维保管理', dueDate: '2026-04-21', createdAt: '2026-04-18 16:30', tag: '维保' },
-  { id: 3, title: '月度巡检报告审核', desc: '审核4月份各单位巡检报告', priority: 'medium', status: 'pending', category: '巡检管理', dueDate: '2026-04-22', createdAt: '2026-04-18 10:00', tag: '巡检' },
-  { id: 4, title: '排烟风机故障维修', desc: '万达广场排烟风机#3轴承异响，需更换轴承', priority: 'medium', status: 'doing', category: '设备维修', dueDate: '2026-04-20', createdAt: '2026-04-18 14:20', tag: '故障' },
-  { id: 5, title: '消防栓压力不足排查', desc: 'B2层消防栓压力低于标准值，需排查原因', priority: 'high', status: 'pending', category: '隐患排查', dueDate: '2026-04-19', createdAt: '2026-04-19 08:45', tag: '隐患' },
-  { id: 6, title: '新员工消防培训安排', desc: '组织4月份新入职员工消防安全培训', priority: 'low', status: 'pending', category: '培训考核', dueDate: '2026-04-25', createdAt: '2026-04-17 09:00', tag: '培训' },
-  { id: 7, title: '设备档案更新', desc: '更新3月份新增设备档案信息', priority: 'low', status: 'done', category: '设备管理', dueDate: '2026-04-18', createdAt: '2026-04-15 10:30', tag: '档案' },
-  { id: 8, title: '消防演练方案审核', desc: '审核万达广场第二季度消防演练方案', priority: 'medium', status: 'done', category: '应急预案', dueDate: '2026-04-17', createdAt: '2026-04-14 11:00', tag: '演练' },
-];
+async function fetchTodos(): Promise<TodoItem[]> {
+  const res = await raw.get<any>('/todos/list');
+  if (Array.isArray(res)) return res;
+  const list = res?.list;
+  return Array.isArray(list) ? list : [];
+}
 
 const categoryColors: Record<string, string> = {
   '告警处理': 'bg-red-500/10 text-red-400',
@@ -51,43 +49,82 @@ const tagIcon = (tag: string) => {
 };
 
 export default function TodoListPage() {
-  const [todos, setTodos] = useState<TodoItem[]>(initialTodos);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [listLoading, setListLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<TodoItem | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'doing' | 'done'>('all');
   const [form, setForm] = useState<Partial<TodoItem>>({ priority: 'medium', status: 'pending', category: '告警处理' });
 
-  const filtered = todos.filter(t => filter === 'all' || t.status === filter);
+  useEffect(() => {
+    let mounted = true;
+    setListLoading(true);
+    fetchTodos()
+      .then(data => { if (mounted) setTodos(data || []); })
+      .catch(() => { if (mounted) setTodos([]); })
+      .finally(() => { if (mounted) setListLoading(false); });
+    return () => { mounted = false; };
+  }, []);
 
-  const toggleStatus = (id: number) => {
-    setTodos(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      const next = t.status === 'pending' ? 'doing' : t.status === 'doing' ? 'done' : 'pending';
-      return { ...t, status: next };
-    }));
+  const safeTodos = Array.isArray(todos) ? todos : [];
+  const filtered = safeTodos.filter(t => filter === 'all' || t.status === filter);
+
+  const toggleStatus = async (id: number) => {
+    const t = todos.find(x => x.id === id);
+    if (!t) return;
+    const next = t.status === 'pending' ? 'doing' : t.status === 'doing' ? 'done' : 'pending';
+    const statusMap: Record<string, number> = { pending: 0, doing: 1, done: 2 };
+    try {
+      await raw.put(`/todos/${id}`, { status: statusMap[next] });
+      setTodos(prev => prev.map(x => x.id === id ? { ...x, status: next } : x));
+    } catch (e) {
+      console.error('更新待办状态失败', e);
+    }
   };
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!form.title) return;
-    if (editing) {
-      setTodos(prev => prev.map(t => t.id === editing.id ? { ...t, ...form } as TodoItem : t));
-    } else {
-      const newTodo: TodoItem = {
-        id: Date.now(),
-        title: form.title || '',
-        desc: form.desc || '',
-        priority: (form.priority as any) || 'medium',
-        status: (form.status as any) || 'pending',
-        category: form.category || '其他',
-        dueDate: form.dueDate || new Date().toISOString().split('T')[0],
-        createdAt: new Date().toLocaleString('zh-CN'),
-        tag: form.tag,
+    setSaving(true);
+    try {
+      const priorityMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+      const statusMap: Record<string, number> = { pending: 0, doing: 1, done: 2 };
+      const payload = {
+        title: form.title,
+        content: form.desc || '',
+        priority: priorityMap[form.priority || 'medium'] || 2,
+        status: statusMap[form.status || 'pending'] || 0,
+        due_date: form.dueDate || new Date().toISOString().split('T')[0],
       };
-      setTodos(prev => [newTodo, ...prev]);
+      if (editing) {
+        await raw.put(`/todos/${editing.id}`, payload);
+        setTodos(prev => prev.map(t => t.id === editing.id ? { ...t, ...form } as TodoItem : t));
+      } else {
+        const res = await raw.post<any>('/todos', payload);
+        const newId = res?.data?.id || res?.id || Date.now();
+        const newTodo: TodoItem = {
+          id: newId,
+          title: form.title || '',
+          desc: form.desc || '',
+          priority: (form.priority as any) || 'medium',
+          status: (form.status as any) || 'pending',
+          category: form.category || '其他',
+          dueDate: form.dueDate || new Date().toISOString().split('T')[0],
+          createdAt: new Date().toLocaleString('zh-CN'),
+          tag: form.tag,
+        };
+        setTodos(prev => [newTodo, ...prev]);
+      }
+      setShowAdd(false);
+      setEditing(null);
+      setForm({ priority: 'medium', status: 'pending', category: '告警处理' });
+    } catch (e) {
+      console.error('保存待办失败', e);
+      alert('保存失败，请检查网络');
+    } finally {
+      setSaving(false);
     }
-    setShowAdd(false);
-    setEditing(null);
-    setForm({ priority: 'medium', status: 'pending', category: '告警处理' });
   };
 
   const openEdit = (t: TodoItem) => {
@@ -96,11 +133,18 @@ export default function TodoListPage() {
     setShowAdd(true);
   };
 
-  const deleteTodo = (id: number) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
+  const deleteTodo = async (id: number) => {
+    if (!confirm('确定删除该待办？')) return;
+    try {
+      await raw.delete(`/todos/${id}`);
+      setTodos(prev => prev.filter(t => t.id !== id));
+    } catch (e) {
+      console.error('删除待办失败', e);
+      alert('删除失败');
+    }
   };
 
-  const statusCount = (s: string) => todos.filter(t => t.status === s).length;
+  const statusCount = (s: string) => safeTodos.filter(t => t.status === s).length;
 
   const priorityColor = (p: string) => {
     switch (p) {
@@ -125,7 +169,7 @@ export default function TodoListPage() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: '全部', value: todos.length, filter: 'all' as const, icon: ClipboardCheck, color: 'blue' },
+          { label: '全部', value: safeTodos.length, filter: 'all' as const, icon: ClipboardCheck, color: 'blue' },
           { label: '待处理', value: statusCount('pending'), filter: 'pending' as const, icon: Clock, color: 'yellow' },
           { label: '进行中', value: statusCount('doing'), filter: 'doing' as const, icon: Circle, color: 'purple' },
           { label: '已完成', value: statusCount('done'), filter: 'done' as const, icon: CheckCircle2, color: 'green' },
@@ -157,48 +201,66 @@ export default function TodoListPage() {
       </div>
 
       {/* Todo List */}
-      <div className="space-y-2">
-        {filtered.map(t => (
-          <div key={t.id} className={`bg-slate-800/50 rounded-lg border transition-all group ${
-            t.status === 'done' ? 'border-slate-700/20 opacity-60' : 'border-slate-700/30 hover:border-slate-600'
-          }`}>
-            <div className="p-3 flex items-start gap-3">
-              <button onClick={() => toggleStatus(t.id)} className="mt-0.5">
-                {t.status === 'done' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                ) : t.status === 'doing' ? (
-                  <Circle className="w-5 h-5 text-purple-400" />
-                ) : (
-                  <Circle className="w-5 h-5 text-slate-500" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs font-medium ${t.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{t.title}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded border ${priorityColor(t.priority)}`}>
-                    {t.priority === 'high' ? '紧急' : t.priority === 'medium' ? '重要' : '一般'}
-                  </span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${categoryColors[t.category] || 'bg-slate-500/10 text-slate-400'}`}>{t.category}</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mb-1.5">{t.desc}</p>
-                <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                  <span className="flex items-center gap-1">{tagIcon(t.tag || '')}{t.tag}</span>
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />截止 {t.dueDate}</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{t.createdAt}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => openEdit(t)} className="p-1.5 text-slate-400 hover:text-blue-400"><Edit3 className="w-3.5 h-3.5" /></button>
-                <button onClick={() => deleteTodo(t.id)} className="p-1.5 text-slate-400 hover:text-red-400" aria-label="删除"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
+      <div className="space-y-2 min-h-[200px]">
+        {listLoading ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
             </div>
+            <p className="text-xs">数据加载中，请稍候…</p>
           </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-slate-500">
-            <ClipboardCheck className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-xs">暂无待办事项</p>
-          </div>
+        ) : (
+          <>
+            {filtered.map(t => (
+              <div key={t.id} className={`bg-slate-800/50 rounded-lg border transition-all group ${
+                t.status === 'done' ? 'border-slate-700/20 opacity-60' : 'border-slate-700/30 hover:border-slate-600'
+              }`}>
+                <div className="p-3 flex items-start gap-3">
+                  <button type="button" onClick={() => toggleStatus(t.id)} className="mt-0.5">
+                    {t.status === 'done' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    ) : t.status === 'doing' ? (
+                      <Circle className="w-5 h-5 text-purple-400" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-slate-500" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-xs font-medium ${t.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{t.title}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border ${priorityColor(t.priority)}`}>
+                        {t.priority === 'high' ? '紧急' : t.priority === 'medium' ? '重要' : '一般'}
+                      </span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${categoryColors[t.category] || 'bg-slate-500/10 text-slate-400'}`}>{t.category}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mb-1.5">{t.desc}</p>
+                    <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                      <span className="flex items-center gap-1">{tagIcon(t.tag || '')}{t.tag}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />截止 {t.dueDate}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{t.createdAt}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={() => openEdit(t)} className="p-1.5 text-slate-400 hover:text-blue-400"><Edit3 className="w-3.5 h-3.5" /></button>
+                    <button type="button" onClick={() => deleteTodo(t.id)} className="p-1.5 text-slate-400 hover:text-red-400" aria-label="删除"><Trash2 className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <EmptyState
+                type={filter === 'all' && safeTodos.length === 0 ? 'data' : 'search'}
+                title={filter === 'all' && safeTodos.length === 0 ? '暂无待办事项' : '未找到匹配的待办'}
+                description={
+                  filter === 'all' && safeTodos.length === 0
+                    ? '可通过右上角「新建待办」录入任务，或与告警、维保等业务模块联动生成待办。'
+                    : undefined
+                }
+                icon={ClipboardCheck}
+                className="py-10"
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -248,7 +310,7 @@ export default function TodoListPage() {
             </div>
             <div className="p-4 border-t border-slate-700/30 flex justify-end gap-2">
               <button onClick={() => { setShowAdd(false); setEditing(null); }} className="px-4 py-2 text-xs text-slate-400 hover:text-slate-200 border border-slate-600/30 rounded-md">取消</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded-md flex items-center gap-1.5"><Save className="w-3.5 h-3.5" />保存</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-xs rounded-md flex items-center gap-1.5"><Save className="w-3.5 h-3.5" />{saving ? '保存中...' : '保存'}</button>
             </div>
           </div>
         </div>

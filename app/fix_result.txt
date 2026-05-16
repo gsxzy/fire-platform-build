@@ -1,9 +1,0 @@
-Use --update-env to update environment variables
-[PM2] Applying action restartProcessId on app [fire-api](ids: [ 0 ])
-[PM2] [fire-api](0) ✓
-┌────┬─────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
-│ id │ name        │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
-├────┼─────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
-│ 0  │ fire-api    │ default     │ 1.0.0   │ fork    │ 2072368  │ 0s     │ 5    │ online    │ 0%       │ 21.1mb   │ root     │ disabled │
-└────┴─────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
-{"code":200,"msg":"success","data":{"status":"degraded","database":"disconnected","timestamp":"2026-04-27T02:49:54.865Z"}}

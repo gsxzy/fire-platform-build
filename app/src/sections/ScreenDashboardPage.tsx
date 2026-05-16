@@ -1,11 +1,10 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { useNavigate } from 'react-router';
 import { legacyApi } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 import {
-  Monitor, Bell, Activity, Cpu, Video, Droplets, Wind,
-  Flame, MapPin, Clock
+  Monitor, Bell, Cpu, Video, MapPin, Clock
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -13,56 +12,7 @@ import {
   Legend
 } from 'recharts';
 
-const hourlyDataInit = [
-  { hour: '00:00', alarm: 1, fault: 2 },
-  { hour: '02:00', alarm: 0, fault: 1 },
-  { hour: '04:00', alarm: 0, fault: 3 },
-  { hour: '06:00', alarm: 2, fault: 1 },
-  { hour: '08:00', alarm: 1, fault: 4 },
-  { hour: '10:00', alarm: 3, fault: 2 },
-  { hour: '12:00', alarm: 0, fault: 0 },
-  { hour: '14:00', alarm: 0, fault: 0 },
-  { hour: '16:00', alarm: 0, fault: 0 },
-  { hour: '18:00', alarm: 0, fault: 0 },
-  { hour: '20:00', alarm: 0, fault: 0 },
-  { hour: '22:00', alarm: 0, fault: 0 },
-];
-
-const unitAlarmDataInit = [
-  { name: '万达广场', value: 45 },
-  { name: '兰大二院', value: 32 },
-  { name: '兰州中心', value: 28 },
-  { name: '兰州石化', value: 56 },
-  { name: '靖煤酒店', value: 12 },
-  { name: '红星美凯龙', value: 18 },
-];
-
-const deviceTypeDistInit = [
-  { name: '探测器', value: 2800, color: '#3b82f6' },
-  { name: '传感器', value: 250, color: '#10b981' },
-  { name: '消防泵', value: 45, color: '#f59e0b' },
-  { name: '风机', value: 32, color: '#ef4444' },
-  { name: '控制器', value: 156, color: '#8b5cf6' },
-  { name: '广播', value: 15, color: '#ec4899' },
-];
-
-const recentAlarmsInit = [
-  { time: '10:05:32', device: '烟感探测器#001', type: '火警', unit: '万达广场', level: '紧急' },
-  { time: '09:45:12', device: '温感探测器#003', type: '火警', unit: '万达广场', level: '紧急' },
-  { time: '09:30:00', device: '手报按钮#002', type: '火警', unit: '兰州中心', level: '重要' },
-  { time: '08:22:15', device: '火灾报警控制器', type: '故障', unit: '万达广场', level: '一般' },
-  { time: '07:15:30', device: '信号蝶阀#001', type: '监管', unit: '兰大二院', level: '一般' },
-  { time: '06:10:05', device: '排烟风机#001', type: '故障', unit: '万达广场', level: '重要' },
-];
-
-const systemsInit = [
-  { name: '火灾报警系统', status: '正常', icon: Flame, color: '#ef4444' },
-  { name: '自动喷水系统', status: '正常', icon: Droplets, color: '#3b82f6' },
-  { name: '防排烟系统', status: '预警', icon: Wind, color: '#06b6d4' },
-  { name: '视频监控系统', status: '正常', icon: Video, color: '#8b5cf6' },
-  { name: '应急照明系统', status: '正常', icon: Activity, color: '#eab308' },
-  { name: '消防广播系统', status: '正常', icon: Bell, color: '#ec4899' },
-];
+const systemsInit: any[] = [];
 
 const typeColors: Record<string, string> = {
   '火警': '#ef4444',
@@ -94,15 +44,15 @@ export default function ScreenDashboardPage() {
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
   const [pulseIndex, setPulseIndex] = useState(0);
-  const [hourlyData, setHourlyData] = useState(hourlyDataInit as any);
-  const [unitAlarmData, setUnitAlarmData] = useState(unitAlarmDataInit as any);
-  const [deviceTypeDist, setDeviceTypeDist] = useState(deviceTypeDistInit as any);
-  const [recentAlarms, setRecentAlarms] = useState(recentAlarmsInit as any);
+  const [hourlyData, setHourlyData] = useState([] as any);
+  const [unitAlarmData, setUnitAlarmData] = useState([] as any);
+  const [deviceTypeDist, setDeviceTypeDist] = useState([] as any);
+  const [recentAlarms, setRecentAlarms] = useState([] as any);
   const [systems, setSystems] = useState(systemsInit as any);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -120,7 +70,7 @@ export default function ScreenDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useVisibilityPolling(loadData, 30000);
 
@@ -135,10 +85,10 @@ export default function ScreenDashboardPage() {
   }, []);
 
   const stats = useMemo(() => [
-    { label: '联网单位', value: 10, unit: '家', icon: MapPin, color: '#3b82f6', sub: '在线 9家' },
-    { label: '在线设备', value: '3,256', unit: '台', icon: Cpu, color: '#10b981', sub: '离线 42台' },
-    { label: '视频通道', value: 156, unit: '路', icon: Video, color: '#8b5cf6', sub: '在线 150路' },
-    { label: '今日告警', value: 23, unit: '条', icon: Bell, color: '#ef4444', sub: '已处理 18条' },
+    { label: '联网单位', value: '--', unit: '家', icon: MapPin, color: '#3b82f6', sub: '在线 --家' },
+    { label: '在线设备', value: '--', unit: '台', icon: Cpu, color: '#10b981', sub: '离线 --台' },
+    { label: '视频通道', value: '--', unit: '路', icon: Video, color: '#8b5cf6', sub: '在线 --路' },
+    { label: '今日告警', value: '--', unit: '条', icon: Bell, color: '#ef4444', sub: '已处理 --条' },
   ], []);
 
   return (

@@ -1,3 +1,0 @@
-LISTEN 0      511          0.0.0.0:5003       0.0.0.0:*    users:(("node /opt/my-fi",pid=2071113,fd=20))                                                                                                
-SEP
-{"code":200,"msg":"success","data":{"status":"degraded","database":"disconnected","timestamp":"2026-04-27T02:48:59.023Z"}}

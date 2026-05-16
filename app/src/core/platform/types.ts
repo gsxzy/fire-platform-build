@@ -44,6 +44,8 @@ export interface ModuleMenu {
   label: string;
   icon: LucideIcon;
   path: string;
+  /** 商用：侧边栏一级菜单悬停说明 */
+  description?: string;
   children?: ModuleMenuChild[];
 }
 
@@ -52,6 +54,8 @@ export interface ModuleMenuChild {
   label: string;
   icon: LucideIcon;
   path: string;
+  /** 商用：子菜单悬停说明（功能边界、数据来源） */
+  description?: string;
 }
 
 /* ── 模块权限 ── */

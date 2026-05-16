@@ -90,14 +90,19 @@ async function seed() {
     console.log('[Seed] Roles created');
 
     /* ── 4. 超级管理员 ── */
-    const hashed = await bcrypt.hash(process.env.ADMIN_PASSWORD || 'admin123', 10);
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminPassword) {
+      console.warn('[Seed] 警告：未设置 ADMIN_PASSWORD，跳过管理员创建');
+    } else {
+    const hashed = await bcrypt.hash(adminPassword, 10);
+    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
     const [adminUser] = await User.findOrCreate({
-      where: { username: process.env.ADMIN_USERNAME || 'admin' },
+      where: { username: adminUsername },
       defaults: {
-        username: process.env.ADMIN_USERNAME || 'admin',
+        username: adminUsername,
         password: hashed,
         real_name: '系统管理员',
-        phone: process.env.ADMIN_PHONE || '13800138000',
+        phone: process.env.ADMIN_PHONE || null,
         email: 'admin@xzy.cn',
         status: 1,
         dept_id: 1,
@@ -105,6 +110,7 @@ async function seed() {
     });
     await (adminUser as any).setRoles([(adminRole[0] as any).id]);
     console.log('[Seed] Admin user created');
+    }
 
     /* ── 5. 演示单位 ── */
     await Unit.bulkCreate([

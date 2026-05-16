@@ -5,10 +5,13 @@ import {
   XCircle, Clock, Activity, Radio, Zap, Fan, Speaker,
   ScrollText, ArrowUpDown, History, Cpu, CircleDot,
   MapPin, Gauge, SlidersHorizontal, Settings,
-  VolumeX, ArrowRightLeft
+  VolumeX, ArrowRightLeft, Loader2,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api } from '@/api/services';
+import { getErrorMessage } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
+import EmptyState from '@/components/EmptyState';
+import TableBodyPlaceholder from '@/components/TableBodyPlaceholder';
 
 /* ═══════════════ Types ═══════════════ */
 interface IoTDevice {
@@ -175,8 +178,8 @@ export default function DeviceControlPage() {
       // 刷新日志
       loadLogs();
       return res.data;
-    } catch (err: any) {
-      console.warn('[DeviceControl] 指令下发失败:', err.message);
+    } catch (err: unknown) {
+      console.warn('[DeviceControl] 指令下发失败:', getErrorMessage(err));
     } finally {
       setExecuting(prev => {
         const next = new Set(prev);
@@ -206,11 +209,10 @@ export default function DeviceControlPage() {
     if (!cmd) return;
     const commands = selectedIds.map(id => ({ deviceId: id, command: cmd, params: {} }));
     try {
-      const res: any = await api.post('/api/commands/batch', { commands });
-      console.log('[Batch]', res.data);
+      await api.post('/api/commands/batch', { commands });
       loadLogs();
-    } catch (err: any) {
-      console.warn('[Batch] 失败:', err.message);
+    } catch (err: unknown) {
+      console.warn('[Batch] 失败:', getErrorMessage(err));
     }
     setSelectedIds([]);
     setBatchMode(false);
@@ -382,9 +384,19 @@ export default function DeviceControlPage() {
 
           {/* Device Grid */}
           {loading ? (
-            <div className="text-center py-12 text-slate-500 text-xs">加载中...</div>
+            <div className="flex flex-col items-center justify-center gap-3 py-14 text-slate-500">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+              </div>
+              <p className="text-xs">数据加载中，请稍候…</p>
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-slate-600 text-xs">暂无设备</div>
+            <EmptyState
+              type="data"
+              title="暂无可控设备"
+              description="请确认设备已接入、已分配至单位且当前账号具备反控权限；过滤条件过严时可尝试清空筛选。"
+              className="py-12"
+            />
           ) : (
             <div className="grid grid-cols-4 gap-3">
               {filtered.map(device => {
@@ -526,7 +538,12 @@ export default function DeviceControlPage() {
                 </tr>
               ))}
               {logs.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-600 text-xs">暂无指令记录</td></tr>
+                <TableBodyPlaceholder
+                  colSpan={6}
+                  isEmpty
+                  emptyTitle="暂无指令记录"
+                  emptyDescription="反控指令下发成功后，执行状态与回执将在此列表留痕，便于审计与故障追溯。"
+                />
               )}
             </tbody>
           </table>

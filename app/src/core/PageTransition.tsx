@@ -25,7 +25,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="transition-all duration-200 ease-out"
+      className="transition-all duration-200 ease-out flex-1 flex flex-col min-h-0"
       style={{
         opacity: isTransitioning ? 0.3 : 1,
         transform: isTransitioning ? 'translateY(4px)' : 'translateY(0)',

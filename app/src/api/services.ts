@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 import { api as httpApi, legacyRaw, paginatedQuery } from './client';
-import type { QueryParams, Unit, Device, Alarm, ControlRoom, WorkOrder, MaintRecord, MaintContract, PatrolPlan, PatrolRecord, Hazard, User, Role, Plan, Drill, Inspection, Notification, DutySchedule, Document, SystemLog, IoTDevice, Personnel, Camera, FloorPlan, FloorDevice, DutyShift, DutyHandover, AlarmSnapshot, ControlRoomConfig, GB28181Device, SIPServerConfig } from '@/types/db';
+import type { QueryParams, Unit, Device, Alarm, WorkOrder, MaintRecord, MaintContract, PatrolPlan, PatrolRecord, Hazard, User, Role, Plan, Drill, Inspection, DutySchedule, Document, SystemLog, IoTDevice, Personnel, Camera, DutyShift, DutyHandover, AlarmSnapshot, ControlRoomConfig, GB28181Device, SIPServerConfig, HostDeviceCode } from '@/types/db';
 import * as wvp from '@/services/wvpService';
 import * as videoApi from './videoService';
 
@@ -56,15 +56,60 @@ function mapWvpDeviceToGb(d: wvp.WvpDevice): GB28181Device {
   };
 }
 
+function channelLooksOnline(status: unknown): boolean {
+  if (status === true || status === 1) return true;
+  const t = String(status ?? '').trim().toLowerCase();
+  return ['on', 'online', 'ok', 'live', 'true', '1'].includes(t);
+}
+
 function mapWvpChannelToGb(ch: wvp.WvpDeviceChannel): import('@/types/db').GB28181Channel {
   // WVP 部分版本不返回 channelId，此时用 deviceId 作为通道 ID
   const cid = ch.channelId || ch.deviceId || String(ch.id);
   return {
     channelId: cid,
     name: ch.name || cid,
-    status: (ch.status === 'ON' || ch.status === 'on' || ch.status === 1) ? 'on' : 'off',
+    status: channelLooksOnline(ch.status) ? 'on' : 'off',
     streamUrl: undefined,
     snapUrl: undefined,
+  };
+}
+
+const _gbChMax = Number(import.meta.env.VITE_GB28181_MAX_CHANNELS_PER_DEVICE);
+const GB28181_MAX_CHANNELS_PER_DEVICE = Math.max(
+  4,
+  Math.min(64, Number.isFinite(_gbChMax) && _gbChMax > 0 ? _gbChMax : 16),
+);
+
+/** WVP 模式下 IndexedDB 预配置记录规整为列表项（与 mapWvpDeviceToGb 字段对齐） */
+function enrichLocalGbForList(raw: Partial<GB28181Device> & { id: string }): GB28181Device {
+  const st = raw.status as GB28181Device['status'] | undefined;
+  const status: GB28181Device['status'] =
+    st === 'online' || st === 'offline' || st === 'registering' || st === 'fault' ? st : 'offline';
+  return {
+    id: raw.id,
+    deviceId: raw.deviceId || '',
+    name: raw.name || raw.deviceId || '未命名设备',
+    manufacturer: raw.manufacturer || '',
+    model: raw.model || '',
+    firmware: raw.firmware || '',
+    ip: raw.ip || '',
+    port: Number(raw.port) || 5060,
+    transport: raw.transport === 'TCP' ? 'TCP' : 'UDP',
+    username: raw.username,
+    password: raw.password,
+    status,
+    registerTime: raw.registerTime || '',
+    lastKeepalive: raw.lastKeepalive || '',
+    channelCount: raw.channelCount ?? (raw.channels?.length ?? 0),
+    channels: Array.isArray(raw.channels) ? raw.channels : [],
+    catalogSynced: !!raw.catalogSynced,
+    ptzSupport: raw.ptzSupport !== false,
+    unitId: raw.unitId || '',
+    unitName: raw.unitName,
+    location: raw.location || '',
+    createdAt: raw.createdAt || '',
+    updatedAt: raw.updatedAt || '',
+    isLocal: true,
   };
 }
 
@@ -112,14 +157,17 @@ export const deviceConfigService = {
   ...createService<any>('/device-configs'),
 };
 
-/* ═══════ 设备维护服务 ═══════ */
+/* ═══════ 设备维护服务（设备管理子模块 fire_device_maintenance） ═══════ */
 export const deviceMaintenanceService = {
   ...createService<any>('/device-maintenances'),
+  list: (params: QueryParams = {}) => paginatedQuery<any>(`/device-maintenances/list`, params),
+  getStats: () =>
+    httpApi.get<{ pending: number; overdue: number; completed: number; in_progress: number }>('/device-maintenances/stats'),
 };
 
 /* ═══════ 设备分配服务 ═══════ */
 export const deviceAllocationService = {
-  listUnallocated: (params: QueryParams = {}) => paginatedQuery<any>('/devices/unallocated', params),
+  listUnallocated: (params: QueryParams = {}) => paginatedQuery<any>('/device-allocations/pending', params),
   allocate: (data: { deviceIds: string[]; unit_id: string; building_id?: string; floor_id?: string; point_id?: string; operator?: string; remark?: string }) =>
     httpApi.post<any>('/device-allocations/allocate', data),
   unallocate: (data: { deviceIds: string[]; operator?: string; remark?: string }) =>
@@ -128,37 +176,37 @@ export const deviceAllocationService = {
     httpApi.post<any>('/device-allocations/reallocate', data),
   listLogs: (params: QueryParams = {}) => paginatedQuery<any>('/device-allocations/list', params),
   getUnitDevices: (unitId: string, params?: { archive_status?: string; category?: string }) =>
-    httpApi.get<any[]>(`/units/${unitId}/devices`, { params }),
-};
-
-/* ═══════ 设备接入服务 ═══════ */
-export const deviceAccessService = {
-  list: (params: QueryParams = {}) => paginatedQuery<any>('/device-accesses/list', params),
-  listAllocatable: (params?: { unit_id?: string; category?: string; keyword?: string }) =>
-    httpApi.get<any[]>('/device-accesses/allocatable', { params }),
-  create: (data: any) => httpApi.post<any>('/device-accesses', data),
-  update: (id: string, data: any) => httpApi.put<any>(`/device-accesses/${id}`, data),
-  test: (id: string, data?: { operator?: string }) => httpApi.post<any>(`/device-accesses/${id}/test`, data),
-  disconnect: (id: string, data?: { operator?: string; reason?: string }) => httpApi.post<any>(`/device-accesses/${id}/disconnect`, data),
-  delete: (id: string) => httpApi.delete<any>(`/device-accesses/${id}`),
-  getLogs: (id: string, params: QueryParams = {}) => paginatedQuery<any>(`/device-accesses/${id}/logs`, params),
-  batchCreate: (data: any) => httpApi.post<any>('/device-accesses/batch', data),
+    httpApi.get<any[]>(`/units/${unitId}/devices`, params),
 };
 
 /* ─── 后端 Alarm 数据 → 前端 Alarm 类型映射 ─── */
+const ALARM_TYPE_FROM_DB: Record<number, Alarm['type']> = {
+  1: 'fire', 2: 'fault', 3: 'warning', 4: 'supervisory', 5: 'test',
+};
+const ALARM_LEVEL_FROM_DB: Record<number, Alarm['level']> = {
+  1: 'normal', 2: 'high', 3: 'urgent',
+};
+const ALARM_STATUS_FROM_DB: Record<number, Alarm['status']> = {
+  0: 'new', 1: 'confirmed', 2: 'handled', 3: 'ignored',
+};
+
 function mapAlarmFromBackend(raw: any): Alarm {
+  const at = raw.alarm_type ?? raw.alarmType;
+  const al = raw.alarm_level ?? raw.alarmLevel;
+  const st = raw.status;
   return {
     id: String(raw.id ?? ''),
-    type: raw.type || 'warning',
-    level: raw.level || 'normal',
+    alarmNo: raw.alarm_no ?? raw.alarmNo,
+    type: typeof at === 'number' ? (ALARM_TYPE_FROM_DB[at] ?? 'warning') : (raw.type || 'warning'),
+    level: typeof al === 'number' ? (ALARM_LEVEL_FROM_DB[al] ?? 'normal') : (raw.level || 'normal'),
     deviceId: raw.device_id || raw.deviceId || '',
     deviceName: raw.device_name || raw.deviceName || raw.device_id || raw.deviceId || '未知设备',
-    unitId: raw.unit_id || raw.unitId || '',
-    unitName: raw.unit_name || raw.unitName || '未分配单位',
+    unitId: raw.unit?.id ?? raw.unit_id ?? raw.unitId ?? '',
+    unitName: raw.unit?.unit_name ?? raw.unit_name ?? raw.unitName ?? '',
     location: raw.location || '未知位置',
-    message: raw.description || raw.message || raw.desc || '',
-    status: raw.status || 'new',
-    handler: raw.handler || raw.resolved_by || '',
+    message: raw.alarm_desc || raw.description || raw.message || raw.desc || '',
+    status: typeof st === 'number' ? (ALARM_STATUS_FROM_DB[st] ?? 'new') : (raw.status || 'new'),
+    handler: raw.handler_name || raw.handler || raw.resolved_by || '',
     handleTime: raw.handleTime || raw.resolved_at || undefined,
     handleNote: raw.handleNote || raw.notes || undefined,
     snapshotUrl: raw.snapshot_url || raw.snapshotUrl || undefined,
@@ -174,7 +222,13 @@ function mapAlarmFromBackend(raw: any): Alarm {
 export const alarmService = {
   ...createService<Alarm>('/alarms'),
   list: async (params: QueryParams = {}) => {
-    const res = await paginatedQuery<Alarm>('/alarms/list', params);
+    const mappedParams: QueryParams = { ...params, pageNum: params.page, pageSize: params.pageSize };
+    if (params.type) {
+      const typeToNum: Record<string, number> = { fire: 1, fault: 2, warning: 3, supervisory: 4, test: 5 };
+      mappedParams.alarmType = typeToNum[params.type];
+      delete (mappedParams as any).type;
+    }
+    const res = await paginatedQuery<Alarm>('/alarms/list', mappedParams);
     if (res.code === 200 && res.data?.list) {
       return {
         ...res,
@@ -198,35 +252,58 @@ export const alarmService = {
     }
     return res;
   },
-  confirm: (id: string, handler: string, note?: string) =>
-    httpApi.patch<null>(`/alarms/${id}`, { status: 'confirmed', handler, handleTime: new Date().toISOString(), handleNote: note }),
+  confirm: (id: string, handler: string, note?: string, confirmResult?: string) =>
+    httpApi.put<null>(`/alarms/${id}/confirm`, { handler, handleTime: new Date().toISOString(), handleNote: note, confirmResult }),
   handle: (id: string, handler: string, note?: string) =>
-    httpApi.patch<null>(`/alarms/${id}`, { status: 'handled', handler, handleTime: new Date().toISOString(), handleNote: note }),
+    httpApi.put<null>(`/alarms/${id}/handle`, { handler, handleTime: new Date().toISOString(), handleNote: note }),
   getDetail: (id: string) => httpApi.get<Alarm & { unitAddress?: string; controlRoom: ControlRoomConfig | null; snapshots: AlarmSnapshot[]; relatedCameras: Camera[] }>(`/alarms/${id}/detail`),
-};
-
-/* ═══════ 消控室服务 ═══════ */
-export const controlRoomService = {
-  ...createService<ControlRoom>('/control-rooms'),
 };
 
 /* ═══════ 维保工单服务 ═══════ */
 export const workOrderService = {
-  ...createService<WorkOrder>('/work-orders'),
+  list: (params: QueryParams = {}) => paginatedQuery<WorkOrder>('/maintenance/work-orders', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<WorkOrder, 'id'>) => httpApi.post<null>('/maintenance/work-orders', data),
+  update: (id: string, data: Partial<WorkOrder>) => httpApi.put<null>(`/maintenance/work-orders/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/maintenance/work-orders/${id}`),
 };
 
 /* ═══════ 维保记录服务 ═══════ */
-export const maintRecordService = createService<MaintRecord>('/maint-records');
+export const maintRecordService = {
+  list: (params: QueryParams = {}) => paginatedQuery<MaintRecord>('/maintenance/records', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<MaintRecord, 'id'>) => httpApi.post<null>('/maintenance/records', data),
+  update: (id: string, data: Partial<MaintRecord>) => httpApi.put<null>(`/maintenance/records/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/maintenance/records/${id}`),
+};
 
 /* ═══════ 维保合同服务 ═══════ */
-export const maintContractService = createService<MaintContract>('/maint-contracts');
+export const maintContractService = {
+  list: (params: QueryParams = {}) => paginatedQuery<MaintContract>('/maintenance/contracts', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<MaintContract, 'id'>) => httpApi.post<null>('/maintenance/contracts', data),
+  update: (id: string, data: Partial<MaintContract>) => httpApi.put<null>(`/maintenance/contracts/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/maintenance/contracts/${id}`),
+};
 
 /* ═══════ 巡检服务 ═══════ */
-export const patrolPlanService = createService<PatrolPlan>('/patrol-plans');
-export const patrolRecordService = createService<PatrolRecord>('/patrol-records');
+export const patrolPlanService = {
+  list: (params: QueryParams = {}) => paginatedQuery<PatrolPlan>('/patrol/plans', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<PatrolPlan, 'id'>) => httpApi.post<null>('/patrol/plans', data),
+  update: (id: string, data: Partial<PatrolPlan>) => httpApi.put<null>(`/patrol/plans/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/patrol/plans/${id}`),
+};
+export const patrolRecordService = {
+  list: (params: QueryParams = {}) => paginatedQuery<PatrolRecord>('/patrol/records', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<PatrolRecord, 'id'>) => httpApi.post<null>('/patrol/records', data),
+  update: (id: string, data: Partial<PatrolRecord>) => httpApi.put<null>(`/patrol/records/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/patrol/records/${id}`),
+};
 
 /* ═══════ 隐患服务 ═══════ */
-export const hazardService = createService<Hazard>('/hazards');
+export const hazardService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Hazard>('/patrol/hazards', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Hazard, 'id'>) => httpApi.post<null>('/patrol/hazards', data),
+  update: (id: string, data: Partial<Hazard>) => httpApi.put<null>(`/patrol/hazards/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/patrol/hazards/${id}`),
+};
 
 /* ═══════ 用户服务 ═══════ */
 export const userService = {
@@ -236,35 +313,143 @@ export const userService = {
 };
 
 /* ═══════ 角色服务 ═══════ */
-export const roleService = createService<Role>('/roles');
+export const roleService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Role>('/roles', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Role, 'id'>) => httpApi.post<null>('/roles', data),
+  update: (id: string, data: Partial<Role>) => httpApi.put<null>(`/roles/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/roles/${id}`),
+};
 
 /* ═══════ 预案服务 ═══════ */
-export const planService = createService<Plan>('/plans');
-export const drillService = createService<Drill>('/drills');
+export const planService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Plan>('/plans', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Plan, 'id'>) => httpApi.post<null>('/plans', data),
+  update: (id: string, data: Partial<Plan>) => httpApi.put<null>(`/plans/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/plans/${id}`),
+};
+export const drillService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Drill>('/drills', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Drill, 'id'>) => httpApi.post<null>('/drills', data),
+  update: (id: string, data: Partial<Drill>) => httpApi.put<null>(`/drills/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/drills/${id}`),
+};
 
 /* ═══════ 检查服务 ═══════ */
-export const inspectionService = createService<Inspection>('/inspections');
-
-/* ═══════ 通知服务 ═══════ */
-export const notificationService = {
-  ...createService<Notification>('/notifications'),
-  list: (params: QueryParams = {}) => paginatedQuery<Notification>('/notifications/list', params),
-  getUnread: () => httpApi.get<Notification[]>('/notifications/unread'),
-  markRead: (id: string) => httpApi.post<null>(`/notifications/${id}/read`, {}),
+export const inspectionService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Inspection>('/inspections', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Inspection, 'id'>) => httpApi.post<null>('/inspections', data),
+  update: (id: string, data: Partial<Inspection>) => httpApi.put<null>(`/inspections/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/inspections/${id}`),
 };
 
 /* ═══════ 值班服务 ═══════ */
-export const dutyService = createService<DutySchedule>('/duty-schedules');
+export const dutyService = {
+  list: (params: QueryParams = {}) => paginatedQuery<DutySchedule>('/duty/schedules', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<DutySchedule, 'id'>) => httpApi.post<null>('/duty/schedules', data),
+  update: (id: string, data: Partial<DutySchedule>) => httpApi.put<null>(`/duty/schedules/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/duty/schedules/${id}`),
+};
 
 /* ═══════ 知识库服务 ═══════ */
 export const documentService = createService<Document>('/documents');
 
+/** 与后端 `/knowledge`（fire_knowledge_doc）字段对齐 */
+export interface KnowledgeDocRow {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  file_url: string;
+  tags: string;
+  view_count: number;
+  status: 'active' | 'inactive';
+}
+
+function mapKnowledgeFromApi(raw: any): KnowledgeDocRow {
+  return {
+    id: String(raw.id ?? ''),
+    title: String(raw.title ?? ''),
+    category: String(raw.category ?? ''),
+    content: String(raw.content ?? ''),
+    file_url: String(raw.file_url ?? ''),
+    tags: String(raw.tags ?? ''),
+    view_count: Number(raw.view_count ?? 0),
+    status: Number(raw.status) === 1 ? 'active' : 'inactive',
+  };
+}
+
+export const knowledgeService = {
+  list: async (params: QueryParams = {}) => {
+    const pageNum = params.page ?? 1;
+    const pageSize = params.pageSize ?? 10;
+    const res = await httpApi.get<{
+      list: any[];
+      total: number;
+      pageNum: number;
+      pageSize: number;
+      pages: number;
+    }>('/knowledge', {
+      pageNum,
+      pageSize,
+      ...(params.keyword ? { keyword: String(params.keyword) } : {}),
+      ...(params.category ? { category: String(params.category) } : {}),
+    });
+    if (res.code !== 200 || !res.data) {
+      return {
+        code: res.code,
+        message: (res as { msg?: string; message?: string }).msg ?? (res as { message?: string }).message ?? 'error',
+        data: { list: [], total: 0, page: pageNum, pageSize, totalPages: 0 },
+        timestamp: Date.now(),
+      };
+    }
+    const d = res.data;
+    const list = Array.isArray(d.list) ? d.list.map(mapKnowledgeFromApi) : [];
+    const ps = d.pageSize ?? pageSize;
+    const denom = ps || 1;
+    return {
+      code: 200,
+      message: 'ok',
+      data: {
+        list,
+        total: d.total ?? list.length,
+        page: d.pageNum ?? pageNum,
+        pageSize: ps,
+        totalPages: d.pages ?? Math.max(1, Math.ceil((d.total ?? 0) / denom)),
+      },
+      timestamp: Date.now(),
+    };
+  },
+  create: (data: Record<string, unknown>) =>
+    httpApi.post('/knowledge', {
+      title: data.title,
+      category: data.category || '未分类',
+      content: data.content || '',
+      file_url: data.file_url || '',
+      tags: data.tags || '',
+      status: data.status === 'active' ? 1 : 0,
+    }),
+  update: (id: string, data: Record<string, unknown>) => {
+    const body: Record<string, unknown> = {};
+    if (data.title !== undefined) body.title = data.title;
+    if (data.category !== undefined) body.category = data.category;
+    if (data.content !== undefined) body.content = data.content;
+    if (data.file_url !== undefined) body.file_url = data.file_url;
+    if (data.tags !== undefined) body.tags = data.tags;
+    if (data.status !== undefined) body.status = data.status === 'active' ? 1 : 0;
+    return httpApi.put(`/knowledge/${id}`, body);
+  },
+  delete: (id: string) => httpApi.delete(`/knowledge/${id}`),
+};
+
 /* ═══════ 日志服务 ═══════ */
 export const logService = createService<SystemLog>('/system-logs');
 
-/* ═══════ IoT设备服务 ═══════ */
+/* ═══════ IoT设备服务 ═══════
+ * 列表走 /iot-devices/list，与后端 IoTController.deviceList 对齐（keyword、protocolType、deviceType、status、unitId）
+ */
 export const iotService = {
   ...createService<IoTDevice>('/iot-devices'),
+  list: (params: QueryParams = {}) => paginatedQuery<IoTDevice>(`/iot-devices/list`, params),
   getStats: () => httpApi.get<{ total: number; online: number; offline: number; fault: number }>('/iot-devices/stats'),
 };
 
@@ -283,9 +468,11 @@ export const gb28181Service = {
 
   list: async (params: QueryParams = {}) => {
     if (WVP_ENABLED) {
-      // 通过后端代理调用 WVP-PRO
-      const resp = await videoApi.getVideoDevices({ page: Number(params.pageNum || 1), count: Number(params.pageSize || 100), query: params.keyword });
-      const wvpList = (resp.list || []).map((d: any) => mapWvpDeviceToGb({
+      // 通过后端代理调用 WVP-PRO（WVP 不可用时降级为只展示本地预配置）
+      let wvpList: GB28181Device[] = [];
+      try {
+        const resp = await videoApi.getVideoDevices({ page: Number(params.pageNum || 1), count: Number(params.pageSize || 100), query: params.keyword });
+        wvpList = (resp.list || []).map((d: any) => mapWvpDeviceToGb({
         id: d.deviceId,
         deviceId: d.deviceId,
         name: d.name || d.deviceId,
@@ -306,25 +493,74 @@ export const gb28181Service = {
       for (const d of wvpList) {
         try {
           const chResp = await videoApi.getDeviceChannels(d.deviceId, { count: 999 });
-          d.channels = (chResp.list || []).map((ch: any) => mapWvpChannelToGb({
-            id: ch.id || 0,
-            channelId: ch.channelId || ch.deviceId || String(ch.id),
-            name: ch.name || ch.channelId || '',
-            deviceId: ch.deviceId,
-            status: ch.status,
-          }));
+          const rawList = chResp.list || [];
+          const seenCh = new Set<string>();
+          const channels = rawList
+            .map((ch: any) => mapWvpChannelToGb({
+              id: ch.id || 0,
+              channelId: ch.channelId || ch.deviceId || String(ch.id),
+              name: ch.name || ch.channelId || '',
+              deviceId: ch.deviceId,
+              status: ch.status,
+            }))
+            .filter((ch) => {
+              const k = String(ch.channelId);
+              if (!k || seenCh.has(k)) return false;
+              seenCh.add(k);
+              return true;
+            });
+          channels.sort((a, b) => String(a.channelId).localeCompare(String(b.channelId), 'en'));
+          d.channels = channels.slice(0, GB28181_MAX_CHANNELS_PER_DEVICE);
           d.channelCount = d.channels.length;
           d.catalogSynced = d.channels.length > 0;
         } catch { /* ignore */ }
       }
-      return { code: 200, message: 'success', data: { total: wvpList.length, list: wvpList, pageNum: params.pageNum || 1, pageSize: params.pageSize || 100 } };
+      } catch { /* WVP 不可用时降级为空列表，仍展示本地预配置 */ }
+
+      /* 预配置写在 IndexedDB，列表不能只拉 WVP，否则「添加成功」后界面为空 */
+      const wvpDeviceIds = new Set(wvpList.map(d => d.deviceId).filter(Boolean));
+      let merged: GB28181Device[] = [...wvpList];
+      try {
+        const { GB28181DeviceDAO } = await import('@/db/Database');
+        const locals = await GB28181DeviceDAO.getAll();
+        for (const row of locals) {
+          const did = row.deviceId;
+          if (did && wvpDeviceIds.has(did)) continue;
+          merged.push(enrichLocalGbForList(row));
+        }
+      } catch {
+        /* IndexedDB 不可用时仍展示 WVP 列表 */
+      }
+
+      const kw = (params.keyword || '').trim();
+      if (kw) {
+        merged = merged.filter(
+          d => d.name.includes(kw) || d.deviceId.includes(kw) || d.id.includes(kw),
+        );
+      }
+
+      return {
+        code: 200,
+        message: 'success',
+        data: {
+          total: merged.length,
+          list: merged,
+          pageNum: params.pageNum || 1,
+          pageSize: params.pageSize || 100,
+        },
+      };
     }
     return paginatedQuery<GB28181Device>('/gb28181-devices/list', params);
   },
 
   get: async (id: string) => {
     if (WVP_ENABLED) {
-      const devices = (await gb28181Service.list({ pageSize: 1, keyword: id })).data?.list || [];
+      const { GB28181DeviceDAO } = await import('@/db/Database');
+      const local = await GB28181DeviceDAO.getById(id);
+      if (local) {
+        return { code: 200, message: 'success', data: enrichLocalGbForList(local as GB28181Device & { id: string }) };
+      }
+      const devices = (await gb28181Service.list({ pageSize: 2000 })).data?.list || [];
       const found = devices.find(d => d.id === id || d.deviceId === id);
       return { code: 200, message: 'success', data: found || null };
     }
@@ -333,8 +569,17 @@ export const gb28181Service = {
 
   create: async (data: Omit<GB28181Device, 'id'>) => {
     if (WVP_ENABLED) {
-      // WVP 模式下将预配置设备存入本地 IndexedDB
-      const localDev = { ...data, id: `local-${Date.now()}` } as GB28181Device;
+      const incoming = data as GB28181Device & { id?: string };
+      const id = incoming.id || `local-${Date.now()}`;
+      const localDev: GB28181Device = {
+        ...incoming,
+        id,
+        channels: incoming.channels ?? [],
+        catalogSynced: incoming.catalogSynced ?? false,
+        registerTime: incoming.registerTime || '',
+        lastKeepalive: incoming.lastKeepalive || '',
+        isLocal: true,
+      };
       await saveLocalDevice(localDev);
       return { code: 200, message: 'success', data: null };
     }
@@ -366,10 +611,26 @@ export const gb28181Service = {
 
   getStreamUrl: async (deviceId: string, channelId: string) => {
     if (WVP_ENABLED) {
-      const stream = await videoApi.getStream(deviceId, channelId);
+      let stream: Awaited<ReturnType<typeof videoApi.getStream>> | null = null;
+      try {
+        stream = await videoApi.getStream(deviceId, channelId);
+      } catch {
+        stream = null;
+      }
+      const u = (s: string | undefined) => (s && String(s).trim()) || '';
+      if (!stream || typeof stream !== 'object') {
+        return { code: 200, message: 'success', data: { deviceId, channelId, streamUrl: '', snapUrl: undefined } };
+      }
+      const streamUrl =
+        u(stream.streamUrl) ||
+        u(stream.httpsHls) ||
+        u(stream.hls) ||
+        u(stream.httpsFlv) ||
+        u(stream.flv) ||
+        u(stream.wsFlv);
       return {
         code: 200, message: 'success',
-        data: { deviceId, channelId, streamUrl: stream.hls || stream.flv || '', snapUrl: stream.wsFlv || '' }
+        data: { deviceId, channelId, streamUrl, snapUrl: u(stream.wsFlv) || undefined },
       };
     }
     return httpApi.get<{ deviceId: string; channelId: string; streamUrl: string; snapUrl?: string }>(`/gb28181-devices/${deviceId}/channels/${channelId}/stream`);
@@ -400,57 +661,31 @@ export const sipServerService = {
   stop: () => httpApi.post<null>('/sip-server/stop', {}),
 };
 
-/* ═══════ 楼层设备服务 ═══════ */
-export const floorDeviceService = createService<FloorDevice>('/floor-devices');
-
-/* ═══════ 建筑平面图服务 ═══════ */
-export const floorPlanService = {
-  ...createService<FloorPlan>('/floor-plans'),
-  getFloorDevices: (floorPlanId: string) => httpApi.get<FloorDevice[]>(`/floor-plans/${floorPlanId}/devices`),
-};
-
 /* ═══════ 值班班次服务 ═══════ */
 export const dutyShiftService = createService<DutyShift>('/duty-shifts');
 
 /* ═══════ 交接班服务 ═══════ */
 export const dutyHandoverService = createService<DutyHandover>('/duty-handovers');
 
-/* ═══════ 报警快照服务 ═══════ */
-export const alarmSnapshotService = createService<AlarmSnapshot>('/alarm-snapshots');
+/* ═══════ 报警主机编码表服务 ═══════ */
+export const hostDeviceCodeService = {
+  list: (params: QueryParams = {}) => paginatedQuery<HostDeviceCode>('/control-rooms/host-device-codes', params),
+  create: (data: Omit<HostDeviceCode, 'id'>) => httpApi.post<null>('/control-rooms/host-device-codes', data),
+  update: (id: string, data: Partial<HostDeviceCode>) => httpApi.put<null>(`/control-rooms/host-device-codes/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/control-rooms/host-device-codes/${id}`),
+  import: (hostId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('hostId', hostId);
+    return httpApi.post<null>('/control-rooms/host-device-codes/import', form);
+  },
+};
 
 /* ═══════ 消控室配置服务 ═══════ */
 export const controlRoomConfigService = {
   ...createService<ControlRoomConfig>('/control-room-configs'),
   getByUnit: (unitId: string) => httpApi.get<ControlRoomConfig | null>(`/control-rooms/config/${unitId}`),
   listAll: () => httpApi.get<ControlRoomConfig[]>('/control-rooms/config'),
-};
-
-/* ═══════ 仪表盘服务 ═══════ */
-export const dashboardService = {
-  getStats: () => httpApi.get<{
-    unitCount: number;
-    deviceCount: number;
-    onlineDeviceCount: number;
-    alarmCount24h: number;
-    unhandledAlarmCount: number;
-    controlRoomCount: number;
-    pendingWorkOrderCount: number;
-    deviceOnlineRate: string;
-  }>('/dashboard/stats'),
-  getUnitRank: () => httpApi.get<{ name: string; online: number; alarm: number; fault: number; status: string }[]>('/dashboard/unit-rank'),
-  getSubsystems: () => httpApi.get<{ name: string; total: number; online: number; alarm: number }[]>('/dashboard/subsystems'),
-};
-
-/* ═══════ GIS服务 ═══════ */
-export const gisService = {
-  getPoints: () => httpApi.get<unknown[]>('/gis/points-rich'),
-};
-
-/* ═══════ 数据库管理服务 ═══════ */
-export const dbService = {
-  getStats: () => httpApi.get<Record<string, number>>('/db/stats'),
-  reset: () => httpApi.post<null>('/db/reset', {}),
-  seed: () => httpApi.post<null>('/db/seed', {}),
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -495,7 +730,7 @@ export const legacyApi = {
   deleteDept: (id: number) => legacyRaw.delete(`/departments/${id}`),
 
   // === 单位 ===
-  unitList: (params?: Record<string, unknown>) => legacyRaw.get('/units', params),
+  unitList: (params?: Record<string, unknown>) => legacyRaw.get('/units/list', params),
   createUnit: (data: unknown) => legacyRaw.post('/units', data),
   updateUnit: (id: number, data: unknown) => legacyRaw.put(`/units/${id}`, data),
   deleteUnit: (id: number) => legacyRaw.delete(`/units/${id}`),
@@ -569,12 +804,31 @@ export const legacyApi = {
   getRealtimeStatus: (roomId?: number | string, hostId?: number) => legacyRaw.get('/control-rooms/realtime', { roomId, hostId }),
   getShields: (roomId?: number | string, hostId?: number) => legacyRaw.get('/control-rooms/shields', { roomId, hostId }),
   getVideos: (roomId?: number | string) => legacyRaw.get('/control-rooms/videos', { roomId }),
+  getHostDeviceCodes: (params?: Record<string, unknown>) => legacyRaw.get('/control-rooms/host-device-codes', params),
+  createHostDeviceCode: (data: unknown) => legacyRaw.post('/control-rooms/host-device-codes', data),
+  updateHostDeviceCode: (id: number, data: unknown) => legacyRaw.put(`/control-rooms/host-device-codes/${id}`, data),
+  deleteHostDeviceCode: (id: number) => legacyRaw.delete(`/control-rooms/host-device-codes/${id}`),
+  importHostDeviceCodes: (hostId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('hostId', hostId);
+    return legacyRaw.post('/control-rooms/host-device-codes/import', form);
+  },
 
   // === 预案 ===
   planList: (params?: Record<string, unknown>) => legacyRaw.get('/plans', params),
   createPlan: (data: unknown) => legacyRaw.post('/plans', data),
   updatePlan: (id: number, data: unknown) => legacyRaw.put(`/plans/${id}`, data),
   deletePlan: (id: number) => legacyRaw.delete(`/plans/${id}`),
+
+  // === 安消联动（fire_linkage_rule）===
+  linkageRuleList: (params?: Record<string, unknown>) => legacyRaw.get('/linkage/rules', params),
+  createLinkageRule: (data: unknown) => legacyRaw.post('/linkage/rules', data),
+  updateLinkageRule: (id: number, data: unknown) => legacyRaw.put(`/linkage/rules/${id}`, data),
+  deleteLinkageRule: (id: number) => legacyRaw.delete(`/linkage/rules/${id}`),
+  triggerLinkageRule: (id: number) => legacyRaw.post(`/linkage/rules/${id}/trigger`, {}),
+  getLinkageRecords: (params?: Record<string, unknown>) => legacyRaw.get('/linkage/records', params),
+
   drillList: (params?: Record<string, unknown>) => legacyRaw.get('/drills', params),
   createDrill: (data: unknown) => legacyRaw.post('/drills', data),
   updateDrill: (id: number, data: unknown) => legacyRaw.put(`/drills/${id}`, data),
@@ -668,30 +922,30 @@ export const legacyApi = {
   dutyLogs: (params?: Record<string, unknown>) => legacyRaw.get('/duty/logs', params),
   dutyCurrent: () => legacyRaw.get('/duty/current'),
 
-  // === 向后兼容别名 ===
-  getUsers: function(params?: Record<string, unknown>) { return this.userList(params); },
-  getRoles: function() { return this.roleList(); },
-  getOrgs: function() { return this.deptList(); },
-  getLoginLogs: function(params?: Record<string, unknown>) { return this.logList(params); },
-  getUnits: function(params?: Record<string, unknown>) { return this.unitList(params); },
-  getDevices: function(params?: Record<string, unknown>) { return this.deviceList(params); },
-  getDeviceTypes: function() { return this.deviceTypes(); },
-  getDashboardStats: function() { return this.dashboard(); },
-  getPatrolPlans: function(params?: Record<string, unknown>) { return this.patrolPlanList(params); },
-  getPatrolTasks: function(params?: Record<string, unknown>) { return this.patrolRecordList(params); },
-  getHazards: function(params?: Record<string, unknown>) { return this.hazardList(params); },
-  getPreplans: function(params?: Record<string, unknown>) { return this.planList(params); },
-  getPlanRecords: function(params?: Record<string, unknown>) { return this.drillList(params); },
-  getAlarmStatistics: function() { return this.alarmStats(); },
-  getFaultAlarms: function() { return this.alarmList({ alarmType: 2, pageSize: 50 }); },
-  getFireAlarms: function() { return this.alarmList({ alarmType: 1, pageSize: 50 }); },
-  getFeedbackAlarms: function() { return this.alarmList({ status: 3, pageSize: 50 }); },
-  confirmFireAlarm: function(id: number) { return this.confirmAlarm(id); },
-  handleFault: function(id: number, result: string) { return this.handleAlarm(id, result); },
-  silenceConfirm: function(data: unknown) { return legacyRaw.post('/control-rooms/silence', data); },
-  resetConfirm: function(data: unknown) { return legacyRaw.post('/control-rooms/reset', data); },
-  switchMode: function(data: unknown) { return legacyRaw.post('/control-rooms/mode', data); },
-  addShield: function(data: unknown) { return legacyRaw.post('/control-rooms/shield', data); },
+  // === 向后兼容别名（箭头函数避免 this 绑定开销） ===
+  getUsers: (params?: Record<string, unknown>) => legacyApi.userList(params),
+  getRoles: () => legacyApi.roleList(),
+  getOrgs: () => legacyApi.deptList(),
+  getLoginLogs: (params?: Record<string, unknown>) => legacyApi.logList(params),
+  getUnits: (params?: Record<string, unknown>) => legacyApi.unitList(params),
+  getDevices: (params?: Record<string, unknown>) => legacyApi.deviceList(params),
+  getDeviceTypes: () => legacyApi.deviceTypes(),
+  getDashboardStats: () => legacyApi.dashboard(),
+  getPatrolPlans: (params?: Record<string, unknown>) => legacyApi.patrolPlanList(params),
+  getPatrolTasks: (params?: Record<string, unknown>) => legacyApi.patrolRecordList(params),
+  getHazards: (params?: Record<string, unknown>) => legacyApi.hazardList(params),
+  getPreplans: (params?: Record<string, unknown>) => legacyApi.planList(params),
+  getPlanRecords: (params?: Record<string, unknown>) => legacyApi.drillList(params),
+  getAlarmStatistics: () => legacyApi.alarmStats(),
+  getFaultAlarms: () => legacyApi.alarmList({ alarmType: 2, pageSize: 50 }),
+  getFireAlarms: () => legacyApi.alarmList({ alarmType: 1, pageSize: 50 }),
+  getFeedbackAlarms: () => legacyApi.alarmList({ status: 3, pageSize: 50 }),
+  confirmFireAlarm: (id: number) => legacyApi.confirmAlarm(id),
+  handleFault: (id: number, result: string) => legacyApi.handleAlarm(id, result),
+  silenceConfirm: (data: unknown) => legacyRaw.post('/control-rooms/silence', data),
+  resetConfirm: (data: unknown) => legacyRaw.post('/control-rooms/reset', data),
+  switchMode: (data: unknown) => legacyRaw.post('/control-rooms/mode', data),
+  addShield: (data: unknown) => legacyRaw.post('/control-rooms/shield', data),
 };
 
 /**

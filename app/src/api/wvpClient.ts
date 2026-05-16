@@ -35,8 +35,14 @@ export interface WvpResponse<T = unknown> {
 /* ───── HTTP 请求 ───── */
 async function ensureWvpLogin(): Promise<void> {
   if (getWvpToken()) return;
-  const username = import.meta.env.VITE_WVP_USERNAME || 'admin';
-  const password = import.meta.env.VITE_WVP_PASSWORD || 'admin';
+  const username = import.meta.env.VITE_WVP_USERNAME;
+  if (!username) {
+    throw new Error('[WVP] 错误：未设置 VITE_WVP_USERNAME 环境变量');
+  }
+  const password = import.meta.env.VITE_WVP_PASSWORD;
+  if (!password) {
+    throw new Error('[WVP] 错误：未设置 VITE_WVP_PASSWORD 环境变量');
+  }
   await wvpLogin(username, password);
 }
 

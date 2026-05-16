@@ -7,8 +7,13 @@ import { PageTransition } from '@/core/PageTransition';
 import { AlarmPopupProvider } from '@/core/AlarmPopupContext';
 import AlarmPopup from '@/components/AlarmPopup';
 import { PageErrorBoundary, ErrorBoundary } from '@/components/ErrorBoundary';
+import AppFallback from '@/components/AppFallback';
 import MainLayout from '@/sections/MainLayout';
 import LoginPage from '@/sections/LoginPage';
+import { useAuth } from '@/hooks/useAuth';
+import { initWebSocket, closeWebSocket } from '@/services/websocket.service';
+import { useAlarmPopup } from '@/core/AlarmPopupContext';
+import { logger } from '@/lib/logger';
 
 /* 登录页独立错误边界 */
 function LoginWithBoundary() {
@@ -18,9 +23,6 @@ function LoginWithBoundary() {
     </ErrorBoundary>
   );
 }
-import { useAuth } from '@/hooks/useAuth';
-import { initWebSocket, closeWebSocket } from '@/services/websocket.service';
-import { useAlarmPopup } from '@/core/AlarmPopupContext';
 
 function AuthGuard() {
   const { isAuthenticated } = useAuth();
@@ -39,26 +41,55 @@ function WebSocketManager() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const token = localStorage.getItem('sfp_token') || '';
-      initWebSocket(token, {
-        onAlarm: (alarm) => {
-          console.log('[WS] Alarm:', alarm);
-          // 触发全局报警弹窗
-          openAlarm({
-            alarm,
-            unitName: alarm.unitName || '未知单位',
-            unitAddress: alarm.unitAddress,
-            managerName: alarm.controlRoom?.managerName,
-            managerPhone: alarm.controlRoom?.managerPhone,
-            dutyOfficerName: alarm.controlRoom?.dutyOfficerName,
-            dutyOfficerPhone: alarm.controlRoom?.dutyOfficerPhone,
-            safetyOfficerName: alarm.controlRoom?.safetyOfficerName,
-            safetyOfficerPhone: alarm.controlRoom?.safetyOfficerPhone,
-            snapshots: alarm.snapshots || [],
-            relatedCameras: alarm.relatedCameras || [],
-          });
-        },
-        onDeviceStatus: (device) => console.log('[WS] Device:', device),
-        onError: (error) => console.error('[WS] Error:', error),
+      const wsClient = initWebSocket(token, {
+        onConnect: () => {
+            logger.info('[WS] Connected, subscribing to topics...');
+            // 订阅告警和设备状态主题
+            wsClient?.subscribe('alarm');
+            wsClient?.subscribe('device_status');
+            wsClient?.subscribe('linkage');
+          },
+          onAlarm: (rawAlarm) => {
+            logger.info('[WS] Alarm received');
+            // WebSocket 推送的是 snake_case，映射为前端 camelCase
+            const alarm = {
+              id: String(rawAlarm.id ?? ''),
+              alarmNo: rawAlarm.alarm_no || rawAlarm.alarmNo,
+              type: typeof rawAlarm.alarm_type === 'number'
+                ? (['', 'fire', 'fault', 'warning', 'supervisory', 'test'][rawAlarm.alarm_type] || 'warning')
+                : (rawAlarm.type || 'warning'),
+              level: typeof rawAlarm.alarm_level === 'number'
+                ? (['', 'normal', 'high', 'urgent', 'low'][rawAlarm.alarm_level] || 'normal')
+                : (rawAlarm.level || 'normal'),
+              deviceId: String(rawAlarm.device_id || rawAlarm.deviceId || ''),
+              deviceName: rawAlarm.device_name || rawAlarm.deviceName || '未知设备',
+              unitId: String(rawAlarm.unit_id || rawAlarm.unitId || ''),
+              unitName: rawAlarm.unit_name || rawAlarm.unitName || '未知单位',
+              location: rawAlarm.location || '未知位置',
+              message: rawAlarm.alarm_desc || rawAlarm.message || rawAlarm.description || '',
+              status: typeof rawAlarm.status === 'number'
+                ? (['new', 'confirmed', 'handled', 'ignored'][rawAlarm.status] || 'new')
+                : (rawAlarm.status || 'new'),
+              createdAt: rawAlarm.created_at || rawAlarm.createdAt || '',
+              updatedAt: rawAlarm.updated_at || rawAlarm.updatedAt || '',
+            };
+            // 触发全局报警弹窗
+            openAlarm({
+              alarm: alarm as any,
+              unitName: alarm.unitName || '未知单位',
+              unitAddress: rawAlarm.unit_address || rawAlarm.unitAddress,
+              managerName: rawAlarm.control_room?.managerName || rawAlarm.controlRoom?.managerName,
+              managerPhone: rawAlarm.control_room?.managerPhone || rawAlarm.controlRoom?.managerPhone,
+              dutyOfficerName: rawAlarm.control_room?.dutyOfficerName || rawAlarm.controlRoom?.dutyOfficerName,
+              dutyOfficerPhone: rawAlarm.control_room?.dutyOfficerPhone || rawAlarm.controlRoom?.dutyOfficerPhone,
+              safetyOfficerName: rawAlarm.control_room?.safetyOfficerName || rawAlarm.controlRoom?.safetyOfficerName,
+              safetyOfficerPhone: rawAlarm.control_room?.safetyOfficerPhone || rawAlarm.controlRoom?.safetyOfficerPhone,
+              snapshots: rawAlarm.snapshots || [],
+              relatedCameras: rawAlarm.relatedCameras || [],
+            });
+          },
+          onDeviceStatus: (device) => logger.debug('[WS] Device status:', device),
+          onError: (error) => logger.error('[WS] Error:', error),
       });
     }
     return () => {
@@ -67,24 +98,6 @@ function WebSocketManager() {
   }, [isAuthenticated, user, openAlarm]);
 
   return null;
-}
-
-/* Enhanced Suspense Fallback with Skeleton */
-function AppFallback() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <div className="relative w-12 h-12">
-        <div className="absolute inset-0 border-2 border-blue-500/20 rounded-full" />
-        <div className="absolute inset-0 border-2 border-transparent border-t-blue-500 rounded-full animate-spin" />
-        <div className="absolute inset-2 border-2 border-transparent border-t-cyan-400 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-      </div>
-      <div className="text-slate-500 text-sm">页面加载中...</div>
-      <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full animate-loading-bar" />
-      </div>
-
-    </div>
-  );
 }
 
 /* Routes wrapped with PageTransition */
@@ -97,6 +110,11 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  // 页面加载成功时清除 chunk 重试标记，保证下次部署后仍能自动刷新
+  useEffect(() => {
+    sessionStorage.removeItem('chunk_retry');
+  }, []);
+
   return (
     <ToastProvider>
       <LoadingProvider>
@@ -108,7 +126,7 @@ export default function App() {
               <Route element={<AuthGuard />}>
                 <Route element={<MainLayout />}>
                   <Route path="*" element={
-                    <Suspense fallback={<AppFallback />}>
+                    <Suspense fallback={<AppFallback compact />}>
                       <ErrorBoundary>
                         <AnimatedRoutes />
                       </ErrorBoundary>
