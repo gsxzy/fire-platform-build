@@ -1,5 +1,5 @@
 import PageTemplate from '@/sections/PageTemplate';
-import { legacyApi, api as httpApi } from '@/api/services';
+import { systemConfigService, api as httpApi } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import { Settings } from 'lucide-react';
 
@@ -97,7 +97,7 @@ const normalizeConfig = (data: any) => ({
 
 const configService = {
   list: async (params: QueryParams = {}) => {
-    const res = (await legacyApi.configList()) as any;
+    const res = (await systemConfigService.list()) as any;
     const data = Array.isArray(res.data) ? res.data : res.data?.list || [];
     const list = data.map((item: any) => ({
       id: item.id,

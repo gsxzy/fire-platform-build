@@ -71,7 +71,8 @@ export default function DeviceAllocationPage() {
       const res = await deviceAllocationService.listUnallocated({ pageSize: 9999 });
       const list = res.data?.list || [];
       setDevices(list);
-    } catch {
+    } catch (e: unknown) {
+      error('加载失败', getErrorMessage(e, '未分配设备列表加载失败，请检查网络'));
       setDevices([]);
     } finally {
       setLoading(false);
@@ -104,7 +105,8 @@ export default function DeviceAllocationPage() {
         type: unitTypeMap[u.unit_type ?? u.type] ?? (u.unit_type ?? u.type ?? ''),
         address: u.address ?? '',
       })));
-    } catch {
+    } catch (e: unknown) {
+      error('加载失败', getErrorMessage(e, '单位列表加载失败，请检查网络'));
       setUnits([]);
     }
   };

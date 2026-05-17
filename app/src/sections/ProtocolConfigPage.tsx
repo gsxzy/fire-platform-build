@@ -7,7 +7,7 @@ import {
   Video, Shield, Radio,
 } from 'lucide-react';
 import { api } from '@/api/client';
-import { legacyApi } from '@/api/services';
+import { iotService } from '@/api/services';
 import { useToast } from '@/core/ToastContext';
 import EmptyState from '@/components/EmptyState';
 
@@ -128,7 +128,7 @@ function mapIotProtocolsStubRow(row: Record<string, unknown>): ProtocolProfile {
 
 async function fetchProtocolsUnified(): Promise<ProtocolProfile[]> {
   try {
-    const primary = await legacyApi.protocolList();
+    const primary = await iotService.protocolList();
     const rows = Array.isArray(primary) ? primary : [];
     if (rows.length > 0) {
       return (rows as Record<string, unknown>[]).map(mapFireProtocolConfigRow);
@@ -220,7 +220,7 @@ export default function ProtocolConfigPage() {
     setProfiles(prev => prev.map(x => (x.id === id ? { ...x, enabled: next } : x)));
     if (selected?.id === id) setSelected({ ...p, enabled: next });
     try {
-      await legacyApi.updateProtocol(Number(id), { status: next ? 1 : 0 });
+      await iotService.updateProtocol(Number(id), { status: next ? 1 : 0 });
       toastSuccess(next ? '已启用' : '已停用', p.name);
     } catch {
       setProfiles(prev => prev.map(x => (x.id === id ? { ...x, enabled: !next } : x)));

@@ -8,6 +8,7 @@ import './styles/components.css'
 import './styles/hmi.css'
 import './styles/tech.css'
 import './styles/utilities.css'
+import './styles/fire-control-room.css'
 import App from './App.tsx'
 import { AuthProvider } from '@/hooks/useAuth'
 

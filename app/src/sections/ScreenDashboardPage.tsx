@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { useNavigate } from 'react-router';
-import { legacyApi } from '@/api/services';
+import { dashboardService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 import {
   Monitor, Bell, Cpu, Video, MapPin, Clock
@@ -56,7 +56,7 @@ export default function ScreenDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await legacyApi.bigScreen() as any;
+      const res = await dashboardService.bigScreen() as any;
       const data = res.data ?? res;
       if (data && typeof data === 'object') {
         if (Array.isArray(data.hourlyData)) setHourlyData(data.hourlyData as any);
@@ -95,53 +95,55 @@ export default function ScreenDashboardPage() {
     <DataContainer loading={loading} error={error} data={hourlyData} onRetry={loadData} emptyText="暂无数据">
     <div className="h-full flex flex-col gap-3" style={{ minHeight: 'calc(100vh - 7rem)' }}>
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-5 py-3 border border-blue-500/20 rounded-xl glass animate-fade-in-up">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center ring-1 ring-blue-500/10">
-            <Monitor className="w-5 h-5 text-blue-400" />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0 px-3 md:px-5 py-2.5 md:py-3 border border-blue-500/20 rounded-xl glass animate-fade-in-up">
+        <div className="flex items-center gap-2 md:gap-3">
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center ring-1 ring-blue-500/10 flex-shrink-0">
+            <Monitor className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
           </div>
-          <h1 className="text-title font-bold text-slate-100 tracking-wider">智慧消防监控大屏</h1>
-          <span className="text-caption text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-lg bg-blue-500/10">实时数据</span>
+          <h1 className="text-sm md:text-title font-bold text-slate-100 tracking-wider truncate">智慧消防监控大屏</h1>
+          <span className="hidden sm:inline text-caption text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-lg bg-blue-500/10">实时数据</span>
         </div>
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-400" />
-            <span className="text-body font-mono text-slate-300 tracking-wider">
+        <div className="flex items-center gap-2 md:gap-5 flex-wrap">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-400" />
+            <span className="text-[10px] md:text-body font-mono text-slate-300 tracking-wider">
               {time.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-caption text-emerald-400">系统运行正常</span>
           </div>
-          <button onClick={() => navigate(-1)} className="text-caption px-3 py-1.5 bg-slate-800/60 border border-slate-700/40 text-slate-400 rounded-lg hover:text-slate-200 hover:bg-slate-700/40 transition-all">
+          <button onClick={() => navigate(-1)} className="text-[10px] md:text-caption px-2 md:px-3 py-1 md:py-1.5 bg-slate-800/60 border border-slate-700/40 text-slate-400 rounded-lg hover:text-slate-200 hover:bg-slate-700/40 transition-all">
             退出大屏
           </button>
         </div>
       </div>
 
       {/* Main Grid */}
-      <div className="flex-1 grid grid-cols-12 gap-3 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
         {/* Left Column */}
-        <div className="col-span-3 flex flex-col gap-3">
-          {(stats as any).map((s: any, i: number) => {
-            const Icon = s.icon;
-            return (
-              <div key={i} className="p-3.5 rounded-xl border border-slate-700/30 flex items-center gap-3 glass hover:border-slate-600/30 transition-all animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-white/5" style={{ backgroundColor: `${s.color}15` }}>
-                  <Icon className="w-5 h-5" style={{ color: s.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-caption text-slate-400">{s.label}</div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-headline font-bold text-slate-100 tracking-tight">{s.value}</span>
-                    <span className="text-caption text-slate-500">{s.unit}</span>
+        <div className="lg:col-span-3 flex flex-col gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-3">
+            {(stats as any).map((s: any, i: number) => {
+              const Icon = s.icon;
+              return (
+                <div key={i} className="p-2.5 md:p-3.5 rounded-xl border border-slate-700/30 flex items-center gap-2 md:gap-3 glass hover:border-slate-600/30 transition-all animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
+                  <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-white/5" style={{ backgroundColor: `${s.color}15` }}>
+                    <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: s.color }} />
                   </div>
-                  <div className="text-label text-slate-500">{s.sub}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] md:text-caption text-slate-400">{s.label}</div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-sm md:text-headline font-bold text-slate-100 tracking-tight">{s.value}</span>
+                      <span className="text-[10px] md:text-caption text-slate-500">{s.unit}</span>
+                    </div>
+                    <div className="hidden md:block text-label text-slate-500">{s.sub}</div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
           {/* Subsystem Status */}
           <div className="flex-1 p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
@@ -163,13 +165,13 @@ export default function ScreenDashboardPage() {
         </div>
 
         {/* Center Column */}
-        <div className="col-span-6 flex flex-col gap-3">
+        <div className="lg:col-span-6 flex flex-col gap-3">
           <div className="p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-slate-200">今日告警时序</span>
               <span className="text-[9px] text-slate-500">24小时</span>
             </div>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={hourlyData}>
                 <defs>
                   <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
@@ -203,7 +205,7 @@ export default function ScreenDashboardPage() {
         </div>
 
         {/* Right Column */}
-        <div className="col-span-3 flex flex-col gap-3">
+        <div className="lg:col-span-3 flex flex-col gap-3">
           <div className="p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
             <div className="text-xs font-medium text-slate-200 mb-2">设备类型分布</div>
             <ResponsiveContainer width="100%" height={150}>

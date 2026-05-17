@@ -52,4 +52,11 @@ export interface PageTemplateProps {
   emptyDescription?: string;
   formInitialDefaults?: Record<string, unknown>;
   extraHeaderActions?: React.ReactNode;
+  showIndex?: boolean;
+  /** RBAC：控制新增/编辑/删除按钮可见性 */
+  permission?: {
+    create?: string;
+    update?: string;
+    delete?: string;
+  };
 }

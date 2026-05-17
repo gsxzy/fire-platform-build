@@ -1,5 +1,5 @@
 import PageTemplate from '@/sections/PageTemplate';
-import { legacyApi, api as httpApi } from '@/api/services';
+import { aiService, api as httpApi } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import { AlertTriangle } from 'lucide-react';
 
@@ -32,8 +32,8 @@ const normalizeAlert = (data: any) => ({
 
 const smartAlertService = {
   list: async (params: QueryParams = {}) => {
-    const res = await legacyApi.smartAlertList() as any;
-    const data = Array.isArray(res.data) ? res.data : (res.data?.list || []);
+    const res = await aiService.alertList() as any;
+    const data = Array.isArray(res) ? res : (res?.list ?? res?.data ?? []);
     return { code: 200, data: { list: data, total: data.length, page: params?.page || 1, pageSize: params?.pageSize || 10 } } as any;
   },
   create: (data: any) => httpApi.post('/ai/alerts', normalizeAlert(data)),

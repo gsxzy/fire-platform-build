@@ -1,6 +1,7 @@
 /**
- * HTTP 客户端与后端 JSON 信封的共享约定（与 backend/utils/apiEnvelope.js 对齐）
+ * HTTP 客户端与后端 JSON 信封的共享约定（与 backend/utils/response.ts 对齐）
  */
+export type { ApiResponse, PaginatedData, QueryParams } from '@/types/db';
 
 /** 后端/网关可能返回 message、msg 之一或并存 */
 export type ApiEnvelopeFields = {

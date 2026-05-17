@@ -12,6 +12,9 @@ backend/.env.test
 app/.env
 app/.env.production
 
+# 归档目录（历史临时脚本、调试文件）
+archive/
+
 # Python
 __pycache__/
 *.py[cod]

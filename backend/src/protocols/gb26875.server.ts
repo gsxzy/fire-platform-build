@@ -43,6 +43,7 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
   // 控制命令异步等待
   private pendingCommands = new Map<number, PendingCommand>();
   private querySeqCounter = 1;
+  private commandCleanupTimer: NodeJS.Timeout | null = null;
 
   constructor(port = 5200, host = '0.0.0.0') {
     super(port, host);
@@ -150,6 +151,16 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
   }
 
   async stop(): Promise<void> {
+    if (this.commandCleanupTimer) {
+      clearInterval(this.commandCleanupTimer);
+      this.commandCleanupTimer = null;
+    }
+    // 清理所有挂起的命令
+    for (const [seq, pending] of this.pendingCommands.entries()) {
+      clearTimeout(pending.timeoutId);
+      pending.reject(new Error('服务器停止，命令被取消'));
+      this.pendingCommands.delete(seq);
+    }
     await super.stop();
     this.userCodeToConnection.clear();
     this.pendingCommands.clear();
@@ -325,7 +336,7 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
 
   /* ───── 清理超时控制命令 ───── */
   private startCommandCleanup() {
-    setInterval(() => {
+    this.commandCleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [seq, pending] of this.pendingCommands.entries()) {
         if (now - pending.createdAt > 35000) {
@@ -336,6 +347,8 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
       }
     }, 60000);
   }
+
+
 
   /* ───── 数据库操作 ───── */
   protected async ensureTables() {

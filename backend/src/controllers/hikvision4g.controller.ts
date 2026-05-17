@@ -8,7 +8,7 @@
 import type { Request, Response } from 'express';
 import { success, fail } from '@/utils/response';
 import { IoTDevice, Device, Alarm, Unit } from '@/models';
-import { IoTProtocolService } from '@/services/iotProtocol.service';
+
 import { DeviceHeartbeatService } from '@/services/deviceHeartbeat.service';
 import sequelize from '@/config/database';
 import logger from '@/config/logger';
@@ -212,18 +212,26 @@ async function createAlarm(parsed: Record<string, unknown>, iotDevice: any) {
     const alarmType = Number(parsed.alarmType) || 1;
     const alarmLevel = alarmType === 1 ? 3 : 2;
 
-    // 查找关联的档案设备
-    const archiveDevice = await Device.findOne({
-      where: { device_sn: iotDevice.device_sn },
-    }) as any;
+    // 优先用 archive_device_id 查找档案，其次用 device_sn 匹配（解决 SN 不一致问题）
+    let archiveDevice = null;
+    if (iotDevice?.archive_device_id) {
+      archiveDevice = await Device.findByPk(iotDevice.archive_device_id) as any;
+    }
+    if (!archiveDevice && iotDevice?.device_sn) {
+      archiveDevice = await Device.findOne({
+        where: { device_sn: iotDevice.device_sn },
+      }) as any;
+    }
 
     // 确定 unit_id：优先 IoT 设备，其次档案设备
     const finalUnitId = safeUnitId(iotDevice?.unit_id) ?? safeUnitId(archiveDevice?.unit_id) ?? null;
-    // 确定 unit_name：优先档案设备，其次通过 unit_id 查单位表
-    let finalUnitName = archiveDevice?.unit_name || null;
-    if (!finalUnitName && finalUnitId) {
-      const unitRow = await Unit.findByPk(finalUnitId, { raw: true }) as any;
-      finalUnitName = unitRow?.unit_name || null;
+    // 确定 unit_name：Device 模型无 unit_name 字段，必须通过 unit_id 查单位表
+    let finalUnitName = '';
+    if (finalUnitId) {
+      try {
+        const unitRow = await Unit.findByPk(finalUnitId, { raw: true }) as any;
+        finalUnitName = unitRow?.unit_name || '';
+      } catch { /* ignore */ }
     }
 
     const alarm = await Alarm.create({
@@ -243,25 +251,25 @@ async function createAlarm(parsed: Record<string, unknown>, iotDevice: any) {
 
     // WebSocket 广播 + Redis 发布
     try {
-      await redis.publish('fire:alarm', JSON.stringify({
-        type: 'new_alarm',
-        data: {
-          id: (alarm as any).id,
-          alarm_no: alarmNo,
-          alarm_type: alarmType,
-          device_name: iotDevice.device_name || iotDevice.device_sn,
-          alarm_desc: parsed.alarmDesc,
-          protocol: 'Hikvision4G',
-        },
-      }));
-      WebSocketService.broadcastSimple('new_alarm', {
+      const pushPayload = {
         id: (alarm as any).id,
         alarm_no: alarmNo,
         alarm_type: alarmType,
+        alarm_level: alarmLevel,
+        device_id: archiveDevice?.id ?? null,
         device_name: iotDevice.device_name || iotDevice.device_sn,
+        unit_id: finalUnitId,
+        unit_name: finalUnitName,
+        location: archiveDevice?.install_location || '',
         alarm_desc: parsed.alarmDesc,
-        protocol: 'Hikvision4G',
-      });
+        status: 0,
+        created_at: (alarm as any).created_at || new Date().toISOString(),
+      };
+      await redis.publish('fire:alarm', JSON.stringify({
+        type: 'new_alarm',
+        data: pushPayload,
+      }));
+      WebSocketService.broadcastSimple('new_alarm', pushPayload);
     } catch { /* ignore */ }
 
     logger.warn(`[Hik4G] 告警创建: ${iotDevice.device_sn} ${parsed.alarmDesc}`);
@@ -291,6 +299,7 @@ async function updateDeviceOnline(deviceSn: string, ip: string | null) {
 /** 同步设备到统一设备模型 */
 /** 同步海康4G设备到 fire_device 档案表，并返回档案ID */
 async function syncUnifiedDevice(deviceSn: string, ip: string | null, deviceType: string, state: 'online' | 'offline'): Promise<number | null> {
+  const lockName = `sync_unified_device:${deviceSn}`;
   try {
     const status = state === 'online' ? 1 : 3;
     const typeName = deviceType === 'smoke' ? '4G烟感'
@@ -298,7 +307,17 @@ async function syncUnifiedDevice(deviceSn: string, ip: string | null, deviceType
       : deviceType === 'level' ? '4G液位表'
       : '4G物联网设备';
 
-    // 若档案已存在（按 device_sn 匹配），只更新状态；若不存在则新建
+    // ── 获取分布式锁，防止并发注册同一设备产生重复档案 ──
+    const [[lockRes]] = await sequelize.query(
+      `SELECT GET_LOCK(?, 10) AS acquired`,
+      { replacements: [lockName], type: 'SELECT' }
+    ) as any[];
+    if (!lockRes?.acquired) {
+      logger.warn(`[Hik4G] 获取锁失败: ${lockName}`);
+      return null;
+    }
+
+    // 若档案已存在（按 device_sn 匹配），只更新状态
     const [rows] = await sequelize.query(
       `SELECT id, device_no FROM fire_device WHERE device_sn = ? LIMIT 1`,
       { replacements: [deviceSn], type: 'SELECT' }
@@ -315,39 +334,46 @@ async function syncUnifiedDevice(deviceSn: string, ip: string | null, deviceType
       if (state === 'offline') {
         await heartbeatService.markOffline(deviceId);
       }
+      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
       return deviceId;
     }
 
-    // 新建档案：生成符合规范的 device_no
+    // 新建档案：device_no 使用随机序号，冲突时重试 3 次
     const today = new Date();
     const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-    const [[seqRow]] = await sequelize.query(
-      `SELECT COUNT(*) + 1 AS seq FROM fire_device WHERE device_no LIKE 'EQ-${datePrefix}-%'`,
-      { type: 'SELECT' }
-    ) as any[];
-    const seq = seqRow?.seq ?? 1;
-    const deviceNo = `EQ-${datePrefix}-${String(seq).padStart(3, '0')}`;
+    let deviceId: number | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const seq = Math.floor(Math.random() * 900) + 100;
+      const deviceNo = `EQ-${datePrefix}-${String(seq).padStart(3, '0')}`;
+      try {
+        await sequelize.query(
+          `INSERT INTO fire_device (device_no, device_sn, device_name, device_type, unit_id, status, lifecycle_status, last_online, protocol_type, created_at, updated_at)
+           VALUES (?, ?, ?, ?, NULL, ?, 2, NOW(), 'Hikvision4G', NOW(), NOW())`,
+          { replacements: [deviceNo, deviceSn, `${typeName}-${deviceSn.slice(-6)}`, typeName, status] }
+        );
+        // 获取刚插入的 id
+        const [newRows] = await sequelize.query(
+          `SELECT id FROM fire_device WHERE device_sn = ? ORDER BY id DESC LIMIT 1`,
+          { replacements: [deviceSn], type: 'SELECT' }
+        ) as any[];
+        deviceId = newRows?.[0]?.id || null;
+        break;
+      } catch (e: any) {
+        if (e?.original?.code === 'ER_DUP_ENTRY' && attempt < 2) continue;
+        throw e;
+      }
+    }
 
-    const [result] = await sequelize.query(
-      `INSERT INTO fire_device (device_no, device_sn, device_name, device_type, unit_id, status, lifecycle_status, last_online, protocol_type, created_at, updated_at)
-       VALUES (?, ?, ?, ?, NULL, ?, 2, NOW(), 'Hikvision4G', NOW(), NOW())`,
-      { replacements: [deviceNo, deviceSn, `${typeName}-${deviceSn.slice(-6)}`, typeName, status] }
-    );
-
-    // 获取刚插入的 id
-    const [newRows] = await sequelize.query(
-      `SELECT id FROM fire_device WHERE device_sn = ? ORDER BY id DESC LIMIT 1`,
-      { replacements: [deviceSn], type: 'SELECT' }
-    ) as any[];
-    const deviceId = newRows?.[0]?.id;
     if (deviceId) {
       await heartbeatService.updateHeartbeat(deviceId, deviceSn, 'Hikvision4G');
       if (state === 'offline') {
         await heartbeatService.markOffline(deviceId);
       }
     }
-    return deviceId || null;
+    await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+    return deviceId;
   } catch (err: any) {
+    try { await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {}); } catch {}
     logger.error(`[Hik4G] 同步统一设备失败: ${err.message}`);
     return null;
   }

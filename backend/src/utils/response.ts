@@ -1,4 +1,4 @@
-import type { Request } from 'express';
+
 
 /** 与前端 ApiResponse / getApiEnvelopeMessage 对齐的 JSON 信封 */
 export interface ApiJsonEnvelope<T = unknown> {
@@ -42,11 +42,4 @@ export const page = (list: unknown[], total: number, pageNum: number, pageSize: 
     requestId,
   });
 
-/** 从当前请求携带 requestId（推荐在控制器中使用） */
-export function successForReq(req: Request, data: unknown, msg = '操作成功') {
-  return success(data, msg, req.reqId);
-}
-
-export function failForReq(req: Request, msg = '操作失败', code = 400) {
-  return fail(msg, code, req.reqId);
-}
+// 如需从请求自动携带 requestId，请使用 success(data, msg, req.reqId) 或 fail(msg, code, req.reqId)

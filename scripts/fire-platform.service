@@ -1,0 +1,28 @@
+[Unit]
+Description=新致远智慧消防平台后端服务
+Documentation=https://docs.xzyzh.top
+After=network.target mysql.service redis.service
+Wants=mysql.service redis.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/my-fire-api-new
+ExecStart=/usr/bin/node dist/app.js
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/fire-platform/app.log
+StandardError=append:/var/log/fire-platform/error.log
+
+# 资源限制
+LimitNOFILE=65535
+LimitNPROC=4096
+
+# 环境变量
+Environment=NODE_ENV=production
+Environment=PORT=5003
+Environment=LOG_DIR=/var/log/fire-platform
+
+[Install]
+WantedBy=multi-user.target

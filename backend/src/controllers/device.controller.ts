@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { success, page, fail } from '@/utils/response';
+import { sendSuccess, sendPage } from '@/utils/respond';
+import { HttpError } from '@/utils/httpError';
 import logger from '@/config/logger';
 import { Device, Unit, IoTDevice } from '@/models';
 import { sanitizePagination } from '@/utils/validator';
@@ -169,7 +170,6 @@ function mapLegacyDeviceBody(body: Record<string, unknown>, isCreate = false) {
 
 export const DeviceController = {
   async list(req: Request, res: Response) {
-    try {
       const { pageNum, pageSize } = sanitizePagination(req);
       const {
         keyword, deviceType, unitId, status,
@@ -205,6 +205,22 @@ export const DeviceController = {
         }
       }
 
+      /* 设备配置页面仅返回有IoT接入配置的设备：将过滤条件下沉到SQL，避免内存过滤导致分页失真 */
+      const needIot = hasIotConfig ?? has_iot_config;
+      if (needIot === 'true' || needIot === '1') {
+        const iotRows = await IoTDevice.findAll({
+          attributes: ['archive_device_id'],
+          where: { archive_device_id: { [Op.ne]: null } },
+          raw: true,
+        }) as any[];
+        const validIds = iotRows.map((r: any) => r.archive_device_id).filter(Boolean);
+        if (validIds.length === 0) {
+          sendPage(res, req, [], 0, +pageNum, +pageSize);
+          return;
+        }
+        where.id = { [Op.in]: validIds };
+      }
+
       const { count, rows } = await Device.findAndCountAll({
         where,
         limit: +pageSize,
@@ -217,10 +233,11 @@ export const DeviceController = {
       /* 批量查询 fire_iot_device 的在线状态和接入情况 */
       let iotMap: Record<number, { online_status: string; has_iot: boolean }> = {};
       if (deviceIds.length > 0) {
-        const iotRows = await sequelize.query(
-          `SELECT archive_device_id, status, last_online FROM fire_iot_device WHERE archive_device_id IN (:ids)`,
-          { replacements: { ids: deviceIds }, type: 'SELECT' }
-        ) as any[];
+        const iotRows = await IoTDevice.findAll({
+          attributes: ['archive_device_id', 'status', 'last_online'],
+          where: { archive_device_id: { [Op.in]: deviceIds } },
+          raw: true,
+        }) as any[];
         iotMap = iotRows.reduce((acc, row) => {
           const isOnline = row.status === 1 || (row.last_online && new Date(row.last_online).getTime() > Date.now() - 10 * 60 * 1000);
           acc[row.archive_device_id] = { online_status: isOnline ? 'online' : 'offline', has_iot: true };
@@ -239,152 +256,118 @@ export const DeviceController = {
           has_iot_config: !!iotInfo?.has_iot,
         };
       });
-      /* 设备配置页面仅返回有IoT接入配置的设备 */
-      const needIot = hasIotConfig ?? has_iot_config;
-      if (needIot === 'true' || needIot === '1') {
-        const filtered = list.filter((item: any) => item.has_iot_config);
-        return res.json(page(filtered, filtered.length, +pageNum, +pageSize));
-      }
-      return res.json(page(list, count, +pageNum, +pageSize));
-    } catch (err: any) {
-      logger.error(`[Device] list 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendPage(res, req, list, count, +pageNum, +pageSize);
   },
 
   async create(req: Request, res: Response) {
-    try {
       const { payload, errors } = mapLegacyDeviceBody((req.body || {}) as Record<string, unknown>, true);
       if (errors && errors.length > 0) {
-        return res.status(400).json(fail(errors.join('；'), 400));
+        throw new HttpError(errors.join('；'), 400);
       }
 
-      if (payload.device_no) {
-        const exist = await Device.findOne({ where: { device_no: payload.device_no } });
-        if (exist) {
+      // 使用数据库唯一约束捕获 + 重试，避免高并发时 device_no 重复
+      let device: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0 || !payload.device_no) {
           payload.device_no = generateDeviceNo(Math.floor(Math.random() * 900) + 100);
+        }
+        try {
+          device = await Device.create(payload as any);
+          break;
+        } catch (e: any) {
+          if (e?.name === 'SequelizeUniqueConstraintError' && attempt < 2) continue;
+          throw e;
         }
       }
 
-      const device = await Device.create(payload as any);
       logger.info(`[Device] 创建成功 id=${(device as any).id} device_no=${payload.device_no}`);
-      return res.json(success({ id: (device as any).id }, '创建成功'));
-    } catch (err: any) {
-      logger.error(`[Device] create 失败: ${err?.message || err}, body=${JSON.stringify(req.body)}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, { id: (device as any).id }, '创建成功');
   },
 
   async update(req: Request, res: Response) {
-    try {
       const { payload, errors } = mapLegacyDeviceBody((req.body || {}) as Record<string, unknown>, false);
       if (errors && errors.length > 0) {
-        return res.status(400).json(fail(errors.join('；'), 400));
+        throw new HttpError(errors.join('；'), 400);
       }
       if (Object.keys(payload).length === 0) {
-        return res.json(success(null, '暂无更新内容'));
+        sendSuccess(res, req, null, '暂无更新内容');
+        return;
       }
 
       await Device.update(payload, { where: { id: req.params.id } });
       logger.info(`[Device] 更新成功 id=${req.params.id}`);
-      return res.json(success(null, '更新成功'));
-    } catch (err: any) {
-      logger.error(`[Device] update 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '更新成功');
   },
 
   async delete(req: Request, res: Response) {
+    const t = await sequelize.transaction();
     try {
       const id = parseInt(String(req.params.id), 10);
       if (!Number.isFinite(id) || id <= 0) {
-        return res.status(400).json(fail('无效的设备ID', 400));
+        await t.rollback();
+        throw new HttpError('无效的设备ID', 400);
       }
       /* 先移除接入层，避免留下 archive_device_id 指向已删档案的孤儿或悬空引用 */
-      await IoTDevice.destroy({ where: { archive_device_id: id } });
-      await Device.destroy({ where: { id } });
+      await IoTDevice.destroy({ where: { archive_device_id: id }, transaction: t });
+      await Device.destroy({ where: { id }, transaction: t });
+      await t.commit();
       logger.info(`[Device] 删除成功 id=${id}`);
-      return res.json(success(null, '删除成功'));
-    } catch (err: any) {
-      logger.error(`[Device] delete 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      sendSuccess(res, req, null, '删除成功');
+    } catch (err) {
+      await t.rollback();
+      throw err;
     }
   },
 
   async stats(req: Request, res: Response) {
-    try {
       const total = await Device.count();
       const online = await Device.count({ where: { status: 1 } });
       const offline = await Device.count({ where: { status: 3 } });
       const fault = await Device.count({ where: { status: 2 } });
-      return res.json(success({
+      sendSuccess(res, req, {
         total,
         online,
         offline,
         fault,
         onlineRate: total ? ((online / total) * 100).toFixed(1) : 0,
-      }));
-    } catch (err: any) {
-      logger.error(`[Device] stats 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      });
   },
 
   async types(req: Request, res: Response) {
-    try {
       const types = await Device.findAll({
         attributes: ['device_type', [Device.sequelize!.fn('COUNT', '*'), 'count']],
         group: ['device_type'], raw: true,
       });
-      return res.json(success(types));
-    } catch (err: any) {
-      logger.error(`[Device] types 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, types);
   },
 
   async scrap(req: Request, res: Response) {
-    try {
       await Device.update(
         { status: 4, lifecycle_status: 5 },
         { where: { id: req.params.id } }
       );
       logger.info(`[Device] 报废成功 id=${req.params.id}`);
-      return res.json(success(null, '报废成功'));
-    } catch (err: any) {
-      logger.error(`[Device] scrap 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '报废成功');
   },
 
   async getConfig(req: Request, res: Response) {
-    try {
-      const device = await Device.findByPk(req.params.id) as any;
-      let config = {};
+      const device = await Device.findByPk(req.params.id) as { config?: string } | null;
+      let config: Record<string, unknown> = {};
       try {
         config = device?.config ? JSON.parse(device.config) : {};
       } catch {
         config = {};
       }
-      return res.json(success(config));
-    } catch (err: any) {
-      logger.error(`[Device] getConfig 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, config);
   },
 
   async saveConfig(req: Request, res: Response) {
-    try {
       const configJson = JSON.stringify(req.body || {});
       await Device.update(
         { config: configJson },
         { where: { id: req.params.id } }
       );
       logger.info(`[Device] 配置保存成功 id=${req.params.id}`);
-      return res.json(success(null, '配置保存成功'));
-    } catch (err: any) {
-      logger.error(`[Device] saveConfig 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '配置保存成功');
   },
 };

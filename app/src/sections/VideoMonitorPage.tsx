@@ -127,7 +127,7 @@ function HlsVideoPlayer({
         const onLoaded = () => {
           if (!destroyed) {
             video.play().catch((err) => {
-              console.warn('[Video] autoplay blocked:', err);
+              logger.warn('[Video] autoplay blocked:', err);
             });
           }
         };
@@ -410,7 +410,7 @@ function InlineCameraPanel({
     if (camera.deviceId && camera.channelId) {
       const cmdMap: Record<string, string> = { '上': 'up', '下': 'down', '左': 'left', '右': 'right', '放大': 'zoomIn', '缩小': 'zoomOut' };
       gb28181Service.ptzControl(camera.deviceId, camera.channelId, cmdMap[cmd] || 'stop')
-        .catch(err => console.warn('[PTZ] failed:', err));
+        .catch(err => logger.warn('[PTZ] failed:', err));
     }
   };
 

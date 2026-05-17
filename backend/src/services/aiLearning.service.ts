@@ -1,4 +1,4 @@
-import { Op, Sequelize } from 'sequelize';
+import { Sequelize } from 'sequelize';
 import { IssueHistory } from '@/models';
 import logger from '@/config/logger';
 

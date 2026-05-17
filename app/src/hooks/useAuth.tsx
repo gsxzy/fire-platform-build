@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { legacyApi as api } from '@/api/services';
+import { authService } from '@/api/services';
 import { TOKEN_KEY, REFRESH_KEY, API_BASE } from '@/api/client';
 import type { UserInfo } from '@/types';
 import { ApiClientError } from '@/types/api';
@@ -62,11 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     setLoading(true);
     try {
-      const data = await api.login(username, password);
+      const envelope = await authService.login(username, password);
+      const data = envelope.data;
       if (!data || typeof data !== 'object') {
         throw new ApiClientError('登录响应格式错误', 502);
       }
-      const o = data as Record<string, unknown>;
+      const o = data as unknown as Record<string, unknown>;
       const accessToken =
         typeof o.accessToken === 'string' ? o.accessToken
         : typeof o.token === 'string' ? o.token

@@ -350,7 +350,14 @@ export class VideoService {
           outputFile
         ]);
 
+        // 15 秒超时保护，防止 ffmpeg 进程卡死成为僵尸进程
+        const killTimer = setTimeout(() => {
+          try { ffmpeg.kill('SIGKILL'); } catch { /* ignore */ }
+          resolve(null);
+        }, 15000);
+
         ffmpeg.on('close', (code: number | null) => {
+          clearTimeout(killTimer);
           if (code === 0) {
             if (fs.existsSync(outputFile)) {
               const buffer = fs.readFileSync(outputFile);
@@ -364,7 +371,10 @@ export class VideoService {
           }
         });
 
-        ffmpeg.on('error', () => resolve(null));
+        ffmpeg.on('error', () => {
+          clearTimeout(killTimer);
+          resolve(null);
+        });
       });
     } catch (err: any) {
       logger.error(`[Video] 截图失败: ${err.message}`);

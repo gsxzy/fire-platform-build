@@ -8,6 +8,7 @@ import { alarmService } from '@/api/services';
 import { useToast } from '@/core/ToastContext';
 import type { Alarm } from '@/types/db';
 import { getErrorMessage } from '@/types/api';
+import { logger } from '@/lib/logger';
 
 export interface AlarmPopupData {
   alarm: Alarm;
@@ -89,7 +90,7 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newIds));
         setIsOpen(false);
       } catch (err: unknown) {
-        console.error('确认报警失败', err);
+        logger.error('确认报警失败', err);
         showError('确认报警失败', getErrorMessage(err, '请检查网络或稍后重试'));
       }
     }
@@ -130,7 +131,7 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
           floorPlan: detail.floorPlan,
         });
       } catch (e: any) {
-        console.error('[AlarmPopupContext] 轮询触发失败:', e?.message || e);
+        logger.error('[AlarmPopupContext] 轮询触发失败:', e?.message || e);
       }
     };
 

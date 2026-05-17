@@ -1,0 +1,81 @@
+# ============================================================================
+# Docker 构建忽略文件
+# 作用: 减少构建上下文大小，加速镜像构建，防止敏感信息泄露
+# ============================================================================
+
+# ── Git ──
+.git
+.gitignore
+.gitattributes
+
+# ── IDE / 编辑器 ──
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# ── 操作系统 ──
+.DS_Store
+Thumbs.db
+
+# ── Node.js (构建产物和依赖) ──
+**/node_modules
+**/dist
+**/build
+**/.cache
+
+# ── 日志 ──
+**/*.log
+logs/
+log/
+
+# ── 测试 ──
+**/coverage
+**/.nyc_output
+**/test
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# ── 环境变量 (安全!) ──
+**/.env
+**/.env.*
+!.env.example
+
+# ── 文档 (不影响构建) ──
+docs/
+*.md
+!README.md
+
+# ── 脚本和配置 (构建时使用复制到容器中的版本) ──
+scripts/
+
+# ── Docker 自身 ──
+docker/
+!docker/frontend/nginx.conf
+!docker/redis/redis.conf
+!docker/mysql/my.cnf
+
+# ── 备份和临时文件 ──
+backups/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# ── 大型二进制文件 ──
+*.mp4
+*.avi
+*.mov
+*.zip
+*.tar.gz
+
+# ── 本地开发配置 ──
+.env.local
+.env.development.local
+.vite/
+
+# ── 监控和性能分析 ──
+dist/stats.html

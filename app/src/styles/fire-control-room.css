@@ -1,0 +1,247 @@
+/* ═══════════════════════════════════════════════════════════════
+   数智消控室 — 专业UI增强样式
+   保持布局不变，仅提升视觉质感
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 玻璃态卡片增强 ─── */
+.tech-card-v2 {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(100, 116, 139, 0.12);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+.tech-card-v2::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
+}
+
+/* ─── 角标装饰增强 ─── */
+.corner-accent-v2 {
+  position: relative;
+}
+.corner-accent-v2::before,
+.corner-accent-v2::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+.corner-accent-v2::before {
+  top: 0;
+  left: 0;
+  border-top: 1.5px solid rgba(56, 189, 248, 0.3);
+  border-left: 1.5px solid rgba(56, 189, 248, 0.3);
+}
+.corner-accent-v2::after {
+  bottom: 0;
+  right: 0;
+  border-bottom: 1.5px solid rgba(56, 189, 248, 0.3);
+  border-right: 1.5px solid rgba(56, 189, 248, 0.3);
+}
+.corner-accent-v2:hover::before,
+.corner-accent-v2:hover::after {
+  width: 14px;
+  height: 14px;
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+/* ─── HMI统计卡片增强 ─── */
+.hmi-stat-v2 {
+  position: relative;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(100, 116, 139, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.hmi-stat-v2::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hmi-stat-v2:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(56, 189, 248, 0.08);
+}
+
+/* ─── 控制按钮增强 ─── */
+.hmi-btn-v2 {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.hmi-btn-v2::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hmi-btn-v2:active {
+  transform: scale(0.96);
+}
+.hmi-btn-v2 .btn-icon-ring {
+  transition: all 0.3s ease;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.05),
+    0 2px 8px rgba(0,0,0,0.2);
+}
+.hmi-btn-v2:hover .btn-icon-ring {
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.08),
+    0 4px 16px rgba(0,0,0,0.3),
+    0 0 12px rgba(56, 189, 248, 0.1);
+}
+
+/* ─── 表格行增强 ─── */
+.fire-table-row-v2 {
+  transition: all 0.2s ease;
+  position: relative;
+}
+.fire-table-row-v2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.fire-table-row-v2:hover {
+  background: rgba(56, 189, 248, 0.03);
+}
+.fire-table-row-v2:hover::before {
+  opacity: 1;
+}
+.fire-table-row-red-v2::before { background: linear-gradient(to bottom, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.2)); }
+.fire-table-row-amber-v2::before { background: linear-gradient(to bottom, rgba(234, 179, 8, 0.6), rgba(234, 179, 8, 0.2)); }
+.fire-table-row-purple-v2::before { background: linear-gradient(to bottom, rgba(168, 85, 247, 0.6), rgba(168, 85, 247, 0.2)); }
+.fire-table-row-cyan-v2::before { background: linear-gradient(to bottom, rgba(56, 189, 248, 0.6), rgba(56, 189, 248, 0.2)); }
+
+/* ─── 报警紧急状态 ─── */
+.alarm-critical-v2 {
+  animation: alarm-bg-pulse 2s ease-in-out infinite;
+}
+@keyframes alarm-bg-pulse {
+  0%, 100% { background: rgba(239, 68, 68, 0.03); }
+  50% { background: rgba(239, 68, 68, 0.08); }
+}
+
+/* ─── LED指示灯增强 ─── */
+.led-v2 {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.led-green-v2 {
+  background: #10b981;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.6), 0 0 8px rgba(16, 185, 129, 0.3);
+}
+.led-red-v2 {
+  background: #ef4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.6), 0 0 8px rgba(239, 68, 68, 0.3);
+}
+.led-yellow-v2 {
+  background: #eab308;
+  box-shadow: 0 0 4px rgba(234, 179, 8, 0.6), 0 0 8px rgba(234, 179, 8, 0.3);
+}
+.led-blue-v2 {
+  background: #38bdf8;
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.6), 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+/* ─── 发光文字增强 ─── */
+.glow-text-blue-v2 {
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.35), 0 0 20px rgba(56, 189, 248, 0.15);
+}
+.glow-text-red-v2 {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.35), 0 0 20px rgba(239, 68, 68, 0.15);
+}
+.glow-text-yellow-v2 {
+  text-shadow: 0 0 8px rgba(234, 179, 8, 0.35), 0 0 20px rgba(234, 179, 8, 0.15);
+}
+.glow-text-emerald-v2 {
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.35), 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+/* ─── 面板标题增强 ─── */
+.hmi-panel-header-v2 {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.5) 50%, rgba(15, 23, 42, 0.8) 100%);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.08);
+}
+
+/* ─── 操作日志时间轴增强 ─── */
+.log-timeline-v2 {
+  position: relative;
+}
+.log-timeline-v2::before {
+  content: '';
+  position: absolute;
+  left: 51px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(100, 116, 139, 0.2) 10%, rgba(100, 116, 139, 0.2) 90%, transparent);
+}
+
+/* ─── 数值弹出动画 ─── */
+.animate-value-pop-v2 {
+  animation: value-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes value-pop {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ─── 信息卡片图标容器增强 ─── */
+.info-icon-v2 {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── 标签徽章增强 ─── */
+.badge-v2 {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── 状态指示器增强 ─── */
+.status-pill-v2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 500;
+  border: 1px solid;
+  backdrop-filter: blur(4px);
+}

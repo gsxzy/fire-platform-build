@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { legacyApi } from '@/api/services';
+import { dashboardService } from '@/api/services';
 import { FileText, Download, Loader2 } from 'lucide-react';
 
 type ReportRow = {
@@ -28,14 +28,14 @@ const REPORT_ITEMS: ReportRow[] = [
     name: '消防日报',
     period: '单日汇总',
     format: 'JSON',
-    fetch: () => legacyApi.dailyReport(todayStr()),
+    fetch: () => dashboardService.dailyReport(todayStr()),
   },
   {
     key: 'weekly',
     name: '消防周报',
     period: '近7天',
     format: 'JSON',
-    fetch: () => legacyApi.weeklyReport(todayStr()),
+    fetch: () => dashboardService.weeklyReport(todayStr()),
   },
   {
     key: 'monthly',
@@ -44,7 +44,7 @@ const REPORT_ITEMS: ReportRow[] = [
     format: 'JSON',
     fetch: () => {
       const d = new Date();
-      return legacyApi.monthlyReport(d.getFullYear(), d.getMonth() + 1);
+      return dashboardService.monthlyReport(d.getFullYear(), d.getMonth() + 1);
     },
   },
   {
@@ -52,7 +52,7 @@ const REPORT_ITEMS: ReportRow[] = [
     name: '设备运行报表',
     period: '全库',
     format: 'JSON',
-    fetch: () => legacyApi.deviceReport(),
+    fetch: () => dashboardService.deviceReport(),
   },
   {
     key: 'maintenance',
@@ -61,7 +61,7 @@ const REPORT_ITEMS: ReportRow[] = [
     format: 'JSON',
     fetch: () => {
       const { start, end } = monthRange();
-      return legacyApi.maintenanceReport(start, end);
+      return dashboardService.maintenanceReport(start, end);
     },
   },
   {
@@ -71,7 +71,7 @@ const REPORT_ITEMS: ReportRow[] = [
     format: 'JSON',
     fetch: () => {
       const { start, end } = monthRange();
-      return legacyApi.patrolReport(start, end);
+      return dashboardService.patrolReport(start, end);
     },
   },
 ];

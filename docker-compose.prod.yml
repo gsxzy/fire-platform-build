@@ -1,0 +1,125 @@
+# ============================================================================
+# 新致远智慧消防平台 - 生产环境 Docker Compose 配置
+# 版本: 2.0.0
+# 适配场景: 服务器已有 MySQL + Redis + Nginx，仅需容器化前后端
+# 网络模式: 后端使用 host 模式直接访问宿主机服务
+# ============================================================================
+
+version: "3.9"
+
+services:
+
+  # ── 后端服务（Host 网络模式）──
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.prod
+    container_name: fire-platform-backend
+    image: xzy/fire-platform-backend:${VERSION:-2.0.0}
+    restart: unless-stopped
+    # 使用宿主机网络，可直接访问 localhost:3306 / localhost:6379
+    network_mode: host
+    environment:
+      - NODE_ENV=production
+      - PORT=5003
+      - APP_NAME=${APP_NAME:-新致远智慧消防平台}
+      - APP_VERSION=${VERSION:-2.0.0}
+      # 连接宿主机 MySQL（host 模式下 localhost 即宿主机）
+      - DB_HOST=127.0.0.1
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-fire_platform}
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - DB_POOL_MIN=5
+      - DB_POOL_MAX=20
+      # 连接宿主机 Redis
+      - REDIS_HOST=127.0.0.1
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:-}
+      - JWT_EXPIRES_IN=24h
+      - JWT_REFRESH_EXPIRES_IN=7d
+      # 日志
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_DIR=/app/logs
+      # 文件上传
+      - UPLOAD_MAX_SIZE=${UPLOAD_MAX_SIZE:-10485760}
+      - UPLOAD_DIR=/app/uploads
+      # MQTT
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_WS_PORT=${MQTT_WS_PORT:-9001}
+      # 邮件
+      - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-智慧消防平台 <noreply@xzy.cn>}
+      # 高德地图
+      - AMAP_KEY=${AMAP_KEY:-}
+      # WVP / ZLM（宿主机或容器运行的外部服务）
+      - WVP_PRO_URL=${WVP_PRO_URL:-http://127.0.0.1:18080}
+      - WVP_PRO_USER=${WVP_PRO_USER:-admin}
+      - WVP_PRO_SECRET=${WVP_PRO_SECRET:-}
+      - ZLM_API_URL=${ZLM_API_URL:-http://127.0.0.1:8081}
+      - ZLM_SECRET=${ZLM_SECRET:-}
+      - ZLM_PLAY_HOST=${ZLM_PLAY_HOST:-}
+      # CTWing
+      - CTWING_API_KEY=${CTWING_API_KEY:-}
+      - CTWING_ALLOW_ORPHAN_IOT=${CTWING_ALLOW_ORPHAN_IOT:-0}
+      # 心跳超时
+      - HEARTBEAT_TIMEOUT_MINUTES=${HEARTBEAT_TIMEOUT_MINUTES:-10}
+    volumes:
+      - /opt/fire-platform-data/logs:/app/logs
+      - /opt/fire-platform-data/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5003/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # ── 前端服务（映射到 8080，由宿主机 Nginx 反向代理）──
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile.prod
+    container_name: fire-platform-frontend
+    image: xzy/fire-platform-frontend:${VERSION:-2.0.0}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"

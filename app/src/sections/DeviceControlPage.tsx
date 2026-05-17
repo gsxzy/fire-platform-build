@@ -7,7 +7,11 @@ import {
   MapPin, Gauge, SlidersHorizontal, Settings,
   VolumeX, ArrowRightLeft, Loader2,
 } from 'lucide-react';
-import { api } from '@/api/services';
+import {
+  deviceControlService,
+  DEVICE_CONTROL_CMD_MAP,
+  type DeviceControlCmdType,
+} from '@/api/services';
 import { getErrorMessage } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/EmptyState';
@@ -16,15 +20,23 @@ import TableBodyPlaceholder from '@/components/TableBodyPlaceholder';
 /* ═══════════════ Types ═══════════════ */
 interface IoTDevice {
   id: number;
-  device_id: string;
+  device_id?: string;
+  device_sn?: string;
+  archive_device_id?: number;
   device_name: string;
-  protocol: string;
+  protocol?: string;
+  protocol_type?: string;
   status: string;
   online_status: string;
-  ip: string | null;
-  port: number | null;
-  location: string | null;
-  unit_name: string | null;
+  ip?: string | null;
+  port?: number | null;
+  location?: string | null;
+  unit_name?: string | null;
+}
+
+function resolveArchiveDeviceId(d: IoTDevice): number {
+  const id = d.archive_device_id ?? d.id;
+  return Number(id);
 }
 
 interface ControlLog {
@@ -121,11 +133,10 @@ export default function DeviceControlPage() {
   /* ── 加载设备列表 ── */
   const loadDevices = useCallback(async () => {
     try {
-      const res: any = await api.get('/api/iot-devices?pageSize=200');
-      const list = res.data?.list || res.data || [];
-      setDevices(Array.isArray(list) ? list : []);
+      const res = await deviceControlService.listIotDevices({ pageSize: 200 });
+      const list = res?.list ?? [];
+      setDevices(Array.isArray(list) ? (list as unknown as IoTDevice[]) : []);
     } catch {
-      // fallback: 空列表
       setDevices([]);
     }
   }, []);
@@ -133,9 +144,9 @@ export default function DeviceControlPage() {
   /* ── 加载指令日志 ── */
   const loadLogs = useCallback(async () => {
     try {
-      const res: any = await api.get('/api/commands/recent?pageSize=50');
-      const list = res.data?.list || res.data || [];
-      setLogs(Array.isArray(list) ? list : []);
+      const res = await deviceControlService.commandHistory({ pageSize: 50 });
+      const list = res.data?.list ?? [];
+      setLogs(Array.isArray(list) ? (list as unknown as ControlLog[]) : []);
     } catch {
       setLogs([]);
     }
@@ -156,7 +167,7 @@ export default function DeviceControlPage() {
   ];
 
   const filtered = devices.filter(d => {
-    const mappedType = mapDeviceType(d.protocol, d.device_name);
+    const mappedType = mapDeviceType(d.protocol_type || d.protocol || '', d.device_name);
     const mappedStatus = mapDeviceStatus(d.status, d.online_status);
     if (filterType !== 'all' && mappedType !== filterType) return false;
     if (filterStatus !== 'all' && mappedStatus !== filterStatus) return false;
@@ -168,16 +179,26 @@ export default function DeviceControlPage() {
   const sendCommand = async (device: IoTDevice, action: string) => {
     const cmd = CMD_MAP[action];
     if (!cmd) return;
-    const key = `${device.device_id}-${cmd}`;
+    const deviceId = resolveArchiveDeviceId(device);
+    if (!Number.isFinite(deviceId) || deviceId <= 0) return;
+    const key = `${deviceId}-${cmd}`;
     setExecuting(prev => new Set(prev).add(key));
     try {
-      const res: any = await api.post(`/api/devices/${device.device_id}/command`, {
-        command: cmd,
-        params: {},
-      });
-      // 刷新日志
+      const mapped = DEVICE_CONTROL_CMD_MAP[cmd];
+      if (mapped === 'start-stop') {
+        await deviceControlService.startStop(deviceId, cmd === 'start' ? 'start' : 'stop');
+      } else if (mapped === 3) {
+        await deviceControlService.reset(deviceId);
+      } else if (mapped === 4) {
+        await deviceControlService.silence(deviceId);
+      } else {
+        await deviceControlService.sendCommand({
+          deviceId,
+          cmdType: (mapped as DeviceControlCmdType) || 1,
+          cmdParam: { command: cmd },
+        });
+      }
       loadLogs();
-      return res.data;
     } catch (err: unknown) {
       console.warn('[DeviceControl] 指令下发失败:', getErrorMessage(err));
     } finally {
@@ -207,9 +228,17 @@ export default function DeviceControlPage() {
   const batchControl = async (action: string) => {
     const cmd = CMD_MAP[action];
     if (!cmd) return;
-    const commands = selectedIds.map(id => ({ deviceId: id, command: cmd, params: {} }));
+    const mapped = DEVICE_CONTROL_CMD_MAP[cmd];
+    const deviceIds = selectedIds.map(id => Number(id)).filter(n => Number.isFinite(n) && n > 0);
+    if (deviceIds.length === 0) return;
     try {
-      await api.post('/api/commands/batch', { commands });
+      if (mapped === 'start-stop') {
+        for (const deviceId of deviceIds) {
+          await deviceControlService.startStop(deviceId, cmd === 'start' ? 'start' : 'stop');
+        }
+      } else {
+        await deviceControlService.batch(deviceIds, (mapped as DeviceControlCmdType) || 1, { command: cmd });
+      }
       loadLogs();
     } catch (err: unknown) {
       console.warn('[Batch] 失败:', getErrorMessage(err));
@@ -400,15 +429,16 @@ export default function DeviceControlPage() {
           ) : (
             <div className="grid grid-cols-4 gap-3">
               {filtered.map(device => {
-                const mappedType = mapDeviceType(device.protocol, device.device_name);
+                const mappedType = mapDeviceType(device.protocol_type || device.protocol || '', device.device_name);
                 const mappedStatus = mapDeviceStatus(device.status, device.online_status);
                 const tc = typeConfig(mappedType);
                 const sc = statusConfig(mappedStatus);
-                const isSelected = selectedIds.includes(device.device_id);
+                const archiveId = String(resolveArchiveDeviceId(device));
+                const isSelected = selectedIds.includes(archiveId);
                 const buttons = getControlButtons(device);
 
                 return (
-                  <div key={device.device_id}
+                  <div key={archiveId}
                     className={`bg-slate-800/40 backdrop-blur-sm rounded-xl border transition-all group hover:bg-slate-700/40 hover:scale-[1.01] hover:shadow-lg hover:shadow-slate-900/20 ${
                       isSelected ? 'border-blue-500/50 bg-blue-500/5 shadow-lg shadow-blue-500/10' : 'border-slate-700/30 hover:border-slate-600/50'
                     }`}>
@@ -416,7 +446,7 @@ export default function DeviceControlPage() {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2.5">
                           {batchMode && (
-                            <button onClick={() => toggleSelect(device.device_id)}
+                            <button onClick={() => toggleSelect(archiveId)}
                               className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
                                 isSelected ? 'bg-blue-500 border-blue-500 shadow-sm shadow-blue-500/30' : 'border-slate-600 hover:border-slate-500'
                               }`}>
@@ -464,7 +494,7 @@ export default function DeviceControlPage() {
                       {/* Control Buttons */}
                       <div className="flex gap-1.5 flex-wrap">
                         {buttons.map(btn => {
-                          const isExec = executing.has(`${device.device_id}-${btn.cmd}`);
+                          const isExec = executing.has(`${archiveId}-${btn.cmd}`);
                         void isExec; // used in disabled prop
                           return (
                             <button key={btn.cmd}

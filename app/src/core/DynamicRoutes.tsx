@@ -14,6 +14,7 @@ import { Routes, Route, Navigate } from 'react-router';
 import { ModuleEngine } from '@/core/platform';
 import type { PlatformModule } from '@/core/platform';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { RoutePermissionGuard } from '@/components/RoutePermissionGuard';
 
 /* 带自动重试的 lazy 加载器 —— 解决部署后 chunk 缓存导致的加载失败 */
 function lazyWithRetry(factory: () => Promise<{ default: ComponentType<object> }>) {
@@ -267,7 +268,9 @@ export function DynamicRoutes() {
       {routes.map(({ path, component: Component }) => (
         <Route key={path} path={path} element={
           <ErrorBoundary>
-            <Component />
+            <RoutePermissionGuard routePath={path}>
+              <Component />
+            </RoutePermissionGuard>
           </ErrorBoundary>
         } />
       ))}

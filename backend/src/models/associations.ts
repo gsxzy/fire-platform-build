@@ -3,9 +3,7 @@ import { Unit } from './unit.model';
 import { Device, DeviceMaintenance } from './device.model';
 import { IoTDevice } from './iot.model';
 import { Alarm } from './alarm.model';
-import {
-  Building, Floor, FloorDevicePosition, FloorCameraBinding, initFloorPlanAssociations,
-} from './floorPlan.model';
+import { initFloorPlanAssociations } from './floorPlan.model';
 
 /* ═══════════════════════════════════════════════════════════════════
    模型关联关系定义
@@ -32,4 +30,4 @@ Device.hasOne(IoTDevice, { foreignKey: 'archive_device_id', as: 'iotDevice' });
 IoTDevice.belongsTo(Unit, { foreignKey: 'unit_id', as: 'unit' });
 Unit.hasMany(IoTDevice, { foreignKey: 'unit_id', as: 'iotDevices' });
 
-console.log('[Model] All associations loaded');
+// associations loaded

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { legacyApi } from '@/api/services';
+import { systemConfigService } from '@/api/services';
 import {
   Upload, Download, FileSpreadsheet, FileText, Database,
   CheckCircle, AlertTriangle, ChevronRight, Trash2, RefreshCw,
@@ -59,7 +59,7 @@ export default function DataImportExportPage() {
   const [importTemplates] = useState(fallbackImportTemplates as any);
 
   useEffect(() => {
-    legacyApi.logList().then((res: any) => {
+    systemConfigService.logs().then((res: any) => {
       const list = Array.isArray(res.data) ? res.data : (res.data?.list || []);
       if (list.length > 0) setImportHistory(list);
     }).catch((e) => { console.error('[DataImportExport] load logs failed:', e); });

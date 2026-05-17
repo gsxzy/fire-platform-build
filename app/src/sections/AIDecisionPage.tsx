@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { aiService } from '@/api/services';
 import { BrainCircuit, Flame, AlertTriangle, TrendingUp, Shield, Zap, Activity, BarChart3, ChevronRight, RefreshCw, Lightbulb, CheckCircle } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -29,7 +29,7 @@ export default function AIDecisionPage() {
   const [selectedDecision, setSelectedDecision] = useState<number | null>(null);
 
   useEffect(() => {
-    legacyApi.aiDecisionList().then((res: any) => {
+    aiService.decisionList().then((res: any) => {
       const data = res.data ?? res;
       if (data && typeof data === 'object') {
         if (Array.isArray(data.radarData)) setRadarData(data.radarData as any);

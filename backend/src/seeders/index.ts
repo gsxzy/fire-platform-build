@@ -8,12 +8,10 @@ import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import sequelize from '@/config/database';
 import {
-  User, Role, Permission, UserRole, RolePermission,
+  User, Role, Permission,
   Department, Unit, Device, Alarm, ControlRoom,
-  MaintenanceCompany, MaintenanceContract, MaintenanceWorkOrder,
-  PatrolPlan, KnowledgeDoc, SystemConfig, EmergencyPlan,
-  IoTDevice, ScreenConfig, NotifyTemplate, SmartAlert,
-  FireInspection, TrainingCourse,
+  MaintenanceCompany, KnowledgeDoc, SystemConfig,
+  ScreenConfig,
 } from '@/models';
 
 async function seed() {
@@ -75,7 +73,7 @@ async function seed() {
       where: { role_code: 'operator' },
       defaults: { role_name: '运维人员', role_code: 'operator', description: '日常运维操作', status: 1, sort: 1 }
     });
-    const viewerRole = await Role.findOrCreate({
+    await Role.findOrCreate({
       where: { role_code: 'viewer' },
       defaults: { role_name: '监控查看员', role_code: 'viewer', description: '只读查看权限', status: 1, sort: 2 }
     });

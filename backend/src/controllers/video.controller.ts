@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
-import { success, fail } from '@/utils/response';
+import { sendSuccess } from '@/utils/respond';
+import { fail } from '@/utils/response';
+import { HttpError } from '@/utils/httpError';
 import { VideoService } from '@/services/video.service';
 import logger from '@/config/logger';
 
@@ -20,7 +22,7 @@ export const VideoController = {
         online: req.query.online !== undefined ? req.query.online === 'true' : undefined,
       };
       const data = await VideoService.getVideoDevices(params);
-      return res.json(success(data, '获取设备列表成功'));
+      sendSuccess(res, req, data, '获取设备列表成功');
     } catch (err: any) {
       log('ERROR', `获取设备列表失败: ${err.message}`);
       return res.json(fail(`获取设备列表失败: ${err.message}`));
@@ -38,7 +40,7 @@ export const VideoController = {
         count: Number(req.query.count) || 100,
       };
       const data = await VideoService.getDeviceChannels(deviceId, params);
-      return res.json(success(data, '获取通道列表成功'));
+      sendSuccess(res, req, data, '获取通道列表成功');
     } catch (err: any) {
       log('ERROR', `获取通道列表失败: ${err.message}`);
       return res.json(fail(`获取通道列表失败: ${err.message}`));
@@ -51,7 +53,7 @@ export const VideoController = {
   async streams(req: Request, res: Response) {
     try {
       const data = await VideoService.getAllZLMStreamStatus();
-      return res.json(success(data, '获取流列表成功'));
+      sendSuccess(res, req, data, '获取流列表成功');
     } catch (err: any) {
       log('ERROR', `获取流列表失败: ${err.message}`);
       return res.json(fail(`获取流列表失败: ${err.message}`));
@@ -66,9 +68,9 @@ export const VideoController = {
       const { cameraId } = req.params;
       const data = await VideoService.getZLMStreamStatus(cameraId);
       if (!data) {
-        return res.status(404).json(fail(`摄像头不存在: ${cameraId}`));
+        throw new HttpError(`摄像头不存在: ${cameraId}`, 404);
       }
-      return res.json(success(data, '获取流状态成功'));
+      sendSuccess(res, req, data, '获取流状态成功');
     } catch (err: any) {
       log('ERROR', `获取流状态失败: ${err.message}`);
       return res.json(fail(`获取流状态失败: ${err.message}`));
@@ -83,13 +85,13 @@ export const VideoController = {
       const { cameraId } = req.params;
       const started = await VideoService.startZLMStream(cameraId);
       if (!started) {
-        return res.status(400).json(fail(`启动推流失败: ${cameraId}`));
+        throw new HttpError(`启动推流失败: ${cameraId}`, 400);
       }
       // 立即返回启动状态，客户端轮询获取流状态（避免setTimeout导致响应关闭后写res崩溃）
-      return res.json(success({ cameraId, started: true, message: '推流启动中，请稍后查询流状态' }, '推流已启动'));
+      sendSuccess(res, req, { cameraId, started: true, message: '推流启动中，请稍后查询流状态' }, '推流已启动');
     } catch (err: any) {
       log('ERROR', `启动推流失败: ${err.message}`);
-      return res.status(500).json(fail(`启动推流失败: ${err.message}`));
+      throw new HttpError(`启动推流失败: ${err.message}`, 500);
     }
   },
 
@@ -100,7 +102,7 @@ export const VideoController = {
     try {
       const { cameraId } = req.params;
       const stopped = await VideoService.stopZLMStream(cameraId);
-      return res.json(success({ stopped }, '推流已停止'));
+      sendSuccess(res, req, { stopped }, '推流已停止');
     } catch (err: any) {
       log('ERROR', `停止推流失败: ${err.message}`);
       return res.json(fail(`停止推流失败: ${err.message}`));
@@ -117,14 +119,14 @@ export const VideoController = {
       const dev = (deviceId || cameraId || '').trim();
       const ch = (channelId || deviceId || dev || '').trim();
       if (!dev) {
-        return res.status(400).json(fail('deviceId 不能为空'));
+        throw new HttpError('deviceId 不能为空', 400);
       }
 
       const payload = await VideoService.getUnifiedStream(dev, ch);
       if (!payload || !payload.streamUrl) {
-        return res.status(502).json(fail(`取流失败或播放地址为空（deviceId=${dev} channelId=${ch}），请检查设备注册与通道 ID`));
+        throw new HttpError(`取流失败或播放地址为空（deviceId=${dev} channelId=${ch}），请检查设备注册与通道 ID`, 502);
       }
-      return res.json(success(payload, '获取播放地址成功'));
+      sendSuccess(res, req, payload, '获取播放地址成功');
     } catch (err: any) {
       log('ERROR', `获取播放地址失败: ${err.message}`);
       return res.json(fail(`获取播放地址失败: ${err.message}`));
@@ -137,7 +139,7 @@ export const VideoController = {
   async cameraConfigs(req: Request, res: Response) {
     try {
       const data = VideoService.getCameraConfigs();
-      return res.json(success(data, '获取摄像头配置成功'));
+      sendSuccess(res, req, data, '获取摄像头配置成功');
     } catch (err: any) {
       log('ERROR', `获取摄像头配置失败: ${err.message}`);
       return res.json(fail(`获取摄像头配置失败: ${err.message}`));
@@ -151,10 +153,10 @@ export const VideoController = {
     try {
       const { deviceId, channelId } = req.body;
       if (!deviceId) {
-        return res.status(400).json(fail('deviceId 不能为空'));
+        throw new HttpError('deviceId 不能为空', 400);
       }
       await VideoService.stopStream(deviceId, channelId);
-      return res.json(success(null, '播放已停止'));
+      sendSuccess(res, req, null, '播放已停止');
     } catch (err: any) {
       log('ERROR', `停止播放失败: ${err.message}`);
       return res.json(fail(`停止播放失败: ${err.message}`));
@@ -169,10 +171,10 @@ export const VideoController = {
       const { deviceId, channelId, cmd, horizonSpeed, verticalSpeed, zoomSpeed } = req.body;
       const devId = deviceId || req.params.deviceId;
       if (!devId || cmd === undefined) {
-        return res.status(400).json(fail('deviceId 和 cmd 不能为空'));
+        throw new HttpError('deviceId 和 cmd 不能为空', 400);
       }
       await VideoService.ptzControl(devId, channelId || devId, cmd, { horizonSpeed, verticalSpeed, zoomSpeed });
-      return res.json(success(null, '云台控制已发送'));
+      sendSuccess(res, req, null, '云台控制已发送');
     } catch (err: any) {
       log('ERROR', `云台控制失败: ${err.message}`);
       return res.json(fail(`云台控制失败: ${err.message}`));
@@ -187,10 +189,10 @@ export const VideoController = {
       const { deviceId, channelId, action, presetNo } = req.body;
       const devId = deviceId || req.params.deviceId;
       if (!devId || !action || presetNo === undefined) {
-        return res.status(400).json(fail('deviceId、action 和 presetNo 不能为空'));
+        throw new HttpError('deviceId、action 和 presetNo 不能为空', 400);
       }
       await VideoService.presetControl(devId, channelId || devId, action, Number(presetNo));
-      return res.json(success(null, `预设位${action}已发送`));
+      sendSuccess(res, req, null, `预设位${action}已发送`);
     } catch (err: any) {
       log('ERROR', `预设位控制失败: ${err.message}`);
       return res.json(fail(`预设位控制失败: ${err.message}`));
@@ -205,13 +207,13 @@ export const VideoController = {
       const { deviceId, channelId, startTime, endTime } = req.body;
       const devId = deviceId || req.params.deviceId;
       if (!devId || !startTime || !endTime) {
-        return res.status(400).json(fail('deviceId、startTime 和 endTime 不能为空'));
+        throw new HttpError('deviceId、startTime 和 endTime 不能为空', 400);
       }
       const payload = await VideoService.getPlayback(devId, channelId || devId, startTime, endTime);
       if (!payload) {
         return res.json(fail('当前模式不支持录像回放'));
       }
-      return res.json(success(payload, '获取回放地址成功'));
+      sendSuccess(res, req, payload, '获取回放地址成功');
     } catch (err: any) {
       log('ERROR', `获取回放地址失败: ${err.message}`);
       return res.json(fail(`获取回放地址失败: ${err.message}`));
@@ -234,7 +236,7 @@ export const VideoController = {
         res.setHeader('Content-Type', 'image/jpeg');
         return res.send(result.buffer);
       }
-      return res.json(success({ snapUrl: result.snapUrl }, '截图成功'));
+      sendSuccess(res, req, { snapUrl: result.snapUrl }, '截图成功');
     } catch (err: any) {
       log('ERROR', `截图失败: ${err.message}`);
       return res.json(fail(`截图失败: ${err.message}`));
@@ -251,13 +253,13 @@ export const VideoController = {
       if (!payload) {
         return res.json(fail('无法获取视频流'));
       }
-      return res.json(success({
+      sendSuccess(res, req, {
         hls: payload.hls,
         rtmp: payload.rtmp,
         rtsp: payload.streamUrl,
         flv: payload.flv,
         wsFlv: payload.wsFlv,
-      }));
+      });
     } catch (err: any) {
       log('ERROR', `实时预览失败: ${err.message}`);
       return res.json(fail(err.message));
@@ -274,7 +276,7 @@ export const VideoController = {
       if (!payload) {
         return res.json(fail('无法获取视频流'));
       }
-      return res.json(success(payload));
+      sendSuccess(res, req, payload);
     } catch (err: any) {
       log('ERROR', `获取视频流失败: ${err.message}`);
       return res.json(fail(err.message));

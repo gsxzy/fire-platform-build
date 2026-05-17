@@ -10,6 +10,7 @@ import sequelize from '@/config/database';
 import { EventEmitter } from 'events';
 import { AlarmService } from '@/services/alarm.service';
 import { DeviceHeartbeatService } from '@/services/deviceHeartbeat.service';
+import { Device, Unit } from '@/models';
 import { generateAlarmNo } from '@/utils/alarmNo';
 
 export interface BaseConnection {
@@ -106,7 +107,7 @@ export abstract class BaseProtocolServer<T extends BaseConnection> extends Event
       const status = state === 'online' ? 1 : 3;
       await sequelize.query(
         `INSERT INTO fire_device (device_no, device_sn, device_name, device_type, unit_id, status, lifecycle_status, last_online, protocol_type, created_at, updated_at)
-         VALUES (?, ?, ?, '传输装置', 0, ?, 2, NOW(), ?, NOW(), NOW())
+         VALUES (?, ?, ?, '传输装置', NULL, ?, 2, NOW(), ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE
            device_sn = VALUES(device_sn),
            status = VALUES(status),
@@ -135,14 +136,36 @@ export abstract class BaseProtocolServer<T extends BaseConnection> extends Event
       const typeMap: Record<string, number> = { fire: 1, fault: 2, pre: 3, shield: 4, supervisory: 5, feedback: 5, test: 5 };
       const levelMap: Record<string, number> = { high: 3, normal: 2, low: 1 };
       const alarmNo = generateAlarmNo();
+
+      // 查询档案设备和单位信息
+      let archiveDeviceId: number | null = null;
+      let unitId: number | null = null;
+      let unitName = '';
+      let location = description || alarmType;
+      try {
+        const device = await Device.findOne({ where: { device_sn: deviceSn } }) as any;
+        if (device) {
+          archiveDeviceId = device.id ?? null;
+          unitId = device.unit_id ?? null;
+          if (unitId && unitId > 0) {
+            const unit = await Unit.findByPk(unitId, { raw: true }) as any;
+            unitName = unit?.unit_name || '';
+          }
+          if (device.install_location) location = device.install_location;
+        }
+      } catch (lookupErr: any) {
+        logger.error(`[${this.protocolName}] 设备档案查询失败: ${lookupErr.message}`);
+      }
+
       await AlarmService.createAlarm({
         alarm_no: alarmNo,
         alarm_type: typeMap[alarmType] || 5,
         alarm_level: levelMap[alarmLevel] || 1,
-        device_id: null,
+        device_id: archiveDeviceId,
         device_name: deviceSn,
-        unit_id: null,
-        location: description || alarmType,
+        unit_id: unitId,
+        unit_name: unitName,
+        location,
         alarm_desc: description || alarmType,
         protocol: this.protocolName,
         raw_data: rawData,

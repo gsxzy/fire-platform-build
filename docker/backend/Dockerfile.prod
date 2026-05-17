@@ -1,0 +1,57 @@
+# ============================================================================
+# 新致远智慧消防平台 - 后端生产镜像（直接使用预构建产物）
+# 用途: 本地构建完成后，将 dist + node_modules 打包到服务器构建镜像
+# 优势: 无需服务器访问 npm registry
+# ============================================================================
+
+FROM node:20-alpine AS production
+
+LABEL maintainer="xinzhiyuan-tech@xzy.cn"
+LABEL description="智慧消防平台后端生产镜像"
+LABEL version="2.0.0"
+
+# 安装运行时依赖
+RUN apk add --no-cache \
+    curl \
+    tzdata \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo "Asia/Shanghai" > /etc/timezone
+
+# 创建非 root 运行用户
+RUN addgroup -g 1002 -S app-group \
+    && adduser -u 1002 -S app-user -G app-group
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制生产依赖和构建产物（从本地预构建的目录）
+COPY backend/node_modules ./node_modules
+COPY backend/dist ./dist
+COPY backend/package.json ./
+COPY backend/sql ./sql
+COPY backend/seeders ./seeders
+
+# 创建持久化目录并设置权限
+RUN mkdir -p /app/logs /app/uploads /app/tmp \
+    && chown -R app-user:app-group /app
+
+# 设置 Node.js 生产环境优化
+ENV NODE_ENV=production
+ENV PORT=5003
+ENV LOG_DIR=/app/logs
+ENV UPLOAD_DIR=/app/uploads
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fs http://localhost:5003/api/health || exit 1
+
+EXPOSE 5003
+
+USER app-user
+
+CMD ["node", "dist/app.js"]

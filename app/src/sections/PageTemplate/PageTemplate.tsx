@@ -18,6 +18,7 @@ import { DeleteModal } from './DeleteModal';
 import { ViewModal } from './ViewModal';
 import { FormModal } from './FormModal';
 import type { Column, FormField, FilterField, PageTemplateProps } from './types';
+import { usePermission } from '@/hooks/usePermission';
 
 export type { Column, FormField, FilterField, PageTemplateProps };
 
@@ -99,8 +100,14 @@ export default function PageTemplate({
   actions = true, searchable = true, addable = true, pageSize = 10,
   exportable = true, printable = true, refreshable = true, batchable = true, filterable = true,
   onCustomAddSave, renderExtraActions, extraHeaderActions,
-  emptyTitle, emptyDescription,
+  emptyTitle, emptyDescription, showIndex = false, permission,
 }: PageTemplateProps) {
+  const { can } = usePermission();
+  const allowAdd = addable && can(permission?.create);
+  const allowEdit = can(permission?.update);
+  const allowDelete = can(permission?.delete);
+  const showRowActions = actions && (allowEdit || allowDelete || !!renderExtraActions);
+
   const useApi = !!service;
 
   const apiRes = useApiResource<Record<string, unknown>>({
@@ -205,10 +212,9 @@ export default function PageTemplate({
   const confirmBatchDelete = async () => {
     setShowBatchConfirm(false);
     if (useApi && apiRes) {
-      const idsToDelete = Array.from(selectedIds);
-      for (const id of idsToDelete) {
-        if (id) await apiRes.delete(id);
-      }
+      const idsToDelete = Array.from(selectedIds).filter(Boolean);
+      await Promise.all(idsToDelete.map(id => apiRes.delete(id).catch(() => false)));
+      await apiRes.refresh();
     } else if (localRes) {
       localRes.setData(prev => prev.filter(r => !selectedIds.has(getRowId(r))));
     }
@@ -267,7 +273,7 @@ export default function PageTemplate({
   const exportCSV = () => {
     const exportData = useApi ? data : (localRes?.filtered ?? data);
     setExporting(true);
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const headers = columns.map(c => c.label).join(',');
       const rows = exportData.map(row => columns.map(col => {
         const str = String(row[col.key] ?? '');
@@ -282,7 +288,7 @@ export default function PageTemplate({
       a.click();
       URL.revokeObjectURL(url);
       setExporting(false);
-    }, 300);
+    });
   };
   const printTable = () => {
     const printData = useApi ? data : (localRes?.filtered ?? data);
@@ -358,7 +364,7 @@ export default function PageTemplate({
             </button>
           )}
           {extraHeaderActions}
-          {addable && (
+          {allowAdd && (
             <Button size="sm" className="h-8 text-body-sm bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-900/20" onClick={() => setShowAdd(true)}>
               <Plus className="w-3.5 h-3.5 mr-1" />新增
             </Button>
@@ -400,7 +406,7 @@ export default function PageTemplate({
       )}
 
       {/* Batch Action Bar */}
-      {showBatchBar && selectedCount > 0 && (
+      {allowDelete && showBatchBar && selectedCount > 0 && (
         <div className="glass rounded-xl px-3 py-2 flex items-center justify-between border-blue-500/20 shadow-sm shadow-blue-500/5 animate-fade-in-up">
           <div className="flex items-center gap-2">
             <CheckSquare className="w-4 h-4 text-blue-400" />
@@ -421,6 +427,7 @@ export default function PageTemplate({
           {/* Table Header */}
           <div className="p-2 border-b border-slate-700/50 flex-shrink-0">
             <div className="flex gap-1 text-[9px] text-slate-500 px-2 items-center">
+              {showIndex && <span style={{ width: '42px' }} className="truncate text-center flex-shrink-0">序号</span>}
               {batchable && (
                 <span style={{ width: '28px' }} className="flex-shrink-0">
                   <button onClick={toggleSelectAll} className="text-slate-500 hover:text-blue-400 transition-colors">
@@ -448,13 +455,19 @@ export default function PageTemplate({
                 columns={columns.length}
                 hasActions={actions}
                 hasCheckbox={batchable}
+                hasIndex={showIndex}
               />
             )}
             {!loading && paged.map((row: any, i: number) => {
               const rowId = getRowId(row);
               const isSelected = rowId ? selectedIds.has(rowId) : false;
               return (
-                <div key={rowId || i} className={`flex gap-1 p-2.5 rounded-lg border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10' : 'border-slate-600/20 bg-slate-700/20 hover:border-blue-500/20 hover:bg-slate-600/15 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.03)]'}`} style={{ animationDelay: `${i * 0.02}s` }}>
+                <div key={rowId || i} className={`flex gap-1 p-2.5 rounded-lg border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press group ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.06)]' : 'border-slate-600/20 bg-slate-700/20 hover:border-blue-500/25 hover:bg-slate-600/15 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.04)]'}`} style={{ animationDelay: `${i * 0.02}s` }}>
+                  {showIndex && (
+                    <span style={{ width: '42px' }} className="text-caption text-slate-400 truncate text-center flex-shrink-0">
+                      {(page - 1) * pageSize + i + 1}
+                    </span>
+                  )}
                   {batchable && (
                     <span style={{ width: '28px' }} className="flex-shrink-0">
                       <button onClick={() => toggleSelect(row)} className="text-slate-500 hover:text-blue-400 transition-colors">
@@ -467,15 +480,15 @@ export default function PageTemplate({
                       {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '-')}
                     </span>
                   ))}
-                  {(actions || renderExtraActions) && (
+                  {showRowActions && (
                     <div style={{ width: renderExtraActions ? '120px' : '80px' }} className="flex items-center justify-end gap-0.5">
                       {renderExtraActions?.(row)}
-                      {actions && (
-                        <>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all" aria-label="查看" onClick={() => setViewingRow(row)}><Eye className="w-3 h-3" /></Button>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all" aria-label="编辑" onClick={() => setEditingRow(row)}><Edit className="w-3 h-3" /></Button>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all" aria-label="删除" onClick={() => setDeletingRow(row)}><Trash2 className="w-3 h-3" /></Button>
-                        </>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="查看" onClick={() => setViewingRow(row)}><Eye className="w-3 h-3" /></Button>
+                      {allowEdit && (
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="编辑" onClick={() => setEditingRow(row)}><Edit className="w-3 h-3" /></Button>
+                      )}
+                      {allowDelete && (
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="删除" onClick={() => setDeletingRow(row)}><Trash2 className="w-3 h-3" /></Button>
                       )}
                     </div>
                   )}
@@ -487,7 +500,7 @@ export default function PageTemplate({
                 type={keyword || Object.values(activeFilters).some(v => v) ? 'search' : 'data'}
                 title={emptyTitle}
                 description={emptyDescription}
-                action={addable ? (
+                action={allowAdd ? (
                   <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700" onClick={() => setShowAdd(true)}>
                     <Plus className="w-3.5 h-3.5 mr-1" />新增
                   </Button>

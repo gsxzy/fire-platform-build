@@ -35,14 +35,6 @@ const typeMap: Record<string, string> = {
   'user-transmission-device': '用户信息传输装置',
 };
 
-const statusMap: Record<string, string> = {
-  normal: '正常',
-  fault: '故障',
-  maintenance: '维护',
-  offline: '离线',
-  disabled: '禁用',
-};
-
 const archiveStatusMap: Record<string, string> = {
   draft: '草稿',
   registered: '已入库',
@@ -65,6 +57,8 @@ const onlineStatusMap: Record<string, string> = {
   online: '在线',
   offline: '离线',
   unknown: '未知',
+  '0': '离线',
+  '1': '在线',
 };
 
 const typeColorMap: Record<string, string> = {
@@ -94,18 +88,12 @@ const typeColorMap: Record<string, string> = {
   'user-transmission-device': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
 };
 
-const statusColorMap: Record<string, string> = {
-  normal: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-  fault: 'text-red-400 bg-red-500/10 border-red-500/20',
-  maintenance: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  offline: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
-  disabled: 'text-slate-500 bg-slate-600/10 border-slate-600/20',
-};
-
 const onlineStatusColorMap: Record<string, string> = {
   online: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
   offline: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
   unknown: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  '0': 'text-slate-400 bg-slate-500/10 border-slate-500/20',
+  '1': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
 };
 
 const COLUMNS = [
@@ -128,15 +116,8 @@ const COLUMNS = [
   { key: 'manufacturer', label: '生产厂家', width: '100px' },
   { key: 'location', label: '安装位置', width: '130px' },
   { key: 'ip', label: 'IP地址', width: '110px' },
-  { key: 'installDate', label: '安装日期', width: '95px' },
   { key: 'warrantyExpire', label: '质保到期', width: '95px' },
   { key: 'maintenanceExpire', label: '维保到期', width: '95px' },
-  { key: 'status', label: '运行状态', width: '80px', render: (v: unknown) => {
-    const status = String(v);
-    const label = statusMap[status] || status;
-    const style = statusColorMap[status] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
-    return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
-  }},
   { key: 'onlineStatus', label: '在线状态', width: '80px', render: (v: unknown) => {
     const s = String(v);
     const label = onlineStatusMap[s] || s;
@@ -383,6 +364,7 @@ export default function DeviceArchivePage() {
       actions
       batchable
       formInitialDefaults={{ protocolType: 'standard' }}
+      showIndex
       extraHeaderActions={<DeviceManagementFlowHint active="archive" />}
       renderExtraActions={(row: any) => {
         if (row.archiveStatus === 'draft') {

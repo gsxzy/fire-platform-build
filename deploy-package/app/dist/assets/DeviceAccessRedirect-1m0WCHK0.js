@@ -1,0 +1,1 @@
+import{j as s}from"./ui-vendor-B5FnibwN.js";import{u as c,N as t}from"./react-vendor-q5gn0pT7.js";function o(){const{search:e}=c();return s.jsx(t,{"code-path":"src\\sections\\DeviceAccessRedirect.tsx:6:10",to:{pathname:"/device/access",search:e},replace:!0})}export{o as default};

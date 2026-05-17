@@ -40,7 +40,10 @@ function AlarmTicker() {
       if (res.code === 200 && Array.isArray(res.data)) {
         const items = res.data.map((alarm: any) => {
           const typeMap: Record<string, string> = { fire: 'fire', fault: 'fault', warning: 'pre', supervisory: 'pre', test: 'info' };
-          const text = `[${alarm.deviceName || '未知设备'}] ${alarm.message || alarm.alarmDesc || '告警'}`;
+          const unit = alarm.unitName && alarm.unitName !== '未知单位' ? alarm.unitName : '';
+          const device = alarm.deviceName || '未知设备';
+          const msg = alarm.message || alarm.alarmDesc || '告警';
+          const text = unit ? `[${unit}] ${device} ${msg}` : `[${device}] ${msg}`;
           const time = alarm.createdAt
             ? new Date(alarm.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             : '';

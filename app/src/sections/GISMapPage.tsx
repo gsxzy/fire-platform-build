@@ -45,8 +45,11 @@ function mapGisUnitRow(
   if (ut === 2) type = 'key';
   else if (ut === 3) type = 'nine-small';
 
-  const lat = Number(u.lat);
-  const lng = Number(u.lng);
+  const rawLat = Number(u.lat);
+  const rawLng = Number(u.lng);
+  // 无坐标单位标记为 NaN，前端不渲染地图标记但保留列表展示
+  const lat = rawLat || NaN;
+  const lng = rawLng || NaN;
 
   return {
     id: String(u.id ?? ''),
@@ -201,6 +204,11 @@ export default function GISMapPage() {
       if (existing?.length) map.remove(existing);
 
       units.forEach((unit) => {
+        // 跳过无有效坐标的单位（不渲染地图标记，但保留侧边栏列表）
+        if (!unit.lng || !unit.lat || Number.isNaN(unit.lng) || Number.isNaN(unit.lat)) {
+          return;
+        }
+
         const cfg = typeConfig(unit.type);
         const hasAlarm = unit.alarm > 0;
         const hasFault = unit.fault > 0;
@@ -259,8 +267,8 @@ export default function GISMapPage() {
   // 处理单位点击
   const handleUnitClick = useCallback((unit: MapUnit) => {
     setSelectedUnit(unit);
-    // 移动地图到选中单位
-    if (mapRef.current && AMap) {
+    // 仅对有效坐标单位移动地图
+    if (mapRef.current && AMap && unit.lng && unit.lat && !Number.isNaN(unit.lng) && !Number.isNaN(unit.lat)) {
       mapRef.current.setZoomAndCenter(12, [unit.lng, unit.lat]);
     }
   }, [AMap]);
@@ -469,9 +477,14 @@ export default function GISMapPage() {
                         {unit.name}
                       </span>
                     </div>
-                    {unit.alarm > 0 && (
-                      <Badge className="bg-red-600 text-xs">{unit.alarm}</Badge>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {(!unit.lng || !unit.lat || Number.isNaN(unit.lng) || Number.isNaN(unit.lat)) && (
+                        <Badge className="bg-slate-600 text-[10px]">未定位</Badge>
+                      )}
+                      {unit.alarm > 0 && (
+                        <Badge className="bg-red-600 text-xs">{unit.alarm}</Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1">
@@ -543,6 +556,9 @@ export default function GISMapPage() {
                   <span className={selectedUnit.online ? 'text-green-400' : 'text-red-400'}>
                     {selectedUnit.online ? '在线' : '离线'}
                   </span>
+                  {(!selectedUnit.lng || !selectedUnit.lat || Number.isNaN(selectedUnit.lng) || Number.isNaN(selectedUnit.lat)) && (
+                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">未定位</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2 text-slate-400">

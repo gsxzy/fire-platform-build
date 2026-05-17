@@ -8,7 +8,7 @@ import type { Request, Response } from 'express';
 import { success, fail } from '@/utils/response';
 import sequelize from '@/config/database';
 import logger from '@/config/logger';
-import { IoTDevice, Alarm, Device } from '@/models';
+import { IoTDevice, Alarm, Device, Unit } from '@/models';
 import { Op } from 'sequelize';
 import { generateAlarmNo } from '@/utils/alarmNo';
 import { WebSocketService } from '@/websocket/websocket.service';
@@ -280,32 +280,56 @@ async function createCtwingAlarm(parsed: ReturnType<typeof parseCtwingBody>, iot
     const alarmNo = generateAlarmNo();
     const alarmLevel = alarmType === 1 ? 3 : 2;
 
-    const archiveDevice = await Device.findOne({
-      where: { device_sn: iotDevice.device_sn },
-    }) as any;
+    // 优先用 archive_device_id 查找档案，其次用 device_sn 匹配（解决 SN 不一致问题）
+    let archiveDevice = null;
+    if (iotDevice?.archive_device_id) {
+      archiveDevice = await Device.findByPk(iotDevice.archive_device_id) as any;
+    }
+    if (!archiveDevice && iotDevice?.device_sn) {
+      archiveDevice = await Device.findOne({
+        where: { device_sn: iotDevice.device_sn },
+      }) as any;
+    }
 
-    await Alarm.create({
+    // 从档案获取 unit_id，再查单位表补全 unit_name（Device 模型无 unit_name 字段）
+    const finalUnitId = archiveDevice?.unit_id ?? null;
+    let finalUnitName = '';
+    if (finalUnitId) {
+      try {
+        const unitRow = await Unit.findByPk(finalUnitId, { raw: true }) as any;
+        finalUnitName = unitRow?.unit_name || '';
+      } catch { /* ignore */ }
+    }
+    const finalLocation = archiveDevice?.install_location ?? '';
+
+    const alarm = await Alarm.create({
       alarm_no: alarmNo,
       alarm_type: alarmType,
       alarm_level: alarmLevel,
       device_id: archiveDevice?.id ?? null,
       device_name: iotDevice.device_name ?? parsed.deviceName,
-      unit_id: archiveDevice?.unit_id ?? null,
-      unit_name: archiveDevice?.unit_name ?? '',
+      unit_id: finalUnitId,
+      unit_name: finalUnitName,
       alarm_desc: alarmDesc,
-      location: archiveDevice?.install_location ?? '',
+      location: finalLocation,
       status: 0,
       raw_data: JSON.stringify(parsed.raw).slice(0, 2000),
     } as any);
 
-    // WebSocket 推送
-    WebSocketService.broadcastSimple('alarm', {
-      type: 'new',
-      alarmNo,
-      alarmType,
-      deviceName: iotDevice.device_name ?? parsed.deviceName,
-      desc: alarmDesc,
-      time: new Date().toISOString(),
+    // WebSocket 推送（type 必须是 'new_alarm'，与前端的 msg.type === 'new_alarm' 匹配）
+    WebSocketService.broadcastSimple('new_alarm', {
+      id: (alarm as any).id,
+      alarm_no: alarmNo,
+      alarm_type: alarmType,
+      alarm_level: alarmLevel,
+      device_id: archiveDevice?.id ?? null,
+      device_name: iotDevice.device_name ?? parsed.deviceName,
+      unit_id: finalUnitId,
+      unit_name: finalUnitName,
+      location: finalLocation,
+      alarm_desc: alarmDesc,
+      status: 0,
+      created_at: (alarm as any).created_at || new Date().toISOString(),
     });
 
     logger.info(`[CTWing] 告警创建成功: ${alarmNo} - ${alarmDesc}`);
@@ -483,122 +507,156 @@ function resolveIsnbDeviceType(devType?: number): string {
 
 /** 异步处理 CTWing 消息（设备查找、告警检测、遥测保存） */
 async function processCtwingMessage(parsed: ReturnType<typeof parseCtwingBody>) {
-  // 查找或绑定 IoT 设备
-  let iotDevice = (await IoTDevice.findOne({
-    where: { device_sn: parsed.deviceId },
-  })) as any;
+  const lockName = `ctwing_process:${parsed.deviceId}`;
+  let transaction: any = null;
 
-  // 按 CTWing 设备ID二次匹配（使用 JSON_SEARCH 防止 SQL 注入）
-  if (!iotDevice) {
-    iotDevice = (await IoTDevice.findOne({
-      where: sequelize.literal(
-        `JSON_SEARCH(protocol_config, 'one', ${sequelize.escape(parsed.deviceId)}) IS NOT NULL`
-      ),
-    })) as any;
-  }
+  try {
+    // ── 获取分布式锁，防止并发处理同一设备消息导致重复建档/告警 ──
+    const [[lockRes]] = await sequelize.query(
+      `SELECT GET_LOCK(?, 10) AS acquired`,
+      { replacements: [lockName], type: 'SELECT' }
+    ) as any[];
+    if (!lockRes?.acquired) {
+      logger.warn(`[CTWing] 获取处理锁失败: ${lockName}`);
+      return;
+    }
 
-  // 自动建档：按档案 device_sn / device_no 匹配
-  if (!iotDevice) {
-    const archive = (await Device.findOne({
-      where: {
-        [Op.or]: [
-          { device_sn: parsed.deviceId },
-          { device_no: parsed.deviceId },
-        ],
-      },
+    transaction = await sequelize.transaction();
+
+    // 查找或绑定 IoT 设备（事务内查询）
+    let iotDevice = (await IoTDevice.findOne({
+      where: { device_sn: parsed.deviceId },
+      transaction,
     })) as any;
 
-    if (archive?.id) {
-      const isnbType = parsed.isnbFrame ? resolveIsnbDeviceType(parsed.isnbFrame.devType) : undefined;
-      iotDevice = await IoTDevice.create({
-        archive_device_id: archive.id,
-        device_sn: parsed.deviceId,
-        device_name: parsed.deviceName || archive.device_name || parsed.deviceId,
-        device_type: archive.device_type || isnbType || 'hikvision-smoke',
-        protocol_type: 'CTWing',
-        unit_id: archive.unit_id || null,
-        status: 1,
-        last_online: new Date(),
-        protocol_config: JSON.stringify({
-          ctwing: {
-            productId: parsed.productId,
-            tenantId: parsed.tenantId,
-            imei: parsed.imei,
-          },
-        }),
-      } as any);
-      logger.info(`[CTWing] 已按档案自动建档接入: deviceId=${parsed.deviceId} archive_id=${archive.id} type=${isnbType || archive.device_type || 'hikvision-smoke'}`);
-    } else if (process.env.CTWING_ALLOW_ORPHAN_IOT === '1') {
-      iotDevice = await IoTDevice.create({
-        device_sn: parsed.deviceId,
-        device_name: parsed.deviceName,
-        protocol_type: 'CTWing',
-        status: 1,
-        last_online: new Date(),
-        protocol_config: JSON.stringify({
-          ctwing: {
-            productId: parsed.productId,
-            tenantId: parsed.tenantId,
-            imei: parsed.imei,
-          },
-        }),
-      } as any);
-      logger.warn(`[CTWing] 无匹配档案，已创建无 archive 的 IoT 行 deviceId=${parsed.deviceId}（不推荐）`);
+    // 按 CTWing 设备ID二次匹配
+    if (!iotDevice) {
+      iotDevice = (await IoTDevice.findOne({
+        where: { ctwing_device_id: parsed.deviceId },
+        transaction,
+      })) as any;
+    }
+
+    // 自动建档：按档案 device_sn / device_no 匹配
+    if (!iotDevice) {
+      const archive = (await Device.findOne({
+        where: {
+          [Op.or]: [
+            { device_sn: parsed.deviceId },
+            { device_no: parsed.deviceId },
+          ],
+        },
+        transaction,
+      })) as any;
+
+      if (archive?.id) {
+        const isnbType = parsed.isnbFrame ? resolveIsnbDeviceType(parsed.isnbFrame.devType) : undefined;
+        iotDevice = await IoTDevice.create({
+          archive_device_id: archive.id,
+          device_sn: parsed.deviceId,
+          device_name: parsed.deviceName || archive.device_name || parsed.deviceId,
+          device_type: archive.device_type || isnbType || 'hikvision-smoke',
+          protocol_type: 'CTWing',
+          unit_id: archive.unit_id || null,
+          status: 1,
+          last_online: new Date(),
+          ctwing_device_id: parsed.deviceId,
+          protocol_config: JSON.stringify({
+            ctwing: {
+              productId: parsed.productId,
+              tenantId: parsed.tenantId,
+              imei: parsed.imei,
+            },
+          }),
+        } as any, { transaction });
+        logger.info(`[CTWing] 已按档案自动建档接入: deviceId=${parsed.deviceId} archive_id=${archive.id} type=${isnbType || archive.device_type || 'hikvision-smoke'}`);
+      } else if (process.env.CTWING_ALLOW_ORPHAN_IOT === '1') {
+        iotDevice = await IoTDevice.create({
+          device_sn: parsed.deviceId,
+          device_name: parsed.deviceName,
+          protocol_type: 'CTWing',
+          status: 1,
+          last_online: new Date(),
+          ctwing_device_id: parsed.deviceId,
+          protocol_config: JSON.stringify({
+            ctwing: {
+              productId: parsed.productId,
+              tenantId: parsed.tenantId,
+              imei: parsed.imei,
+            },
+          }),
+        } as any, { transaction });
+        logger.warn(`[CTWing] 无匹配档案，已创建无 archive 的 IoT 行 deviceId=${parsed.deviceId}（不推荐）`);
+      } else {
+        logger.warn(`[CTWing] 无 fire_iot_device 且无匹配 fire_device（device_sn/device_no=${parsed.deviceId}），跳过。请在「入库管理」建档后补全接入配置。`);
+      }
     } else {
-      logger.warn(`[CTWing] 无 fire_iot_device 且无匹配 fire_device（device_sn/device_no=${parsed.deviceId}），跳过。请在「入库管理」建档后补全接入配置。`);
-    }
-  } else {
-    // 更新心跳时间和在线状态
-    await IoTDevice.update(
-      { status: 1, last_online: new Date() },
-      { where: { id: iotDevice.id } }
-    );
-  }
-
-  // ═══ 按消息类型分发处理 ═══
-  const msgTypeLower = parsed.msgType.toLowerCase();
-
-  // 1. 设备上下线通知
-  if (msgTypeLower.includes('status') || msgTypeLower.includes('online') || msgTypeLower.includes('offline')) {
-    if (iotDevice) {
-      const isOnline = !msgTypeLower.includes('offline');
+      // 更新心跳时间和在线状态
       await IoTDevice.update(
-        { status: isOnline ? 1 : 0, last_online: new Date() },
-        { where: { id: iotDevice.id } }
+        { status: 1, last_online: new Date() },
+        { where: { id: iotDevice.id }, transaction }
       );
-      logger.info(`[CTWing] 设备${isOnline ? '上线' : '离线'}: deviceId=${parsed.deviceId}`);
     }
-    return;
-  }
 
-  // 2. 设备事件上报通知 → 触发告警
-  if (msgTypeLower.includes('event') || msgTypeLower.includes('alarm')) {
+    await transaction.commit();
+    transaction = null;
+
+    // ═══ 按消息类型分发处理（事务外执行，避免长时间持有锁）═══
+    const msgTypeLower = parsed.msgType.toLowerCase();
+
+    // 1. 设备上下线通知
+    if (msgTypeLower.includes('status') || msgTypeLower.includes('online') || msgTypeLower.includes('offline')) {
+      if (iotDevice) {
+        const isOnline = !msgTypeLower.includes('offline');
+        await IoTDevice.update(
+          { status: isOnline ? 1 : 0, last_online: new Date() },
+          { where: { id: iotDevice.id } }
+        );
+        logger.info(`[CTWing] 设备${isOnline ? '上线' : '离线'}: deviceId=${parsed.deviceId}`);
+      }
+      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      return;
+    }
+
+    // 2. 设备事件上报通知 → 触发告警
+    if (msgTypeLower.includes('event') || msgTypeLower.includes('alarm')) {
+      if (iotDevice) {
+        await createCtwingAlarm(parsed, iotDevice);
+      }
+      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      return;
+    }
+
+    // 3. 设备数据变化通知 → 检测告警 + 保存遥测
+    if (msgTypeLower.includes('upload') || msgTypeLower.includes('data') || msgTypeLower.includes('changed')) {
+      if (iotDevice) {
+        await createCtwingAlarm(parsed, iotDevice);
+      }
+      if (parsed.isnbFrame && iotDevice) {
+        await saveIsnbTelemetry(iotDevice.id, parsed.isnbFrame);
+      }
+      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      return;
+    }
+
+    // 4. 设备指令响应通知 → 记录日志
+    if (msgTypeLower.includes('command') || msgTypeLower.includes('response')) {
+      logger.info(`[CTWing] 指令响应: deviceId=${parsed.deviceId}`);
+      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      return;
+    }
+
+    // 兜底：其他消息类型也尝试检测告警
     if (iotDevice) {
       await createCtwingAlarm(parsed, iotDevice);
     }
-    return;
-  }
-
-  // 3. 设备数据变化通知 → 检测告警 + 保存遥测
-  if (msgTypeLower.includes('upload') || msgTypeLower.includes('data') || msgTypeLower.includes('changed')) {
-    if (iotDevice) {
-      await createCtwingAlarm(parsed, iotDevice);
+    await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+  } catch (err: any) {
+    if (transaction) {
+      try { await transaction.rollback(); } catch {}
     }
-    if (parsed.isnbFrame && iotDevice) {
-      await saveIsnbTelemetry(iotDevice.id, parsed.isnbFrame);
-    }
-    return;
-  }
-
-  // 4. 设备指令响应通知 → 记录日志
-  if (msgTypeLower.includes('command') || msgTypeLower.includes('response')) {
-    logger.info(`[CTWing] 指令响应: deviceId=${parsed.deviceId}`);
-    return;
-  }
-
-  // 兜底：其他消息类型也尝试检测告警
-  if (iotDevice) {
-    await createCtwingAlarm(parsed, iotDevice);
+    try { await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {}); } catch {}
+    logger.error(`[CTWing] processCtwingMessage 失败: ${err.message}`);
   }
 }
 

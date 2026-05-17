@@ -1,17 +1,26 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
  * Stub Routes - 兼容旧版前端路径的兜底路由
- * 注册在 /api/stub 下，旧版路径通过此处提供兼容支持
+ *
+ * 规则：
+ * 1. 与正式路由重叠的旧兼容接口，统一挂载到 /old/ 前缀下
+ * 2. 错误映射直接删除
+ * 3. 无真实实现的接口返回 404 Not Implemented
  * ═══════════════════════════════════════════════════════════════════
  */
 import { Router, type RequestHandler } from 'express';
-import sequelize from '@/config/database';
-import * as Stub from '@/controllers/stub.controller';
-import { success } from '@/utils/response';
+import * as Stub from '@/services/stub.oldTable.service';
+import * as StubFake from '@/services/stub.fakeData.service';
+import { fail } from '@/utils/response';
 
 const router = Router();
 
-/* ───── 通用 CRUD 注册工厂（减少重复样板） ───── */
+/* ───── 404 工厂 ───── */
+function notImplemented(_req: any, res: any) {
+  res.status(404).json(fail('Not Implemented', 404));
+}
+
+/* ───── 通用 CRUD 注册工厂 ───── */
 function crud(
   path: string,
   handlers: {
@@ -29,7 +38,9 @@ function crud(
   if (handlers.del) router.delete(`${path}/:id`, handlers.del);
 }
 
-/* ═══════ 1. 摄像头 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   1. 摄像头（无正式路由重叠，保留原路径）
+   ═══════════════════════════════════════════════════════════ */
 crud('/cameras', {
   list: Stub.cameraList,
   byId: Stub.cameraById,
@@ -38,28 +49,38 @@ crud('/cameras', {
   del: Stub.cameraDelete,
 });
 
-/* ═══════ 2. IoT 设备统计 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   2. IoT 设备统计（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/iot-devices/stats', Stub.iotDeviceStats);
 
-/* ═══════ 3. 维保工单旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   3. 维保工单旧兼容（无正式路由重叠，正式路由为 /maintenance/work-orders）
+   ═══════════════════════════════════════════════════════════ */
 crud('/work-orders', {
   list: Stub.workOrderList, byId: Stub.workOrderById, create: Stub.workOrderCreate,
   update: Stub.workOrderUpdate, del: Stub.workOrderDelete,
 });
 
-/* ═══════ 4. 维保记录 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   4. 维保记录（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/maint-records', {
   list: Stub.maintRecordList, byId: Stub.maintRecordById, create: Stub.maintRecordCreate,
   update: Stub.maintRecordUpdate, del: Stub.maintRecordDelete,
 });
 
-/* ═══════ 5. 维保合同 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   5. 维保合同（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/maint-contracts', {
   list: Stub.maintContractList, byId: Stub.maintContractById, create: Stub.maintContractCreate,
   update: Stub.maintContractUpdate, del: Stub.maintContractDelete,
 });
 
-/* ═══════ 6. 巡检旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   6. 巡检旧兼容（无正式路由重叠，正式路由为 /patrol/plans、/patrol/records）
+   ═══════════════════════════════════════════════════════════ */
 crud('/patrol-plans', {
   list: Stub.patrolPlanListOld, byId: Stub.patrolPlanByIdOld, create: Stub.patrolPlanCreateOld,
   update: Stub.patrolPlanUpdateOld, del: Stub.patrolPlanDeleteOld,
@@ -69,13 +90,17 @@ crud('/patrol-records', {
   update: Stub.patrolRecordUpdateOld, del: Stub.patrolRecordDeleteOld,
 });
 
-/* ═══════ 7. 隐患旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   7. 隐患旧兼容（无正式路由重叠，正式路由为 /patrol/hazards）
+   ═══════════════════════════════════════════════════════════ */
 crud('/hazards', {
   list: Stub.hazardListOld, byId: Stub.hazardByIdOld, create: Stub.hazardCreateOld,
   update: Stub.hazardUpdateOld, del: Stub.hazardDeleteOld,
 });
 
-/* ═══════ 8. 预案/演练旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   8. 预案/演练旧兼容（/plans 前缀与正式路由 /plans 重叠，但内部路径不同）
+   ═══════════════════════════════════════════════════════════ */
 crud('/plans', {
   list: Stub.planListOld, byId: Stub.planByIdOld, create: Stub.planCreateOld,
   update: Stub.planUpdateOld, del: Stub.planDeleteOld,
@@ -85,19 +110,25 @@ crud('/drills', {
   update: Stub.drillUpdateOld, del: Stub.drillDeleteOld,
 });
 
-/* ═══════ 9. 检查旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   9. 检查旧兼容（/inspections 前缀与正式路由 /inspections 重叠，但内部路径不同）
+   ═══════════════════════════════════════════════════════════ */
 crud('/inspections', {
   list: Stub.inspectionListOld, byId: Stub.inspectionByIdOld, create: Stub.inspectionCreateOld,
   update: Stub.inspectionUpdateOld, del: Stub.inspectionDeleteOld,
 });
 
-/* ═══════ 10. 知识库旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   10. 知识库旧兼容（无正式路由重叠，正式路由为 /knowledge）
+   ═══════════════════════════════════════════════════════════ */
 crud('/documents', {
   list: Stub.documentListOld, byId: Stub.documentByIdOld, create: Stub.documentCreateOld,
   update: Stub.documentUpdateOld, del: Stub.documentDeleteOld,
 });
 
-/* ═══════ 11. 通知 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   11. 通知（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/notifications', {
   list: Stub.notificationList, create: Stub.notificationCreate,
   update: Stub.notificationUpdate, del: Stub.notificationDelete,
@@ -105,7 +136,9 @@ crud('/notifications', {
 router.get('/notifications/unread', Stub.notificationUnread);
 router.post('/notifications/:id/read', Stub.notificationRead);
 
-/* ═══════ 12. 值班旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   12. 值班旧兼容（无正式路由重叠，正式路由为 /duty/schedules）
+   ═══════════════════════════════════════════════════════════ */
 crud('/duty-schedules', {
   list: Stub.dutyScheduleListOld, byId: Stub.dutyScheduleByIdOld, create: Stub.dutyScheduleCreateOld,
   update: Stub.dutyScheduleUpdateOld, del: Stub.dutyScheduleDeleteOld,
@@ -119,156 +152,217 @@ crud('/duty-handovers', {
   update: Stub.dutyHandoverUpdateOld, del: Stub.dutyHandoverDeleteOld,
 });
 
-/* ═══════ 13. 系统日志旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   13. 系统日志旧兼容（无正式路由重叠，正式路由为 /system/logs）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/system-logs/list', Stub.systemLogListOld);
 
-/* ═══════ 14. 平面图旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   14. 平面图旧兼容（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/floor-plans', { list: Stub.floorPlanListOld, byId: Stub.floorPlanByIdOld });
 router.get('/floor-plans/:id/devices', Stub.floorPlanDevicesOld);
 router.get('/floor-devices/list', Stub.floorDeviceListOld);
 
-/* ═══════ 15. 报表旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   15. 报表旧兼容（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/reports/list', Stub.reportListOld);
 
-/* ═══════ 16. 报警快照 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   16. 报警快照（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/alarm-snapshots/list', Stub.alarmSnapshotList);
 
-/* ═══════ 17. 消控室配置 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   17. 消控室配置（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/control-room-configs/list', Stub.controlRoomConfigList);
 
-/* ═══════ 18. 人员管理 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   18. 人员管理（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/personnel', {
   list: Stub.personnelList, byId: Stub.personnelById, create: Stub.personnelCreate,
   update: Stub.personnelUpdate, del: Stub.personnelDelete,
 });
 
-/* ═══════ 19. SIP 服务器状态 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   19. SIP 服务器状态（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/sip-server/status', Stub.sipServerStatus);
-router.post('/sip-server/start', Stub.sipServerStart);
-router.post('/sip-server/stop', Stub.sipServerStop);
+router.post('/sip-server/start', StubFake.sipServerStart);
+router.post('/sip-server/stop', StubFake.sipServerStop);
 
-/* ═══════ 20. 数据库统计 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   20. 数据库统计（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/db/stats', Stub.dbStats);
 
-/* ═══════ 21. 子系统 ═══════ */
-router.get('/subsystems', Stub.subsystems);
+/* ═══════════════════════════════════════════════════════════
+   21. 子系统（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/subsystems', StubFake.subsystems);
 
-/* ═══════ 22. 系统监控 ═══════ */
-router.get('/system-monitor/metrics', Stub.systemMonitorMetrics);
-router.get('/system-monitor/services', Stub.systemMonitorServices);
-router.get('/system-monitor/logs', Stub.systemMonitorLogs);
+/* ═══════════════════════════════════════════════════════════
+   22. 系统监控（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/system-monitor/metrics', StubFake.systemMonitorMetrics);
+router.get('/system-monitor/services', StubFake.systemMonitorServices);
+router.get('/system-monitor/logs', StubFake.systemMonitorLogs);
 
-/* ═══════ 23. 数据流转管道 ═══════ */
-router.get('/iot/pipelines', Stub.iotPipelines);
+/* ═══════════════════════════════════════════════════════════
+   23. 数据流转管道（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/iot/pipelines', StubFake.iotPipelines);
 
-/* ═══════ 24. 待办 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   24. 待办（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/todos', {
   list: Stub.todoList, byId: Stub.todoById, create: Stub.todoCreate,
   update: Stub.todoUpdate, del: Stub.todoDelete,
 });
 
-/* ═══════ 25. IoT 协议配置旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   25. IoT 协议配置旧兼容（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/iot-protocols', {
   list: Stub.iotProtocolListOld, byId: Stub.iotProtocolByIdOld, create: Stub.iotProtocolCreateOld,
   update: Stub.iotProtocolUpdateOld, del: Stub.iotProtocolDeleteOld,
 });
 
-/* ═══════ 26. 角色旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   26. 角色旧兼容（无正式路由重叠，正式路由为 /system/roles）
+   ═══════════════════════════════════════════════════════════ */
 crud('/roles', {
   list: Stub.roleListOld, byId: Stub.roleByIdOld, create: Stub.roleCreateOld,
   update: Stub.roleUpdateOld, del: Stub.roleDeleteOld,
 });
 
-/* ═══════ 27. 权限旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   27. 权限旧兼容（无正式路由重叠，正式路由为 /system/permissions）
+   ═══════════════════════════════════════════════════════════ */
 router.get('/permissions', Stub.permissionListOld);
 
-/* ═══════ 28. 组织架构旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   28. 组织架构旧兼容（无正式路由重叠，正式路由为 /system/departments）
+   ═══════════════════════════════════════════════════════════ */
 crud('/departments', {
   list: Stub.departmentListOld, byId: Stub.departmentByIdOld, create: Stub.departmentCreateOld,
   update: Stub.departmentUpdateOld, del: Stub.departmentDeleteOld,
 });
 
-/* ═══════ 29. GB28181 设备兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   29. GB28181 设备兼容（无正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
 crud('/gb28181-devices', {
   list: Stub.gb28181DeviceList,
+  byId: Stub.gb28181DeviceById,
+  create: Stub.gb28181DeviceCreate,
+  update: Stub.gb28181DeviceUpdate,
+  del: Stub.gb28181DeviceDelete,
 });
 
-/* ═══════ 30. 维保单位旧兼容路径 ═══════ */
-crud('/maintenance/companies', {
+/* ═══════════════════════════════════════════════════════════
+   30. 维保单位旧兼容（/maintenance/companies 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+crud('/old/maintenance/companies', {
   list: Stub.maintCompanyListOld, byId: Stub.maintCompanyByIdOld, create: Stub.maintCompanyCreateOld,
   update: Stub.maintCompanyUpdateOld, del: Stub.maintCompanyDeleteOld,
 });
 
-/* ═══════ 30. AI 预警旧兼容路径 ═══════ */
+/* ═══════════════════════════════════════════════════════════
+   31. AI 预警旧兼容（无正式路由重叠，正式路由为 /ai/alerts）
+   ═══════════════════════════════════════════════════════════ */
 router.post('/ai/alerts', Stub.aiAlertCreateOld);
 router.put('/ai/alerts/:id', Stub.aiAlertUpdateOld);
 router.delete('/ai/alerts/:id', Stub.aiAlertDeleteOld);
 
-/* ═══════ 31. 系统配置旧兼容路径 ═══════ */
-crud('/system/config', {
+/* ═══════════════════════════════════════════════════════════
+   32. 系统配置旧兼容（/system/config 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+crud('/old/system/config', {
   list: Stub.systemConfigListOld, create: Stub.systemConfigCreateOld,
   update: Stub.systemConfigUpdateOld, del: Stub.systemConfigDeleteOld,
 });
-router.get('/system/logs', Stub.systemLogListOld);
-router.get('/system/dashboard', (_req, res) => res.json(success({})));
 
-/* ═══════ 32. 值班旧兼容路径 /duty/* ═══════ */
-router.get('/duty/schedules', Stub.dutyScheduleCompat);
-router.get('/duty/logs', Stub.dutyLogCompat);
-router.get('/duty/current', Stub.dutyCurrentCompat);
+/* ═══════════════════════════════════════════════════════════
+   33. 值班旧兼容（/duty/* 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/duty/schedules', Stub.dutyScheduleCompat);
+router.get('/old/duty/logs', Stub.dutyLogCompat);
+router.get('/old/duty/current', StubFake.dutyCurrentCompat);
 
-/* ═══════ 33. 大屏数据旧兼容路径 ═══════ */
-router.get('/bigscreen/data', Stub.bigScreenOld);
+/* ═══════════════════════════════════════════════════════════
+   34. 大屏数据（/bigscreen/data 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/bigscreen/data', Stub.bigScreenOld);
 
-/* ═══════ 34. 监控中心概览旧兼容路径 ═══════ */
-router.get('/monitor/overview', Stub.monitorOverviewOld);
+/* ═══════════════════════════════════════════════════════════
+   35. 监控中心概览（/monitor/overview 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/monitor/overview', Stub.monitorOverviewOld);
 
-/* ═══════ 35. GIS 富数据 ═══════ */
-router.get('/gis/points-rich', Stub.gisPointsRich);
+/* ═══════════════════════════════════════════════════════════
+   36. GIS 富数据（/gis/points-rich 与 /gis/* 正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/gis/points-rich', Stub.gisPointsRich);
 
-/* ═══════ 36. 数据分析旧兼容路径 ═══════ */
-router.get('/analysis/device', Stub.analysisDeviceOld);
-router.get('/analysis/alarm', Stub.analysisAlarmOld);
-router.get('/analysis/maintenance', Stub.analysisMaintenanceOld);
-router.get('/analysis/hazard', Stub.analysisHazardOld);
-router.get('/analysis/patrol', Stub.analysisPatrolOld);
+/* ═══════════════════════════════════════════════════════════
+   37. 数据分析旧兼容（/analysis/* 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/analysis/device', Stub.analysisDeviceOld);
+router.get('/old/analysis/alarm', Stub.analysisAlarmOld);
+router.get('/old/analysis/maintenance', Stub.analysisMaintenanceOld);
+router.get('/old/analysis/hazard', Stub.analysisHazardOld);
+router.get('/old/analysis/patrol', Stub.analysisPatrolOld);
 
-/* ═══════ 37. 报表静态兜底 ═══════ */
-router.get('/reports/daily', (_req, res) => res.json(success({})));
-router.get('/reports/weekly', (_req, res) => res.json(success({})));
-router.get('/reports/monthly', (_req, res) => res.json(success({})));
-router.get('/reports/device', (_req, res) => res.json(success({})));
-router.get('/reports/maintenance', (_req, res) => res.json(success({})));
-router.get('/reports/patrol', (_req, res) => res.json(success({})));
+/* ═══════════════════════════════════════════════════════════
+   38. 报表静态兜底（/reports/* 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/reports/daily', notImplemented);
+router.get('/old/reports/weekly', notImplemented);
+router.get('/old/reports/monthly', notImplemented);
+router.get('/old/reports/device', notImplemented);
+router.get('/old/reports/maintenance', notImplemented);
+router.get('/old/reports/patrol', notImplemented);
 
-/* ═══════ 38. 知识库旧兼容路径 ═══════ */
-router.get('/knowledge', Stub.documentListOld);
-router.get('/knowledge/categories', (_req, res) => {
-  res.json(success(['操作规范', '维保手册', '法规标准', '培训资料', '应急预案']));
-});
+/* ═══════════════════════════════════════════════════════════
+   39. 知识库旧兼容（/knowledge 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/knowledge', Stub.documentListOld);
+router.get('/old/knowledge/categories', notImplemented);
 
-/* ═══════ 39. 维保统计旧兼容路径 ═══════ */
-router.get('/maintenance/stats', async (_req, res) => {
-  try {
-    const [[r]] = await sequelize.query(`SELECT 
-      COUNT(*) as total,
-      SUM(CASE WHEN status=2 THEN 1 ELSE 0 END) as done
-    FROM work_orders`) as any;
-    res.json(success(r || { total: 0, done: 0 }));
-  } catch { res.json(success({ total: 0, done: 0 })); }
-});
+/* ═══════════════════════════════════════════════════════════
+   40. 维保统计旧兼容（/maintenance/stats 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/maintenance/stats', Stub.maintenanceStatsOld);
 
-/* ═══════ 40. 培训旧兼容路径 ═══════ */
-router.get('/training/courses', Stub.documentListOld);
-router.get('/training/exams', Stub.documentListOld);
+/* ═══════════════════════════════════════════════════════════
+   41. 培训旧兼容（错误映射已删除，保留 exams 的独立旧兼容）
+   ═══════════════════════════════════════════════════════════ */
+// ❌ 已删除错误映射：/training/courses → documentListOld
+// ❌ 已删除错误映射：/training/exams → documentListOld
 
-/* ═══════ 41. AI 决策旧兼容路径 ═══════ */
-router.get('/ai/decisions', Stub.documentListOld);
-router.get('/ai/alerts', Stub.documentListOld);
+/* ═══════════════════════════════════════════════════════════
+   42. AI 决策旧兼容（错误映射已删除）
+   ═══════════════════════════════════════════════════════════ */
+// ❌ 已删除错误映射：/ai/decisions → documentListOld
+// ❌ 已删除错误映射：/ai/alerts → documentListOld
+//   注：/ai/alerts 的 CRUD 保留在上方第 31 节
 
-/* ═══════ 42. 巡检旧兼容路径 ═══════ */
-router.get('/patrol/plans', Stub.patrolPlanListOld);
-router.get('/patrol/records', Stub.patrolRecordListOld);
-router.get('/patrol/hazards', Stub.hazardListOld);
+/* ═══════════════════════════════════════════════════════════
+   43. 巡检旧兼容（/patrol/* 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/patrol/plans', Stub.patrolPlanListOld);
+router.get('/old/patrol/records', Stub.patrolRecordListOld);
+router.get('/old/patrol/hazards', Stub.hazardListOld);
+
+/* ═══════════════════════════════════════════════════════════
+   44. 系统日志与仪表盘（/system/logs、/system/dashboard 与正式路由重叠）
+   ═══════════════════════════════════════════════════════════ */
+router.get('/old/system/logs', Stub.systemLogListOld);
+router.get('/old/system/dashboard', notImplemented);
 
 export default router;

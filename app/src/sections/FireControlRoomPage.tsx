@@ -14,7 +14,11 @@ import {
   RefreshCw, Radio, CheckCircle2, XCircle,
   Video, LogIn, Cog, Loader2
 } from 'lucide-react';
-import { api } from '@/api/services';
+import { controlRoomService } from '@/api/services';
+
+/** 消控室页大量动态字段，暂用宽松类型保持与 legacy 行为一致 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const api: any = controlRoomService;
 import { controlRoomConfigService } from '@/api/services';
 import { ControlRoomDAO } from '@/db/Database';
 import { api as httpApi } from '@/api/client';
@@ -64,7 +68,7 @@ interface CommandLog {
   point_name?: string; command_by: string; command_time: string; result: number;
 }
 interface VideoCamera {
-  id: number; cameraName: string; cameraNo: string;
+  id: string | number; cameraName: string; cameraNo: string;
   streamUrl: string; status: number; position: string;
 }
 
@@ -141,7 +145,7 @@ export default function FireControlRoomPage() {
   });
   const [commandLogs, setCommandLogs] = useState<CommandLog[]>([]);
   const [cameras, setCameras] = useState<VideoCamera[]>([]);
-  const [linkedCameraId, setLinkedCameraId] = useState<number | null>(null);
+  const [linkedCameraId, setLinkedCameraId] = useState<string | number | null>(null);
   const [cameraSettingsOpen, setCameraSettingsOpen] = useState(false);
   const [cameraSelectOpen, setCameraSelectOpen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
@@ -207,6 +211,7 @@ export default function FireControlRoomPage() {
         if (roomsApiRes.code === 200 && roomsApiRes.data?.list) {
           allRoomsRes = roomsApiRes.data.list.map((r: any) => ({
             id: r.roomId || r.id || '',
+            unitId: r.unit_id || r.unitId || '',
             unitName: r.location || r.unitName || r.room_name || r.name || r.roomId || '未命名消控室',
             room_name: r.location || r.unitName || r.room_name || r.name || r.roomId || '未命名消控室',
             name: r.location || r.unitName || r.room_name || r.name || r.roomId || '未命名消控室',
@@ -222,6 +227,7 @@ export default function FireControlRoomPage() {
       const roomRes = allRoomsRes.find((r: any) => String(r.id) === String(roomId)) || null;
       setAllRooms(allRoomsRes.map((r: any) => ({ id: String(r.id), name: r.unitName?.trim() || r.room_name?.trim() || r.name?.trim() || r.unit_name?.trim() || r.id || '未命名' })));
       const unitName = roomRes?.unitName?.trim() || roomRes?.room_name?.trim() || roomRes?.name?.trim() || roomRes?.id || '未知消控室';
+      const unitId = roomRes?.unitId || roomRes?.unit_id || '';
       setRoomName(unitName);
       setProjectName(`${unitName}消防项目`);
 
@@ -260,8 +266,8 @@ export default function FireControlRoomPage() {
 
       /* 独立请求，互不影响 —— 避免单个 API 404 导致全部数据丢失 */
       const [fireRes, faultRes, multiRes, busRes, rtRes, shieldRes, fbRes, logRes, vidRes] = await Promise.all([
-        api.getFireAlarms().catch(() => []),
-        api.getFaultAlarms().catch(() => []),
+        api.getFireAlarms(unitId).catch(() => []),
+        api.getFaultAlarms(unitId).catch(() => []),
         api.getMultilinePanels(activeHostId).catch(() => []),
         api.getBusPoints(activeHostId).catch(() => []),
         api.getRealtimeStatus(roomId, activeHostId).catch(() => null),
@@ -419,13 +425,13 @@ export default function FireControlRoomPage() {
         {/* ═══════════════════════════════════════════════════════════════
             HEADER
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="flex-shrink-0 tech-card rounded-xl px-3 py-2 flex items-center justify-between corner-brackets relative overflow-hidden">
+        <div className="flex-shrink-0 tech-card-v2 rounded-xl px-3 py-2 flex items-center justify-between corner-accent-v2 relative overflow-hidden">
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <Monitor className="w-4 h-4 text-blue-400" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-sm font-bold text-slate-100 leading-tight glow-text-blue">{projectName || roomName}</h1>
+              <h1 className="text-sm font-bold text-slate-100 leading-tight glow-text-blue-v2">{projectName || roomName}</h1>
               <p className="text-[10px] text-slate-500">编号: {roomId || '-'} · 主机: {selectedHost?.host_name || '报警主机1号'} · 值班: {selectedHost?.duty_person || '-'}</p>
             </div>
           </div>
@@ -446,16 +452,16 @@ export default function FireControlRoomPage() {
               <RefreshCw className={`w-3 h-3 text-slate-400 ${refreshing ? 'animate-spin' : ''}`} />
               <span className="text-[10px] text-slate-400">{fmtTime(lastRefresh.toISOString())}</span>
             </button>
-            <div className={`status-led ${realtime.host_status === 1 ? 'online' : 'offline'} text-[10px] font-medium px-2 py-1 rounded-md border ${realtime.host_status === 1 ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-red-500/5 border-red-500/20 text-red-400'}`}>
+            <div className={`status-pill-v2 ${realtime.host_status === 1 ? 'online' : 'offline'} text-[10px] font-medium px-2 py-1 rounded-md border ${realtime.host_status === 1 ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-red-500/5 border-red-500/20 text-red-400'}`}>
               {realtime.host_status === 1 ? (
-                <><span className="led" /><span>在线</span></>
+                <><span className="led-v2" /><span>在线</span></>
               ) : (
-                <><span className="led" /><span>离线</span></>
+                <><span className="led-v2" /><span>离线</span></>
               )}
             </div>
             <div className="flex items-center gap-1.5 text-slate-400 px-2 py-1 rounded-md bg-slate-900/40 border border-slate-700/30">
               <Clock className="w-3 h-3" />
-              <span className="text-sm font-mono font-bold text-slate-200 glow-text-blue tracking-wider">
+              <span className="text-sm font-mono font-bold text-slate-200 glow-text-blue-v2 tracking-wider">
                 {String(currentTime.getHours()).padStart(2,'0')}:{String(currentTime.getMinutes()).padStart(2,'0')}:{String(currentTime.getSeconds()).padStart(2,'0')}
               </span>
             </div>
@@ -477,38 +483,38 @@ export default function FireControlRoomPage() {
         {/* ═══════════════════════════════════════════════════════════════
             MAIN: Left Stats + Center Table + Right Controls + Right Info
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="flex-1 flex gap-2 min-h-0">
+        <div className="flex-1 flex flex-col xl:flex-row gap-2 min-h-0 overflow-y-auto xl:overflow-hidden">
 
           {/* ─── Left: Status Stat Panels ─── */}
-          <div className="flex flex-col gap-2 flex-shrink-0 w-[56px]">
-            <button onClick={() => setAlarmTab('fire')} className={`hmi-stat-card flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-brackets ${alarmTab === 'fire' ? 'ring-1 ring-red-500/40 bg-red-500/5 border-t-red-500' : realtime.fire_count > 0 ? 'border-t-red-500 hover:bg-red-500/5 led-pulse-red' : 'border-t-red-500/30 hover:bg-slate-800/30'}`}>
+          <div className="grid grid-cols-4 xl:grid-cols-1 gap-2 flex-shrink-0 xl:w-[56px]">
+            <button onClick={() => setAlarmTab('fire')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fire' ? 'ring-1 ring-red-500/40 bg-red-500/5 border-t-red-500' : realtime.fire_count > 0 ? 'border-t-red-500 hover:bg-red-500/5 led-pulse-red' : 'border-t-red-500/30 hover:bg-slate-800/30'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500/60 to-red-400/10" />
               <Flame className="w-4 h-4 text-red-400" />
-              <span className={`text-base font-bold leading-none ${realtime.fire_count > 0 ? "text-red-400 glow-text-red animate-value-pop" : "text-red-400/40"}`}>{realtime.fire_count}</span>
+              <span className={`text-base font-bold leading-none ${realtime.fire_count > 0 ? "text-red-400 glow-text-red-v2 animate-value-pop-v2" : "text-red-400/40"}`}>{realtime.fire_count}</span>
               <span className="text-[9px] text-red-300/60 font-medium tracking-wide">火警</span>
             </button>
-            <button onClick={() => setAlarmTab('fault')} className={`hmi-stat-card flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-brackets ${alarmTab === 'fault' ? 'ring-1 ring-yellow-500/40 bg-yellow-500/5 border-t-yellow-500' : realtime.fault_count > 0 ? 'border-t-yellow-500 hover:bg-yellow-500/5 led-pulse-yellow' : 'border-t-yellow-500/30 hover:bg-slate-800/30'}`}>
+            <button onClick={() => setAlarmTab('fault')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fault' ? 'ring-1 ring-yellow-500/40 bg-yellow-500/5 border-t-yellow-500' : realtime.fault_count > 0 ? 'border-t-yellow-500 hover:bg-yellow-500/5 led-pulse-yellow' : 'border-t-yellow-500/30 hover:bg-slate-800/30'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-500/60 to-yellow-400/10" />
               <AlertTriangle className="w-4 h-4 text-yellow-400" />
-              <span className={`text-base font-bold leading-none ${realtime.fault_count > 0 ? "text-yellow-400 glow-text-yellow animate-value-pop" : "text-yellow-400/40"}`}>{realtime.fault_count}</span>
+              <span className={`text-base font-bold leading-none ${realtime.fault_count > 0 ? "text-yellow-400 glow-text-yellow-v2 animate-value-pop-v2" : "text-yellow-400/40"}`}>{realtime.fault_count}</span>
               <span className="text-[9px] text-yellow-300/60 font-medium tracking-wide">故障</span>
             </button>
-            <button onClick={() => setAlarmTab('shield')} className={`hmi-stat-card flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-brackets ${alarmTab === 'shield' ? 'ring-1 ring-purple-500/40 bg-purple-500/5 border-t-purple-500' : 'border-t-purple-500/30 hover:bg-purple-500/5'}`}>
+            <button onClick={() => setAlarmTab('shield')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'shield' ? 'ring-1 ring-purple-500/40 bg-purple-500/5 border-t-purple-500' : 'border-t-purple-500/30 hover:bg-purple-500/5'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500/60 to-purple-400/10" />
               <Shield className="w-4 h-4 text-purple-400" />
-              <span className={`text-base font-bold leading-none ${realtime.shield_count > 0 ? "text-purple-400 animate-value-pop" : "text-purple-400/40"}`}>{realtime.shield_count}</span>
+              <span className={`text-base font-bold leading-none ${realtime.shield_count > 0 ? "text-purple-400 animate-value-pop-v2" : "text-purple-400/40"}`}>{realtime.shield_count}</span>
               <span className="text-[9px] text-purple-300/60 font-medium tracking-wide">屏蔽</span>
             </button>
-            <button onClick={() => setAlarmTab('feedback')} className={`hmi-stat-card flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-brackets ${alarmTab === 'feedback' ? 'ring-1 ring-blue-500/40 bg-blue-500/5 border-t-blue-500' : 'border-t-blue-500/30 hover:bg-blue-500/5'}`}>
+            <button onClick={() => setAlarmTab('feedback')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'feedback' ? 'ring-1 ring-blue-500/40 bg-blue-500/5 border-t-blue-500' : 'border-t-blue-500/30 hover:bg-blue-500/5'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500/60 to-blue-400/10" />
               <CheckCircle className="w-4 h-4 text-blue-400" />
-              <span className={`text-base font-bold leading-none ${realtime.feedback_count > 0 ? "text-blue-400 animate-value-pop" : "text-blue-400/40"}`}>{realtime.feedback_count}</span>
+              <span className={`text-base font-bold leading-none ${realtime.feedback_count > 0 ? "text-blue-400 animate-value-pop-v2" : "text-blue-400/40"}`}>{realtime.feedback_count}</span>
               <span className="text-[9px] text-blue-300/60 font-medium tracking-wide">反馈</span>
             </button>
           </div>
 
           {/* ─── Center: Alarm Table ─── */}
-          <div className="flex-[2] flex flex-col min-w-0">
+          <div className="flex-1 xl:flex-[2] flex flex-col min-w-0 order-3 xl:order-none">
             <div className="flex items-center justify-between px-3 h-7 glass rounded-t-xl flex-shrink-0">
               <span className="text-[10px] text-slate-400 font-semibold">
                 {alarmTab === 'all' ? '全部事件' : alarmTab === 'fire' ? '火警事件' : alarmTab === 'fault' ? '故障事件' : alarmTab === 'shield' ? '屏蔽事件' : '反馈事件'}
@@ -536,33 +542,33 @@ export default function FireControlRoomPage() {
           </div>
 
           {/* ─── Control Buttons ─── */}
-          <div className="flex flex-col gap-2 flex-shrink-0 w-[92px]">
-            <Button onClick={() => setSilenceDialog(true)} className={`hmi-btn flex-1 flex flex-col items-center justify-center gap-2 border-0 transition-all shadow-lg rounded-xl backdrop-blur-sm active-press ${silencePressed ? 'bg-emerald-500/25 text-emerald-100 ring-2 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${silencePressed ? 'bg-emerald-500/30 ring-2 ring-emerald-400/50' : 'bg-emerald-500/15 ring-1 ring-emerald-500/30'}`}>
+          <div className="grid grid-cols-5 xl:grid-cols-1 gap-2 flex-shrink-0 xl:w-[92px] order-2 xl:order-none">
+            <Button onClick={() => setSilenceDialog(true)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 transition-all shadow-lg rounded-xl backdrop-blur-sm active-press ${silencePressed ? 'bg-emerald-500/25 text-emerald-100 ring-2 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${silencePressed ? 'bg-emerald-500/30 ring-2 ring-emerald-400/50' : 'bg-emerald-500/15 ring-1 ring-emerald-500/30'}`}>
                 <VolumeX className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">{silencePressed ? '已消音' : '消音'}</span>
             </Button>
-            <Button onClick={() => setResetPwdOpen(true)} className="hmi-btn flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-blue-500/30">
-              <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30 shadow-inner">
+            <Button onClick={() => setResetPwdOpen(true)} className="hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-blue-500/30">
+              <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30 shadow-inner btn-icon-ring">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">复位</span>
             </Button>
-            <Button onClick={() => openModeDialog(1)} className={`hmi-btn flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 1 ? 'bg-amber-500/25 text-amber-100 ring-2 ring-amber-500/50' : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${currentMode.currentMode === 1 ? 'bg-amber-500/30 ring-2 ring-amber-400/50' : 'bg-amber-500/15 ring-1 ring-amber-500/30'}`}>
+            <Button onClick={() => openModeDialog(1)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 1 ? 'bg-amber-500/25 text-amber-100 ring-2 ring-amber-500/50' : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${currentMode.currentMode === 1 ? 'bg-amber-500/30 ring-2 ring-amber-400/50' : 'bg-amber-500/15 ring-1 ring-amber-500/30'}`}>
                 <Hand className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">手动</span>
             </Button>
-            <Button onClick={() => openModeDialog(2)} className={`hmi-btn flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 2 ? 'bg-blue-500/25 text-blue-100 ring-2 ring-blue-500/50' : 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${currentMode.currentMode === 2 ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/15 ring-1 ring-blue-500/30'}`}>
+            <Button onClick={() => openModeDialog(2)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 2 ? 'bg-blue-500/25 text-blue-100 ring-2 ring-blue-500/50' : 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${currentMode.currentMode === 2 ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/15 ring-1 ring-blue-500/30'}`}>
                 <CheckCircle className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">自动</span>
             </Button>
-            <Button onClick={() => setShieldDialog(true)} className="hmi-btn flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-purple-500/30">
-              <div className="w-10 h-10 rounded-full bg-purple-500/15 flex items-center justify-center ring-1 ring-purple-500/30 shadow-inner">
+            <Button onClick={() => setShieldDialog(true)} className="hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-purple-500/30">
+              <div className="w-10 h-10 rounded-full bg-purple-500/15 flex items-center justify-center ring-1 ring-purple-500/30 shadow-inner btn-icon-ring">
                 <Shield className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">屏蔽</span>
@@ -570,12 +576,12 @@ export default function FireControlRoomPage() {
           </div>
 
           {/* ─── Right: Info + Gauges / Video ─── */}
-          <div className="flex-1 flex flex-col gap-2 min-w-0">
+          <div className="flex-1 flex flex-col gap-2 min-w-0 order-4 xl:order-none">
             {/* Stats summary bar */}
-            <div className="flex items-center justify-between px-3 py-1.5 tech-card rounded-xl corner-brackets">
+            <div className="flex items-center justify-between px-3 py-1.5 tech-card-v2 rounded-xl corner-accent-v2">
               <div className="flex items-center gap-1.5">
                 <Settings2 className="w-3 h-3 text-slate-500" />
-                <span className="text-[10px] text-slate-400">总点位: <b className="text-slate-200 glow-text-blue">{busPoints.length + multilinePoints.length}</b></span>
+                <span className="text-[10px] text-slate-400">总点位: <b className="text-slate-200 glow-text-blue-v2">{busPoints.length + multilinePoints.length}</b></span>
               </div>
               <div className="w-px h-3 bg-slate-700/60" />
               <div className="flex items-center gap-1.5">
@@ -590,21 +596,21 @@ export default function FireControlRoomPage() {
             </div>
 
             {/* Unit info card */}
-            <div className="tech-card p-2.5 flex flex-col gap-1.5 corner-brackets">
+            <div className="tech-card-v2 p-2.5 flex flex-col gap-1.5 corner-accent-v2">
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30">
+                <div className="info-icon-v2">
                   <MapPin className="w-3 h-3 text-blue-400" />
                 </div>
                 <span className="text-[11px] text-slate-200 font-semibold truncate">{roomName}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded bg-emerald-500/15 flex items-center justify-center ring-1 ring-emerald-500/30">
+                <div className="info-icon-v2">
                   <Phone className="w-3 h-3 text-emerald-400" />
                 </div>
                 <span className="text-[10px] text-slate-400">消控室电话: <span className="text-slate-300">{selectedHost?.duty_phone || '-'}</span></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-5 h-5 rounded bg-amber-500/15 flex items-center justify-center ring-1 ring-amber-500/30">
+                <div className="info-icon-v2">
                   <User className="w-3 h-3 text-amber-400" />
                 </div>
                 <span className="text-[10px] text-slate-400">负责人: <span className="text-slate-300">{selectedHost?.duty_person || '-'}</span></span>
@@ -613,9 +619,9 @@ export default function FireControlRoomPage() {
 
             {/* Personnel info card */}
             {personnelInfo && (
-              <div className="tech-card p-2.5 flex flex-col gap-2 corner-brackets">
+              <div className="tech-card-v2 p-2.5 flex flex-col gap-2 corner-accent-v2">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-5 h-5 rounded bg-cyan-500/15 flex items-center justify-center ring-1 ring-cyan-500/30">
+                  <div className="info-icon-v2">
                     <Users className="w-3 h-3 text-cyan-400" />
                   </div>
                   <span className="text-[11px] text-cyan-400 font-semibold">值班人员信息</span>
@@ -665,14 +671,14 @@ export default function FireControlRoomPage() {
                   flashes={{ p1: p1Flash, p2: p2Flash, l1: l1Flash, l2: l2Flash }}
                 />
               ) : (
-                <div className="flex-1 tech-card flex flex-col gap-2 min-h-0 p-2 corner-brackets-full relative">
+                <div className="flex-1 tech-card-v2 flex flex-col gap-2 min-h-0 p-2 corner-accent-v2 relative">
                   <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
                   <div className="flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-1.5">
                       <Video className="w-3.5 h-3.5 text-blue-400" />
                       <span className="text-[10px] text-slate-300 font-semibold">视频监控</span>
                       <div className="flex items-center gap-1 ml-1">
-                        <div className="w-1.5 h-1.5 rounded-full led-red led-blink" />
+                        <div className="w-1.5 h-1.5 rounded-full led-red-v2 led-blink" />
                         <span className="text-[9px] text-red-400 font-medium">REC</span>
                       </div>
                     </div>
@@ -736,11 +742,11 @@ export default function FireControlRoomPage() {
            ═══════════════════════════════════════════════════════════════ */}
         <div className="flex gap-2 flex-shrink-0" style={{ height: '30%' }}>
           {/* Multiline Panel */}
-          <div className="tech-card flex flex-col flex-[2.3] overflow-hidden corner-brackets-full relative">
+          <div className="tech-card-v2 flex flex-col flex-[2.3] overflow-hidden corner-accent-v2 relative">
             <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
-            <div className="px-3 py-1.5 hmi-panel-header border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
+            <div className="px-3 py-1.5 hmi-panel-header-v2 border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded bg-amber-500/15 flex items-center justify-center ring-1 ring-amber-500/30">
+                <div className="info-icon-v2">
                   <Zap className="w-3 h-3 text-amber-400" />
                 </div>
                 <span className="text-xs text-slate-200 font-semibold">多线盘</span>
@@ -762,11 +768,11 @@ export default function FireControlRoomPage() {
             </div>
           </div>
           {/* Bus Panel */}
-          <div className="tech-card flex flex-col flex-1 overflow-hidden corner-brackets-full relative">
+          <div className="tech-card-v2 flex flex-col flex-1 overflow-hidden corner-accent-v2 relative">
             <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
-            <div className="px-3 py-1.5 hmi-panel-header border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
+            <div className="px-3 py-1.5 hmi-panel-header-v2 border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30">
+                <div className="info-icon-v2">
                   <Activity className="w-3 h-3 text-blue-400" />
                 </div>
                 <span className="text-xs text-slate-200 font-semibold">总线盘</span>
@@ -795,12 +801,12 @@ export default function FireControlRoomPage() {
         {/* ═══════════════════════════════════════════════════════════════
             COMMAND LOGS
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="h-24 flex-shrink-0 tech-card flex flex-col overflow-hidden corner-brackets">
-          <div className="px-3 py-1 border-b border-slate-700/30 flex items-center gap-1.5 flex-shrink-0 hmi-panel-header">
+        <div className="h-24 flex-shrink-0 tech-card-v2 flex flex-col overflow-hidden corner-accent-v2">
+          <div className="px-3 py-1 border-b border-slate-700/30 flex items-center gap-1.5 flex-shrink-0 hmi-panel-header-v2">
             <LogIn className="w-3 h-3 text-slate-500" />
             <span className="text-[10px] text-slate-400 font-semibold">操作日志</span>
           </div>
-          <div ref={logsRef} className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 relative">
+          <div ref={logsRef} className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 relative log-timeline-v2">
             {/* Timeline connector line */}
             <div className="absolute left-[52px] top-2 bottom-2 w-px bg-slate-700/30" />
             {commandLogs.length === 0 && <div className="text-[10px] text-slate-600 text-center py-2">暂无操作记录</div>}
@@ -986,7 +992,7 @@ function AlarmTable({ alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAl
     const rows: any[] = [];
     if (alarmTab === 'all' || alarmTab === 'fire') {
       fireAlarms.slice(0, 4).forEach((a: FireAlarm) => rows.push(
-        <div key={`fire-${a.id}`} className={`grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row fire-table-row-red border-b border-slate-700/10 items-center group ${a.status === 0 ? 'alarm-critical animate-red-pulse' : ''}`}>
+        <div key={`fire-${a.id}`} className={`grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row-v2 fire-table-row-red-v2 border-b border-slate-700/10 items-center group ${a.status === 0 ? 'alarm-critical-v2 animate-red-pulse' : ''}`}>
           <div className="flex items-center">
             <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${a.alarm_type === 1 ? 'text-red-400 bg-red-500/15 border-red-500/30' : a.alarm_type === 2 ? 'text-yellow-400 bg-yellow-500/15 border-yellow-500/30' : 'text-purple-400 bg-purple-500/15 border-purple-500/30'}`}>{a.alarm_type === 1 ? '火警' : a.alarm_type === 2 ? '故障' : '预警'}</span>
           </div>
@@ -995,7 +1001,7 @@ function AlarmTable({ alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAl
           <span className={`${cell} text-slate-500`}>{a.device_point}</span>
           <span className={`${cell} text-slate-500 font-mono`}>1</span>
           <span className={`${cell} text-slate-500 font-mono`}>{a.device_code}</span>
-          <span className={`text-[10px] leading-none text-center font-semibold ${a.status === 0 ? 'text-red-400 glow-text-red' : a.status === 1 ? 'text-blue-400' : a.status === 2 ? 'text-emerald-400' : 'text-slate-400'}`}>{a.status === 0 ? '未处理' : a.status === 1 ? '已确认' : a.status === 2 ? '已处理' : '误报'}</span>
+          <span className={`text-[10px] leading-none text-center font-semibold ${a.status === 0 ? 'text-red-400 glow-text-red-v2' : a.status === 1 ? 'text-blue-400' : a.status === 2 ? 'text-emerald-400' : 'text-slate-400'}`}>{a.status === 0 ? '未处理' : a.status === 1 ? '已确认' : a.status === 2 ? '已处理' : '误报'}</span>
           <div className="flex items-center justify-center">
             {a.status === 0 ? (
               <button onClick={() => handleConfirm(String(a.id), 1)} disabled={confirmingId === String(a.id)} className="text-[10px] px-2 py-1 bg-blue-500/15 text-blue-400 rounded-md hover:bg-blue-500/25 transition-all border border-blue-500/20 font-medium disabled:opacity-40">{confirmingId === String(a.id) ? '中' : '确认'}</button>
@@ -1008,21 +1014,21 @@ function AlarmTable({ alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAl
     }
     if (alarmTab === 'all' || alarmTab === 'fault') {
       faultAlarms.slice(0, 4).forEach((f: FaultAlarm) => rows.push(
-        <div key={`fault-${f.id}`} className={`grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row fire-table-row-amber border-b border-slate-700/10 items-center group ${f.status === 0 ? 'alarm-warning' : ''}`}>
+        <div key={`fault-${f.id}`} className={`grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row-v2 fire-table-row-amber-v2 border-b border-slate-700/10 items-center group ${f.status === 0 ? 'alarm-critical-v2' : ''}`}>
           <div className="flex items-center"><span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20">故障</span></div>
           <span className={`${cell} text-slate-500`}>{fmtTime(f.created_at)}</span>
           <span className={`${cell} text-slate-200 font-semibold`}>{f.device_name}</span>
           <span className={`${cell} text-slate-500`}>{f.device_type}</span>
           <span className={`${cell} text-slate-500 font-mono`}>1</span>
           <span className={`${cell} text-slate-500 font-mono`}>{f.alarm_no}</span>
-          <span className={`text-[10px] leading-none text-center font-semibold ${f.status === 0 ? 'text-yellow-400 glow-text-yellow' : 'text-emerald-400'}`}>{f.status === 0 ? '未处理' : '已处理'}</span>
+          <span className={`text-[10px] leading-none text-center font-semibold ${f.status === 0 ? 'text-yellow-400 glow-text-yellow-v2' : 'text-emerald-400'}`}>{f.status === 0 ? '未处理' : '已处理'}</span>
           <div className="flex items-center justify-center"><button className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button></div>
         </div>
       ));
     }
     if (alarmTab === 'all' || alarmTab === 'shield') {
       shieldItems.slice(0, 4).forEach((s: ShieldItem) => rows.push(
-        <div key={`shield-${s.id}`} className="grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row fire-table-row-purple border-b border-slate-700/10 items-center group">
+        <div key={`shield-${s.id}`} className="grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row-v2 fire-table-row-purple-v2 border-b border-slate-700/10 items-center group">
           <div className="flex items-center"><span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-purple-400 bg-purple-500/10 border border-purple-500/20">屏蔽</span></div>
           <span className={`${cell} text-slate-500`}>{fmtTime(s.shield_time)}</span>
           <span className={`${cell} text-slate-200 font-semibold`}>{s.point_name}</span>
@@ -1036,7 +1042,7 @@ function AlarmTable({ alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAl
     }
     if (alarmTab === 'all' || alarmTab === 'feedback') {
       feedbackAlarms.slice(0, 4).forEach((fb: FeedbackAlarm) => rows.push(
-        <div key={`fb-${fb.id}`} className="grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row fire-table-row-cyan border-b border-slate-700/10 items-center group">
+        <div key={`fb-${fb.id}`} className="grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-[32px] fire-table-row-v2 fire-table-row-cyan-v2 border-b border-slate-700/10 items-center group">
           <div className="flex items-center"><span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20">反馈</span></div>
           <span className={`${cell} text-slate-500`}>{fmtTime(fb.created_at)}</span>
           <span className={`${cell} text-slate-200 font-semibold`}>{fb.device_name}</span>
@@ -1055,7 +1061,7 @@ function AlarmTable({ alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAl
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 tech-card rounded-t-none overflow-hidden corner-brackets">
+    <div className="flex-1 flex flex-col min-h-0 tech-card-v2 rounded-t-none overflow-hidden corner-accent-v2">
       <div className="grid grid-cols-[52px_1fr_1.5fr_1fr_48px_1fr_56px_56px] gap-1 px-3 h-8 glass flex-shrink-0 items-center border-b border-slate-700/20">
         <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">类型</span>
         <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">时间</span>
@@ -1090,7 +1096,7 @@ function SciFiGauge({ label, value, unit, max, color, flash }: { label: string; 
   const isAbnormal = (label.includes('压力') && (numValue > 0.8 || numValue < 0.2)) || (label.includes('液位') && numValue < 1.0);
 
   return (
-    <div className={`flex flex-col items-center justify-center gap-1 relative p-1 rounded-lg transition-all ${flash ? 'data-changed' : ''} ${isAbnormal ? 'alarm-critical rounded-lg' : ''}`}>
+    <div className={`flex flex-col items-center justify-center gap-1 relative p-1 rounded-lg transition-all ${flash ? 'data-changed' : ''} ${isAbnormal ? 'alarm-critical-v2 rounded-lg' : ''}`}>
       <svg viewBox="0 0 64 44" className="w-full h-12">
         <defs>
           <linearGradient id={`grad-${label}`} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -1134,7 +1140,7 @@ function SciFiGauge({ label, value, unit, max, color, flash }: { label: string; 
 
 function SciFiGaugePanel({ realtime, onSwitchVideo, flashes }: { realtime: RealtimeData; onSwitchVideo: () => void; flashes: { p1: boolean; p2: boolean; l1: boolean; l2: boolean } }) {
   return (
-    <div className="flex-1 sci-fi-panel rounded-xl p-2 flex flex-col gap-2 min-h-0 relative corner-brackets-full">
+    <div className="flex-1 sci-fi-panel rounded-xl p-2 flex flex-col gap-2 min-h-0 relative corner-accent-v2">
       <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
       <div className="sci-fi-scan-line" />
       {/* Header */}
@@ -1212,16 +1218,16 @@ function MultilineCard({ point, hostId, btnSize = 'md' }: { point: MultilinePoin
   };
 
   return (
-    <div className={`relative tech-card ${s.pad} flex flex-col ${s.gap} hover:scale-[1.01] corner-brackets ${opAnim ? 'animate-scale-in' : ''}`}>
+    <div className={`relative tech-card-v2 ${s.pad} flex flex-col ${s.gap} hover:scale-[1.01] corner-accent-v2 ${opAnim ? 'animate-scale-in' : ''}`}>
       {execResult && (
         <div className={`absolute top-1 left-1 right-1 z-20 text-center ${s.btnText} py-0.5 rounded font-medium ${execResult.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{execResult.msg}</div>
       )}
       <div className="flex items-center justify-between">
         <HardDrive className={`${s.icon} text-slate-500`} />
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${running ? 'led-green led-pulse' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${running ? 'text-emerald-400' : 'text-slate-500'}`}>启</span></div>
-          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${feedback ? 'led-blue' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${feedback ? 'text-blue-400' : 'text-slate-500'}`}>反</span></div>
-          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${fault ? 'led-red led-blink' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${fault ? 'text-red-400' : 'text-slate-500'}`}>故</span></div>
+          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${running ? 'led-green-v2 led-pulse' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${running ? 'text-emerald-400' : 'text-slate-500'}`}>启</span></div>
+          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${feedback ? 'led-blue-v2' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${feedback ? 'text-blue-400' : 'text-slate-500'}`}>反</span></div>
+          <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${fault ? 'led-red-v2 led-blink' : 'bg-slate-700'}`} /><span className={`${s.indicatorText} ${fault ? 'text-red-400' : 'text-slate-500'}`}>故</span></div>
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -1420,7 +1426,7 @@ function BusCard({ point, hostId, btnSize = 'md' }: { point: BusPoint; hostId?: 
     finally { setExecLoading(false); setTimeout(() => { setExecResult(null); setOpAnim(false); }, 3000); }
   };
 
-  const statusColor = point.status === 1 ? 'led-red led-blink' : point.status === 2 ? 'led-yellow' : point.status === 3 ? 'bg-slate-400' : running ? 'led-green led-pulse' : 'bg-slate-600';
+  const statusColor = point.status === 1 ? 'led-red-v2 led-blink' : point.status === 2 ? 'led-yellow-v2' : point.status === 3 ? 'bg-slate-400' : running ? 'led-green-v2 led-pulse' : 'bg-slate-600';
   const statusLabel = point.status === 1 ? '火警' : point.status === 2 ? '故障' : point.status === 3 ? '屏蔽' : running ? '启动' : '正常';
 
   const sizeConfig = {
@@ -1431,7 +1437,7 @@ function BusCard({ point, hostId, btnSize = 'md' }: { point: BusPoint; hostId?: 
   const s = sizeConfig[btnSize];
 
   return (
-    <div className={`relative tech-card ${s.pad} flex flex-col gap-1 hover:scale-[1.01] corner-brackets ${opAnim ? 'animate-scale-in' : ''}`}>
+    <div className={`relative tech-card-v2 ${s.pad} flex flex-col gap-1 hover:scale-[1.01] corner-accent-v2 ${opAnim ? 'animate-scale-in' : ''}`}>
       {execResult && (
         <div className={`absolute top-1 left-1 right-1 z-20 text-center ${s.btnText} py-0.5 rounded font-medium ${execResult.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>{execResult.msg}</div>
       )}
@@ -1448,8 +1454,8 @@ function BusCard({ point, hostId, btnSize = 'md' }: { point: BusPoint; hostId?: 
         <button onClick={() => setConfirmAction('stop')} disabled={!running || execLoading} className={`flex-1 flex items-center justify-center gap-1 ${s.btnPy} rounded ${s.btnText} bg-orange-600/25 text-orange-300 hover:bg-orange-600/40 disabled:opacity-30 transition-colors border border-orange-500/30 active-press`}><Square className={btnSize === 'sm' ? 'w-2.5 h-2.5' : btnSize === 'md' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />停止</button>
       </div>
       <div className="flex items-center justify-center gap-2">
-        <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${running ? 'led-green led-pulse' : 'bg-slate-700'}`} /><span className={`${s.subText} ${running ? 'text-emerald-400' : 'text-slate-600'}`}>启动</span></div>
-        <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${feedback ? 'led-blue' : 'bg-slate-700'}`} /><span className={`${s.subText} ${feedback ? 'text-blue-400' : 'text-slate-600'}`}>反馈</span></div>
+        <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${running ? 'led-green-v2 led-pulse' : 'bg-slate-700'}`} /><span className={`${s.subText} ${running ? 'text-emerald-400' : 'text-slate-600'}`}>启动</span></div>
+        <div className="flex items-center gap-0.5"><div className={`${s.indicator} rounded-full transition-all ${feedback ? 'led-blue-v2' : 'bg-slate-700'}`} /><span className={`${s.subText} ${feedback ? 'text-blue-400' : 'text-slate-600'}`}>反馈</span></div>
       </div>
       <Dialog open={!!confirmAction && !needPwd} onOpenChange={v => { if (!v) setConfirmAction(null); }}>
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-100 max-w-md backdrop-blur-sm">

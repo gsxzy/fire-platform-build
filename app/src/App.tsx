@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { DynamicRoutes } from '@/core/DynamicRoutes';
 import { ToastProvider } from '@/core/ToastContext';
 import { LoadingProvider } from '@/core/LoadingContext';
@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { initWebSocket, closeWebSocket } from '@/services/websocket.service';
 import { useAlarmPopup } from '@/core/AlarmPopupContext';
 import { logger } from '@/lib/logger';
+import type { Alarm } from '@/types/db';
 
 /* 登录页独立错误边界 */
 function LoginWithBoundary() {
@@ -35,12 +36,20 @@ function AuthGuard() {
 
 /* WebSocket 生命周期管理 - 接入全局报警弹窗 */
 function WebSocketManager() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { openAlarm } = useAlarmPopup();
+  const openAlarmRef = useRef(openAlarm);
+  openAlarmRef.current = openAlarm;
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated) {
+      void import('@/sections/WorkbenchPage');
+      void import('@/sections/AlarmCenterPage');
       const token = localStorage.getItem('sfp_token') || '';
+      if (!token) {
+        logger.warn('[WS] 跳过初始化：本地无 token');
+        return;
+      }
       const wsClient = initWebSocket(token, {
         onConnect: () => {
             logger.info('[WS] Connected, subscribing to topics...');
@@ -73,9 +82,9 @@ function WebSocketManager() {
               createdAt: rawAlarm.created_at || rawAlarm.createdAt || '',
               updatedAt: rawAlarm.updated_at || rawAlarm.updatedAt || '',
             };
-            // 触发全局报警弹窗
-            openAlarm({
-              alarm: alarm as any,
+            // 触发全局报警弹窗（使用 ref 避免 openAlarm 引用变化导致 WebSocket 重连）
+            openAlarmRef.current({
+              alarm: alarm as Alarm,
               unitName: alarm.unitName || '未知单位',
               unitAddress: rawAlarm.unit_address || rawAlarm.unitAddress,
               managerName: rawAlarm.control_room?.managerName || rawAlarm.controlRoom?.managerName,
@@ -91,11 +100,14 @@ function WebSocketManager() {
           onDeviceStatus: (device) => logger.debug('[WS] Device status:', device),
           onError: (error) => logger.error('[WS] Error:', error),
       });
+    } else {
+      // 未登录时确保关闭连接
+      closeWebSocket();
     }
     return () => {
       closeWebSocket();
     };
-  }, [isAuthenticated, user, openAlarm]);
+  }, [isAuthenticated]);
 
   return null;
 }

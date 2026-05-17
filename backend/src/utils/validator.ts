@@ -1,5 +1,4 @@
-import { fail } from './response';
-import type { Response } from 'express';
+
 
 /** 严格解析正整数 ID，失败时抛出 Error（供 Controller try/catch 捕获） */
 export function parseIdStrict(id: string): number {
@@ -30,36 +29,6 @@ export function sanitizePagination(req: { query: Record<string, unknown> }) {
     pageNum: Math.max(1, Number.isFinite(rawPageNum) ? rawPageNum : 1),
     pageSize: Math.min(MAX_PAGE_SIZE, Math.max(1, Number.isFinite(rawPageSize) ? rawPageSize : 10)),
   };
-}
-
-/** 安全提取 ID（支持数字主键和字符串标识） */
-export function sanitizeId(idParam: string, res: Response): number | string | null {
-  const trimmed = String(idParam ?? '').trim();
-  if (!trimmed) {
-    res.status(400).json(fail('缺少 ID 参数', 400));
-    return null;
-  }
-  if (/^\d+$/.test(trimmed)) {
-    const n = parseInt(trimmed, 10);
-    if (n > 0) return n;
-  }
-  // 非纯数字则返回原字符串（如 device_sn）
-  return trimmed;
-}
-
-/** 安全提取数字 ID（纯数字场景） */
-export function sanitizeNumericId(idParam: string, res: Response): number | null {
-  const trimmed = String(idParam ?? '').trim();
-  if (!trimmed) {
-    res.status(400).json(fail('缺少 ID 参数', 400));
-    return null;
-  }
-  const n = parseInt(trimmed, 10);
-  if (!Number.isFinite(n) || n <= 0) {
-    res.status(400).json(fail('无效的 ID 参数', 400));
-    return null;
-  }
-  return n;
 }
 
 /** 字段白名单过滤（防止非法字段注入） */

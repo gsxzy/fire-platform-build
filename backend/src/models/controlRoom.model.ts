@@ -11,7 +11,14 @@ export const ControlRoom = sequelize.define('control_room', {
   duty_person: DataTypes.STRING(50),
   duty_phone: DataTypes.STRING(20),
   video_url: DataTypes.STRING(500),
-}, { tableName: 'fire_control_room', comment: '消控室表' });
+}, {
+  tableName: 'fire_control_room',
+  comment: '消控室表',
+  indexes: [
+    { name: 'idx_unit_id', fields: ['unit_id'] },
+    { name: 'idx_status', fields: ['status'] },
+  ],
+});
 
 
 /* ── 消控室报警主机 ── */
@@ -31,7 +38,15 @@ export const ControlRoomHost = sequelize.define('control_room_host', {
   silenced: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0正常 1消音' },
   status: { type: DataTypes.TINYINT, defaultValue: 1, comment: '0离线 1在线 2故障' },
   last_heartbeat: DataTypes.DATE,
-}, { tableName: 'fire_control_room_host', comment: '消控室报警主机表' });
+}, {
+  tableName: 'fire_control_room_host',
+  comment: '消控室报警主机表',
+  indexes: [
+    { name: 'idx_room_id', fields: ['room_id'] },
+    { name: 'idx_status', fields: ['status'] },
+    { name: 'idx_protocol_type', fields: ['protocol_type'] },
+  ],
+});
 
 
 /* ── 消控室主机多线盘 ── */
@@ -44,7 +59,14 @@ export const MultilinePanel = sequelize.define('multiline_panel', {
   device_type: { type: DataTypes.STRING(30), comment: '设备类型' },
   status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0停止 1启动 2故障' },
   feedback_status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0无反馈 1有反馈' },
-}, { tableName: 'fire_multiline_panel', comment: '多线盘点位表' });
+}, {
+  tableName: 'fire_multiline_panel',
+  comment: '多线盘点位表',
+  indexes: [
+    { name: 'idx_host_id', fields: ['host_id'] },
+    { name: 'idx_status', fields: ['status'] },
+  ],
+});
 
 
 /* ── 消控室主机总线点位 ── */
@@ -57,7 +79,17 @@ export const BusPoint = sequelize.define('bus_point', {
   device_type: { type: DataTypes.STRING(30), comment: '设备类型' },
   install_location: DataTypes.STRING(200),
   status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0正常 1火警 2故障 3屏蔽 4预警' },
-}, { tableName: 'fire_bus_point', comment: '总线点位表' });
+}, {
+  tableName: 'fire_bus_point',
+  comment: '总线点位表',
+  indexes: [
+    { name: 'idx_host_id', fields: ['host_id'] },
+    { name: 'idx_loop_no', fields: ['loop_no'] },
+    { name: 'idx_status', fields: ['status'] },
+    /* 复合索引：按回路号+点位号查询 */
+    { name: 'idx_host_loop_point', fields: ['host_id', 'loop_no', 'point_no'] },
+  ],
+});
 
 
 /* ── 消控室控制指令日志 ── */
@@ -72,7 +104,17 @@ export const HostCommandLog = sequelize.define('host_command_log', {
   result_msg: DataTypes.STRING(255),
   operator_id: DataTypes.BIGINT.UNSIGNED,
   operator_name: DataTypes.STRING(50),
-}, { tableName: 'fire_host_command_log', comment: '主机控制指令日志表' });
+}, {
+  tableName: 'fire_host_command_log',
+  comment: '主机控制指令日志表',
+  indexes: [
+    { name: 'idx_room_id', fields: ['room_id'] },
+    { name: 'idx_host_id', fields: ['host_id'] },
+    { name: 'idx_cmd_type', fields: ['cmd_type'] },
+    { name: 'idx_result', fields: ['result'] },
+    { name: 'idx_created_at', fields: ['created_at'] },
+  ],
+});
 
 
 /* ── 报警主机编码表 ── */

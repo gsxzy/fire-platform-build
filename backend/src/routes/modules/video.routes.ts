@@ -1,43 +1,41 @@
 import { Router } from 'express';
 import { VideoController } from '@/controllers/video.controller';
+import { handleController } from '@/utils/handleController';
+import { requirePermission } from '@/middleware/permission';
 
 const router = Router();
+const h = (name: keyof typeof VideoController) =>
+  handleController(`Video.${String(name)}`, VideoController[name]);
 
-// 设备列表
-router.get('/devices', VideoController.list);
-router.get('/devices/:deviceId/channels', VideoController.channels);
+const view = requirePermission('monitor:view');
+const control = requirePermission('monitor:control');
 
-// 流状态（ZLM）
-router.get('/streams', VideoController.streams);
-router.get('/streams/:cameraId', VideoController.streamStatus);
-router.post('/stream/start/:cameraId', VideoController.startStream);
-router.post('/stream/stop/:cameraId', VideoController.stopZLMStream);
+router.get('/devices', view, h('list'));
+router.get('/devices/:deviceId/channels', view, h('channels'));
 
-// 取流核心接口
-router.post('/stream', VideoController.getPlayUrl);
-router.get('/stream/:deviceId', VideoController.getStream);
+router.get('/streams', view, h('streams'));
+router.get('/streams/:cameraId', view, h('streamStatus'));
+router.post('/stream/start/:cameraId', control, h('startStream'));
+router.post('/stream/stop/:cameraId', control, h('stopZLMStream'));
 
-// 摄像头配置
-router.get('/cameras', VideoController.cameraConfigs);
+router.post('/stream', view, h('getPlayUrl'));
+router.get('/stream/:deviceId', view, h('getStream'));
 
-// 停止播放
-router.post('/stop', VideoController.stopPlay);
+router.get('/cameras', view, h('cameraConfigs'));
 
-// PTZ / 预设位
-router.post('/ptz', VideoController.ptzControl);
-router.post('/ptz/:deviceId', VideoController.ptzControl);
-router.post('/preset', VideoController.presetControl);
-router.post('/preset/:deviceId', VideoController.presetControl);
+router.post('/stop', control, h('stopPlay'));
 
-// 回放
-router.post('/playback', VideoController.getPlayback);
-router.get('/playback/:deviceId', VideoController.getPlayback);
+router.post('/ptz', control, h('ptzControl'));
+router.post('/ptz/:deviceId', control, h('ptzControl'));
+router.post('/preset', control, h('presetControl'));
+router.post('/preset/:deviceId', control, h('presetControl'));
 
-// 截图
-router.get('/snapshot/:deviceId/:channelId', VideoController.snapshot);
-router.get('/snapshot/:deviceId', VideoController.snapshot);
+router.post('/playback', view, h('getPlayback'));
+router.get('/playback/:deviceId', view, h('getPlayback'));
 
-// 实时预览
-router.get('/live/:deviceId', VideoController.livePreview);
+router.get('/snapshot/:deviceId/:channelId', view, h('snapshot'));
+router.get('/snapshot/:deviceId', view, h('snapshot'));
+
+router.get('/live/:deviceId', view, h('livePreview'));
 
 export default router;

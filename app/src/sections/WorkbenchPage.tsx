@@ -14,7 +14,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend
 } from 'recharts';
-import { legacyApi } from '@/api/services';
+import { dashboardService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 
 /* ---------- 默认数据 ---------- */
@@ -212,7 +212,7 @@ export default function WorkbenchPage() {
     setLoading(true);
     setError(null);
     try {
-      const raw = await legacyApi.workbench() as Record<string, unknown>;
+      const raw = (await dashboardService.workbench()) as Record<string, unknown>;
       const hasTrend =
         Array.isArray(raw.alarmTrend as unknown[]) ||
         (raw.alarm && typeof raw.alarm === 'object' && Array.isArray((raw.alarm as { trend?: unknown }).trend));
@@ -264,7 +264,7 @@ export default function WorkbenchPage() {
             if (item.label === '巡检任务') return { ...item, value: Number(st.patrolToday ?? 0) };
             if (item.label === '待整改隐患') return { ...item, value: Number(st.hazardPending ?? 0) };
             if (item.label === '联网单位') return { ...item, value: Number(st.unitTotal ?? 0) };
-            if (item.label === '在线设备') return { ...item, value: Number(st.deviceOnline ?? 0) };
+            if (item.label === '在线设备') return { ...item, value: Number(st.deviceActiveOnline ?? st.deviceOnline ?? 0) };
             return item;
           })
         );

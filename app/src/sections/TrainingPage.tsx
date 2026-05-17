@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { trainingService } from '@/api/services';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,8 +25,8 @@ export default function TrainingPage() {
     setError(null);
     try {
       const [courseRes, examRes] = await Promise.all([
-        legacyApi.courseList() as any,
-        legacyApi.examList() as any,
+        trainingService.courseList() as any,
+        trainingService.examList() as any,
       ]);
       const courseData = courseRes.data ?? courseRes;
       if (courseData && (Array.isArray(courseData) || typeof courseData === 'object')) {

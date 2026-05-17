@@ -8,11 +8,11 @@
 
 | 项目 | 值 |
 |------|-----|
-| 公网 IP | `124.223.35.58` |
-| 内网 IP | `10.0.0.3`（主网卡 eth0） |
+| 公网 IP | `<SERVER_IP>` |
+| 内网 IP | `<INTERNAL_IP>`（主网卡 eth0） |
 | 系统 | OpenCloudOS 9.4 (`Linux 6.6.117-45.2.oc9.x86_64`) |
-| SSH 用户 | `root` |
-| 面板 | 宝塔面板（nginx 管理） |
+| SSH 用户 | `<SSH_USER>` |
+| 面板 | 服务器面板（nginx 管理） |
 
 ### Docker 容器
 
@@ -87,7 +87,7 @@ WVP_PRO_SECRET=
 HEARTBEAT_CRON=* * * * *
 HEARTBEAT_TIMEOUT_MINUTES=10
 ZLM_SECRET=<ZLM_SECRET>
-ZLM_PLAY_HOST=124.223.35.58
+ZLM_PLAY_HOST=<SERVER_IP>
 GB26875_PORT=5201
 FSCN8001_PORT=5200
 
@@ -165,7 +165,7 @@ sip:
   port: 5060
   domain: 3402000000
   id: 34020000002000000001
-  show-ip: 124.223.35.58
+  show-ip: <SERVER_IP>
   password: <WVP_SIP_PASSWORD>
 
 media:
@@ -173,7 +173,7 @@ media:
   ip: 127.0.0.1        # WVP→ZLM 内部通信，不可改
   http-port: 8081
   secret: <ZLM_SECRET>
-  sdp-ip: 124.223.35.58  # 必须设为公网 IP！
+  sdp-ip: <SERVER_IP>  # 必须设为公网 IP！
   rtp:
     port-range: 40000,40500
     send-port-range: 50000,55000
@@ -194,8 +194,8 @@ media:
 
 | device_id | name | ip | port | on_line | stream_mode |
 |-----------|------|-----|------|---------|-------------|
-| `34020000001300000001` | IP CAMERA | `42.91.136.196` | `34107` | `1` | `UDP` |
-| `34020000001300000002` | IP CAMERA2 | `42.91.136.196` | `33795` | `1` | `UDP` |
+| `34020000001300000001` | IP CAMERA | `<CAMERA_WAN_IP>` | `34107` | `1` | `UDP` |
+| `34020000001300000002` | IP CAMERA2 | `<CAMERA_WAN_IP>` | `33795` | `1` | `UDP` |
 
 **`wvp_device_channel`**（通道表）
 
@@ -226,7 +226,7 @@ media:
 | deviceId | `34020000001300000001` | `34020000001300000002` |
 | channelId | `34020000001300000001` | `34020000001320000002`（映射值） |
 | SIP 端口 | `34107` | `33795` |
-| WAN IP | `42.91.136.196` | `42.91.136.196` |
+| WAN IP | `<CAMERA_WAN_IP>` | `<CAMERA_WAN_IP>` |
 | SIP 密码 | `<WVP_SIP_PASSWORD>` | `<WVP_SIP_PASSWORD>` |
 | RTSP 密码 | `<CAM_RTSP_PASSWORD>` | `<CAM_RTSP_PASSWORD>` |
 | 厂商 | Hikvision | Hikvision |
@@ -241,8 +241,8 @@ media:
 **根因**：WVP `application.yml` 中 `media.sdp-ip` 被设为 `127.0.0.1`，导致 SDP 中媒体地址指向本地回环，公网摄像头无法回流。
 
 **修复**：
-1. `sdp-ip` 改回公网 IP `124.223.35.58`
-2. 后端 `video.service.ts` 增加 `replaceLocalhost()`，将 WVP 返回的 `127.0.0.1:8081/443` 替换为公网 `124.223.35.58`
+1. `sdp-ip` 改回公网 IP `<SERVER_IP>`
+2. 后端 `video.service.ts` 增加 `replaceLocalhost()`，将 WVP 返回的 `127.0.0.1:8081/443` 替换为公网 `<SERVER_IP>`
 
 ### 2. Camera 02 — 415 Unsupported Media Type
 
@@ -530,10 +530,10 @@ CTWing 平台「产品 → 订阅管理」中配置：
 
 | 消息类别 | 订阅级别 | 订阅方URL地址 |
 |---------|---------|-------------|
-| 设备数据变化通知 | 产品级 | `http://xzyzh.top/api/iot/ctwing/report` |
-| 设备指令响应通知 | 产品级 | `http://xzyzh.top/api/iot/ctwing/report` |
-| 设备事件上报通知 | 产品级 | `http://xzyzh.top/api/iot/ctwing/report` |
-| 设备上下线通知 | 产品级 | `http://xzyzh.top/api/iot/ctwing/report` |
+| 设备数据变化通知 | 产品级 | `http://<DOMAIN>/api/iot/ctwing/report` |
+| 设备指令响应通知 | 产品级 | `http://<DOMAIN>/api/iot/ctwing/report` |
+| 设备事件上报通知 | 产品级 | `http://<DOMAIN>/api/iot/ctwing/report` |
+| 设备上下线通知 | 产品级 | `http://<DOMAIN>/api/iot/ctwing/report` |
 
 **后端接口特点**：
 - 所有4类消息统一由 `POST /api/iot/ctwing/report` 接收
@@ -719,7 +719,7 @@ CREATE TABLE IF NOT EXISTS iot_telemetry (
    ```bash
    pm2 restart fire-platform
    ```
-4. 在 CTWing 平台「产品 → 订阅管理」中确认 4 类消息订阅 URL 为 `http://xzyzh.top/api/iot/ctwing/report`
+4. 在 CTWing 平台「产品 → 订阅管理」中确认 4 类消息订阅 URL 为 `http://<DOMAIN>/api/iot/ctwing/report`
 
 ---
 
@@ -877,4 +877,106 @@ echo -e "\n[mysqld]\nevent_scheduler = ON" >> /etc/my.cnf
 
 ---
 
-*最后更新：2026-05-15*
+## 十六、架构债务修复（2026-05-16）
+
+### 1. 前端 services.ts 按领域拆分
+- `app/src/api/services.ts`（967行）→ 拆分为 `services/` 下 15 个独立模块
+- 原文件保留为向后兼容的 re-export 入口
+- 新增 Vitest 测试 6 例，全部通过
+
+### 2. 后端路由模块化拆分
+- `routes/index.ts`（359行）→ 拆分为 `routes/modules/` 下 20 个子路由文件
+- `index.ts` 仅保留公开接口、外部推送、认证中间件和子路由挂载
+- 新增路由模块：`duty`、`patrol`、`plan`、`knowledge`、`iot`、`training`、`inspection`、`system`、`linkage`、`ai`、`dashboard`、`deviceControl`、`unit`、`deviceAllocation`、`deviceMaintenance`
+
+### 3. AI 服务层下沉
+- `ai.controller.ts` 中的 5 个直接数据库操作方法（`decisionList/Create`、`alertList/Confirm/Handle`）下沉到 `AIService`
+- 控制器仅保留 HTTP 参数提取、service 调用和统一异常处理
+
+### 4. 测试体系补齐
+- **后端**：自建零依赖微型测试框架（`src/test-utils/index.ts`），基于 tsx + Node.js 20+
+  - 新增 3 个测试文件、17 个用例，覆盖 ISNB 协议解析器、响应工具、验证器工具
+  - `package.json` 新增 `"test": "tsx src/test-utils/run-all.ts"`
+  - `tsconfig.json` 排除 `**/__tests__` 和 `**/test-utils`
+- **前端**：配置 `vitest.config.ts`，利用已有 Vitest 框架
+  - 新增 3 个测试文件、6 个用例，覆盖 alarm 映射、core 工厂
+
+### 5. SQL 迁移规范化
+- `backend/sql/` 下 29 个临时脚本（`check_`/`fix_`/`cleanup_` 等）归档至 `archive/sql/backend/`
+- 仅保留核心迁移：V001~V062（Flyway）+ 4 个 JS（Sequelize）
+- 新增 `backend/sql/README.md`，明确双轨迁移规则和归档规范
+
+### 部署记录
+- **时间**：2026-05-16
+- **方式**：本地构建 → scp 上传 → PM2 重启
+- **状态**：后端 `fire-platform` online，前端 nginx 443 正常，API 路由全部可用
+
+---
+
+## 十七、商用交付级优化（2026-05-17）
+
+### 1. 前端视觉系统完善（深色科技风）
+
+#### Design Token 系统
+- 新增 `app/src/styles/design-tokens.css`（128行）—— 完整 CSS 变量体系
+  - 颜色：`--fp-bg-*`（5级背景）、`--fp-accent-*`（5主色+4语义色）、`--fp-status-*`（6状态色）
+  - 字体：`--fp-font-size-*`（10级字号）、`--fp-font-weight-*`（5级字重）
+  - 阴影：`--fp-shadow-*`（6级阴影）、`--fp-shadow-glow-*`（4色光晕）
+  - 间距：`--fp-space-*`（12级间距）、`--fp-radius-*`（6级圆角）
+  - 过渡：`--fp-transition-*`（4种缓动+6种时长）
+- 语义变量：`--fp-color-primary`、`--fp-color-success`、`--fp-color-warning`、`--fp-color-danger`
+- 导出 `tailwind.config.ts` 扩展：`fpColors`、`fpSpacing`、`fpFontSize`、`fpBorderRadius`
+
+#### 组件样式系统
+- 新增 `app/src/styles/components.css`（491行）—— 完整组件样式库
+  - 卡片系统：`fire-card`、`fire-card-v2`、`fire-card-{red,emerald,amber,purple,cyan}`（5色变体）
+  - 卡片特效：`card-shine`（扫光）、`gradient-border`（渐变边框）、`corner-accent`（角标）
+  - 表格系统：`fire-table`、`fire-table-row`（悬停指示条）、行选中态、5色行变体
+  - 按钮系统：`btn-fire`、`btn-fire-primary`、`btn-fire-danger`、`btn-fire-ghost`
+  - 统计卡片：`stat-card-mini`、`stat-card-v2`（玻璃态+悬停上浮）
+  - 表单增强：`input-fire`（聚焦光晕）、标签系统 `tag-fire-*`（4色）、徽章脉冲 `badge-pulse`
+  - 地图增强：`map-marker-fire`（呼吸圈）、图表提示 `chart-tooltip-fire`
+  - 其他：`toast-fire`、`skeleton-shimmer`、`scanline-overlay`、`progress-fire`、`status-dot`
+
+#### 动画系统
+- 新增 `app/src/styles/animations.css`（完整）—— 30+ 动画 keyframes
+  - 入场：`fade-in-up`、`fade-in-left`、`fade-in-right`、`scale-in`
+  - 交互：`shake`、`border-flash`、`alarm-blink`、`value-pop`
+  - 氛围：`shimmer`、`pulse-glow`、`scanline`、`radar-spin`、`float-gentle`
+  - 缓动函数：8种商用级 `ease-*` 工具类
+  - 阶梯延迟：`.stagger-1` ~ `.stagger-9`
+
+#### 全局样式增强（`app/src/index.css`）
+- 暗色滚动条美化、输入框聚焦光晕、表格行悬停效果
+- 状态指示点系统（在线/离线/故障/预警/报废/禁用）
+- 文字渐变特效 `text-gradient`、发光文字 `glow-text-*`
+- 高德地图暗色滤镜适配
+
+### 2. 后端 API 健壮性优化
+
+#### 数据验证增强
+- **新增** `backend/src/middleware/validation.middleware.ts`（160行）—— 通用校验中间件
+  - `ValidatorChain`：链式 API（`.optional()`、`.isString()`、`.isInt({min,max})`、`.isEmail()`、`.matches()`、`.isEnum()`、`.custom()`）
+  - `validateBody` / `validateQuery` / `validateParams`：自动错误响应（400 + 字段级错误列表）
+  - 集成到 `auth.routes.ts`、`deviceAllocation.routes.ts`、`workOrder.routes.ts`
+- **新增** `backend/src/middleware/security.middleware.ts`（192行）—— 安全中间件
+  - `securityHeaders()`：11项安全响应头（CSP、X-Frame-Options、HSTS、X-Content-Type-Options 等）
+  - `rateLimitByIP()`：基于 Redis 的 IP 限流（登录/注册/推送接口）
+  - `rateLimitByUser()`：基于 JWT 的用户级限流（写操作接口）
+  - `sensitiveDataFilter()`：响应日志脱敏（密码/Token/密钥/身份证号/手机号）
+  - `sqlInjectionPreCheck()`：SQL 注入预检测（拦截 `UNION`、`SELECT`、`;--` 等模式）
+
+#### 数据库查询优化
+- `device.controller.ts`：`list` 方法 IoT 配置过滤下沉至 SQL 层（避免内存过滤导致分页失真）
+- `alarm.controller.ts`：`list` 方法时间范围查询改为闭区间（`created_at >= start AND created_at <= end`）
+- `iot.controller.ts`：`deviceList` 增加 `archive_device_id IS NOT NULL` 条件，过滤孤儿记录
+- `device.controller.ts`：`list` 新增 `hasIotConfig` 查询参数，设备配置页面只返回有实际 IoT 配置的设备
+
+### 3. 编译验证
+- 前端 `tsc --noEmit`：零错误通过
+- 后端 `tsc --noEmit`：零错误通过
+- 前后端 `--noUnusedLocals`：零警告通过
+
+---
+
+*最后更新：2026-05-17*

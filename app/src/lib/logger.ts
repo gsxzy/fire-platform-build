@@ -3,7 +3,7 @@
  * - 开发环境输出详细日志
  * - 生产环境仅输出错误日志
  */
-const isDev = import.meta.env.NODE_ENV === 'development';
+const isDev = import.meta.env.DEV;
 
 export const logger = {
   /** 信息日志 - 仅开发环境输出 */

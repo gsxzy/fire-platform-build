@@ -1,177 +1,79 @@
 import type { Request, Response } from 'express';
-import { success, fail } from '@/utils/response';
-import logger from '@/config/logger';
+import { sendSuccess } from '@/utils/respond';
+import { HttpError } from '@/utils/httpError';
 import { LinkageRule } from '@/models';
 import { LinkageService } from '@/services/linkage.service';
 import { sanitizePagination } from '@/utils/validator';
 
 export const LinkageController = {
-  /**
-   * 获取联动规则列表
-   */
   async list(req: Request, res: Response) {
-    try {
-      const { pageNum, pageSize } = sanitizePagination(req);
-      const { status  } = req.query;
-      const where: any = {};
-      if (status !== undefined) where.status = status;
+    const { pageNum, pageSize } = sanitizePagination(req);
+    const { status } = req.query;
+    const where: Record<string, unknown> = {};
+    if (status !== undefined) where.status = status;
 
-      const { count, rows } = await LinkageRule.findAndCountAll({
-        where,
-        limit: +pageSize,
-        offset: (+pageNum - 1) * +pageSize,
-        order: [['id', 'DESC']],
-      });
+    const { count, rows } = await LinkageRule.findAndCountAll({
+      where,
+      limit: +pageSize,
+      offset: (+pageNum - 1) * +pageSize,
+      order: [['id', 'DESC']],
+    });
 
-      return res.json(success({ list: rows, total: count }));
-    } catch (err: any) {
-      logger.error(`[LinkageController] list 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    sendSuccess(res, req, { list: rows, total: count });
   },
 
-  /**
-   * 创建联动规则
-   */
   async create(req: Request, res: Response) {
-    try {
-      const body = req.body as Record<string, unknown>;
-      const status = body.status !== undefined && body.status !== null ? body.status : 1;
-      const rule = await LinkageRule.create({
-        ...body,
-        status,
-      } as any);
-
-      return res.json(success(rule, '联动规则创建成功'));
-    } catch (err: any) {
-      logger.error(`[LinkageController] create 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    const body = req.body as Record<string, unknown>;
+    const status = body.status !== undefined && body.status !== null ? body.status : 1;
+    const rule = await LinkageRule.create({ ...body, status } as any);
+    sendSuccess(res, req, rule, '联动规则创建成功');
   },
 
-  /**
-   * 更新联动规则
-   */
   async update(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const rule = await LinkageRule.findByPk(id);
-      if (!rule) {
-        return res.json(fail('联动规则不存在'));
-      }
+    const { id } = req.params;
+    const rule = await LinkageRule.findByPk(id);
+    if (!rule) throw new HttpError('联动规则不存在', 404);
 
-      await rule.update(req.body);
-      return res.json(success(rule, '联动规则更新成功'));
-    } catch (err: any) {
-      logger.error(`[LinkageController] update 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    await rule.update(req.body);
+    sendSuccess(res, req, rule, '联动规则更新成功');
   },
 
-  /**
-   * 删除联动规则
-   */
   async delete(req: Request, res: Response) {
-    try {
-      const { id } = req.params;
-      const rule = await LinkageRule.findByPk(id);
-      if (!rule) {
-        return res.json(fail('联动规则不存在'));
-      }
+    const { id } = req.params;
+    const rule = await LinkageRule.findByPk(id);
+    if (!rule) throw new HttpError('联动规则不存在', 404);
 
-      await rule.destroy();
-      return res.json(success(null, '联动规则删除成功'));
-    } catch (err: any) {
-      logger.error(`[LinkageController] delete 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    await rule.destroy();
+    sendSuccess(res, req, null, '联动规则删除成功');
   },
 
-  /**
-   * 手动触发联动
-   */
   async manualTrigger(req: Request, res: Response) {
-    try {
-      const id = req.params.id ?? (req.params as any).ruleId;
-      const plan = await LinkageService.manualTrigger(
-        +id,
-        req.user!.userId,
-        req.user!.username
-      );
+    const id = req.params.id ?? (req.params as { ruleId?: string }).ruleId;
+    const plan = await LinkageService.manualTrigger(+id, req.user!.userId, req.user!.username);
 
-      if (!plan) {
-        return res.json(fail('联动触发失败'));
-      }
-
-      return res.json(success(plan, '联动已触发'));
-    } catch (err: any) {
-      logger.error(`[LinkageController] manualTrigger 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    if (!plan) throw new HttpError('联动触发失败', 400);
+    sendSuccess(res, req, plan, '联动已触发');
   },
 
-  /**
-   * 获取联动状态
-   */
   async getStatus(req: Request, res: Response) {
-    try {
-      const { alarmId } = req.params;
-      const status = await LinkageService.getLinkageStatus(+alarmId);
-
-      if (!status) {
-        return res.json(fail('联动不存在'));
-      }
-
-      return res.json(success(status));
-    } catch (err: any) {
-      logger.error(`[LinkageController] getStatus 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    const { alarmId } = req.params;
+    const status = await LinkageService.getLinkageStatus(+alarmId);
+    if (!status) throw new HttpError('联动不存在', 404);
+    sendSuccess(res, req, status);
   },
 
-  /**
-   * 应用预设联动方案
-   */
   async applyPreset(req: Request, res: Response) {
-    try {
-      const { planType, deviceIds } = req.body;
-
-      const validTypes = ['fireAlarm', 'falseAlarm', 'drill'];
-      if (!validTypes.includes(planType)) {
-        return res.json(fail('无效的联动方案类型'));
-      }
-
-      await LinkageService.applyPresetPlan(
-        planType,
-        deviceIds,
-        req.user!.userId,
-        req.user!.username
-      );
-
-      return res.json(success(null, '联动方案已应用'));
-    } catch (err: any) {
-      logger.error(`[LinkageController] applyPreset 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+    const { planType, deviceIds } = req.body;
+    const validTypes = ['fireAlarm', 'falseAlarm', 'drill'];
+    if (!validTypes.includes(planType)) {
+      throw new HttpError('无效的联动方案类型', 400);
     }
+
+    await LinkageService.applyPresetPlan(planType, deviceIds, req.user!.userId, req.user!.username);
+    sendSuccess(res, req, null, '联动方案已应用');
   },
 
-  /**
-   * 获取联动记录
-   */
   async getRecords(req: Request, res: Response) {
-    try {
-      const { pageNum, pageSize } = sanitizePagination(req);
-      const { alarmId  } = req.query;
-      const where: any = {};
-      if (alarmId) where.alarm_id = alarmId;
-
-      // 这里应该有联动记录表，暂时返回空
-      const records: unknown[] = [];
-
-      return res.json(success({ list: records, total: 0 }));
-    } catch (err: any) {
-      logger.error(`[LinkageController] getRecords 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
-  }
+    sendSuccess(res, req, { list: [] as unknown[], total: 0 });
+  },
 };

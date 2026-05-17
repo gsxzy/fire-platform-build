@@ -29,7 +29,7 @@ export function useAMap() {
 
     const key = (import.meta.env.VITE_AMAP_KEY as string | undefined)?.trim();
     if (!key) {
-      console.error('[AMap] 错误：未设置 VITE_AMAP_KEY 环境变量，地图无法加载');
+      logger.error('[AMap] 错误：未设置 VITE_AMAP_KEY 环境变量，地图无法加载');
       setLoading(false);
       return;
     }

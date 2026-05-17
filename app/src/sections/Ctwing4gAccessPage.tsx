@@ -99,7 +99,10 @@ export default function Ctwing4gAccessPage() {
           })
         );
       })
-      .catch(() => setArchives([]))
+      .catch((e: unknown) => {
+        toastError('加载失败', getErrorMessage(e, '档案设备列表加载失败，请检查网络'));
+        setArchives([]);
+      })
       .finally(() => setLoadingArchives(false));
   }, []);
 

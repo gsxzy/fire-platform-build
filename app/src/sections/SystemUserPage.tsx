@@ -120,6 +120,11 @@ export default function SystemUserPage() {
       fields={FIELDS}
       filterFields={FILTER_FIELDS}
       emptyDescription="登录账号与角色绑定后登录平台。列表为空时请检查用户接口或先创建管理员账号。"
+      permission={{
+        create: 'system:user:create',
+        update: 'system:user:edit',
+        delete: 'system:user:delete',
+      }}
     />
   );
 }

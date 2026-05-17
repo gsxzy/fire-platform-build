@@ -10,6 +10,7 @@ export const IoTDevice = sequelize.define('iot_device', {
   device_type: DataTypes.STRING(30),
   protocol_type: { type: DataTypes.STRING(20), comment: '通信协议：MQTT/ModbusTCP/HTTP/GB26875/GB28181/FSCN8001' },
   protocol_config: DataTypes.TEXT,
+  ctwing_device_id: { type: DataTypes.STRING(100), comment: 'CTWing 平台设备ID（冗余字段，避免 JSON_SEARCH 全表扫描）' },
   unit_id: DataTypes.BIGINT.UNSIGNED,
   status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '在线状态：0离线 1在线 2故障' },
   last_online: DataTypes.DATE,
@@ -22,6 +23,11 @@ export const IoTDevice = sequelize.define('iot_device', {
   indexes: [
     { name: 'idx_unit_id', fields: ['unit_id'] },
     { name: 'idx_protocol_type', fields: ['protocol_type'] },
+    { name: 'idx_archive_device_id', fields: ['archive_device_id'] },
+    { name: 'idx_device_sn', fields: ['device_sn'] },
+    { name: 'idx_ctwing_device_id', fields: ['ctwing_device_id'] },
+    /* 复合索引：在线状态检测（status + last_online） */
+    { name: 'idx_status_online', fields: ['status', 'last_online'] },
   ],
 });
 

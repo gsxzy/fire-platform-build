@@ -96,7 +96,7 @@ function getDBInternal(retryCount: number): Promise<IDBDatabase> {
       dbInstance = request.result;
       const missingStores = DB_STORES.filter(s => !dbInstance!.objectStoreNames.contains(s));
       if (missingStores.length > 0) {
-        console.error(`[DB.integrity] missing stores=`, missingStores, 'please clear site data and refresh');
+        logger.error(`[DB.integrity] missing stores=`, missingStores, 'please clear site data and refresh');
         dbOpening = false;
         const err = new Error(`IndexedDB store缺失: ${missingStores.join(', ')}，请清除站点数据后刷新页面`);
         rejectAllDbWaiters(err);

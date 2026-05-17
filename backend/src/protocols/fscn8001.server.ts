@@ -188,14 +188,37 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
     logger.warn(`[FSCN8001][ALARM] ▲ 火警上报 seq=${frame.seq} deviceId=${deviceId}`);
     let desc = 'FSCN8001 火警上报';
     let eventTime = decodeBcdTimestamp(frame.raw.subarray(6, 12));
-    if (frame.dataLen >= 12) {
-      const preData = frame.data.subarray(0, 6).toString('hex').toUpperCase();
-      eventTime = decodeBcdTimestamp(frame.data.subarray(6, 12));
-      desc = `事件时间:${eventTime} 前置数据:${preData}`;
-    } else if (frame.dataLen > 0) {
-      desc += ` 数据:${frame.data.toString('hex').toUpperCase()}`;
+
+    if (frame.dataLen > 0) {
+      const typeFlag = frame.data[0];
+      if (typeFlag === 0x02 && frame.dataLen >= 17) {
+        const events = parseDeviceStatus(frame.data);
+        for (const ev of events) {
+          if (ev.alarmType) {
+            const evDesc = `${ev.devTypeName} ${ev.alarmType === 'fire' ? '火警' : ev.alarmType === 'fault' ? '故障' : ev.alarmType}
+              系统类型=${ev.sysType} 回路=${ev.loopNo} 点位=${ev.pointNo}
+              状态=${ev.statusHex} 时间=${ev.eventTime}`;
+            await this.insertAlarm(deviceId, ev.alarmType, ev.alarmLevel, evDesc, frame.hex, ev.loopNo, ev.pointNo, ev.sysAddr, ev.devType);
+            await this.createUnifiedAlarm(deviceId, ev.alarmType, ev.alarmLevel, evDesc, frame.hex, ev.devType, ev.loopNo, ev.pointNo, ev.sysAddr);
+          }
+        }
+        await this.saveRawLog(deviceId, 'RX', '03', frame.hex, { type: 'fire_alarm_with_status', eventTime: frame.timestampStr });
+        const ack = buildAckFrame(frame);
+        socket.write(ack);
+        logger.warn(`[FSCN8001][ALARM] ▼ 火警确认(带状态) seq=${frame.seq}`);
+        return;
+      }
+      if (frame.dataLen >= 12) {
+        const preData = frame.data.subarray(0, 6).toString('hex').toUpperCase();
+        eventTime = decodeBcdTimestamp(frame.data.subarray(6, 12));
+        desc = `事件时间:${eventTime} 前置数据:${preData}`;
+      } else {
+        desc += ` 数据:${frame.data.toString('hex').toUpperCase()}`;
+      }
     }
+
     await this.insertAlarm(deviceId, 'fire', 'high', desc, frame.hex, null, null, null, null);
+    await this.createUnifiedAlarm(deviceId, 'fire', 'high', desc, frame.hex, null, null, null, null);
     await this.saveRawLog(deviceId, 'RX', '03', frame.hex, { type: 'fire_alarm', eventTime });
     const ack = buildAckFrame(frame);
     socket.write(ack);
@@ -218,6 +241,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
               系统类型=${ev.sysType} 回路=${ev.loopNo} 点位=${ev.pointNo}
               状态=${ev.statusHex} 时间=${ev.eventTime}`;
             await this.insertAlarm(deviceId, ev.alarmType, ev.alarmLevel, evDesc, frame.hex, ev.loopNo, ev.pointNo, ev.sysAddr, ev.devType);
+            await this.createUnifiedAlarm(deviceId, ev.alarmType, ev.alarmLevel, evDesc, frame.hex, ev.devType, ev.loopNo, ev.pointNo, ev.sysAddr);
           }
         }
         await this.saveRawLog(deviceId, 'RX', '04', frame.hex, { type: 'fault_with_status', eventTime });
@@ -236,6 +260,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
     }
 
     await this.insertAlarm(deviceId, 'fault', 'normal', desc, frame.hex, null, null, null, null);
+    await this.createUnifiedAlarm(deviceId, 'fault', 'normal', desc, frame.hex, null, null, null, null);
     await this.saveRawLog(deviceId, 'RX', '04', frame.hex, { type: 'fault', eventTime });
     const ack = buildAckFrame(frame);
     socket.write(ack);
@@ -428,8 +453,14 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
     }
   }
 
-  /* ───── 统一告警模型创建（FSCN8001 扩展版：含 Device/Unit 档案查询）──── */
-  protected async createUnifiedAlarm(deviceSn: string, alarmType: string, alarmLevel: string, description: string | null, rawData: string | null, deviceType: number | null = null) {
+  /* ───── 统一告警模型创建（FSCN8001 扩展版：含 Device/Unit 档案查询 + 编码表关联）──── */
+  protected async createUnifiedAlarm(
+    deviceSn: string, alarmType: string, alarmLevel: string,
+    description: string | null, rawData: string | null,
+    deviceType: number | null = null,
+    loopNo: number | null = null, address: number | null = null,
+    hostCode: number | null = null
+  ) {
     try {
       const typeMap: Record<string, number> = { fire: 1, fault: 2, pre: 3, shield: 4, supervisory: 5, feedback: 5, test: 5 };
       const levelMap: Record<string, number> = { high: 3, normal: 2, low: 1 };
@@ -439,13 +470,13 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
       let unitId: number | null = null;
       let unitName: string | null = null;
       try {
-        const device = await Device.findOne({ where: { device_sn: deviceSn } });
+        const device = await Device.findOne({ where: { device_sn: deviceSn } }) as any;
         if (device) {
-          deviceId = (device as any).id ?? null;
-          unitId = (device as any).unit_id ?? null;
-          if (unitId) {
-            const unit = await Unit.findByPk(unitId);
-            if (unit) unitName = (unit as any).unit_name ?? null;
+          deviceId = device.id ?? null;
+          unitId = device.unit_id ?? null;
+          if (unitId != null && unitId > 0) {
+            const unit = await Unit.findByPk(unitId, { raw: true }) as any;
+            unitName = unit?.unit_name ?? null;
           }
         }
       } catch (lookupErr: any) {
@@ -467,8 +498,11 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
         protocol: 'FSCN8001',
         raw_data: rawData,
         code: deviceTypeName,
+        loop_no: loopNo,
+        address: address,
+        host_code: hostCode !== null ? String(hostCode) : null,
       });
-      logger.warn(`[FSCN8001] 统一告警创建: ${deviceSn} ${alarmType}`);
+      logger.warn(`[FSCN8001] 统一告警创建: ${deviceSn} ${alarmType} loop=${loopNo} point=${address}`);
     } catch (err: any) {
       logger.error(`[FSCN8001] 创建统一告警失败: ${err.message}`);
     }

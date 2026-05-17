@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const maintenance_controller_1 = require("@/controllers/maintenance.controller");
+const router = (0, express_1.Router)();
+router.get('/companies', maintenance_controller_1.MaintenanceController.companyList);
+router.post('/companies', maintenance_controller_1.MaintenanceController.companyCreate);
+router.put('/companies/:id', maintenance_controller_1.MaintenanceController.companyUpdate);
+router.delete('/companies/:id', maintenance_controller_1.MaintenanceController.companyDelete);
+router.get('/contracts', maintenance_controller_1.MaintenanceController.contractList);
+router.post('/contracts', maintenance_controller_1.MaintenanceController.contractCreate);
+router.put('/contracts/:id', maintenance_controller_1.MaintenanceController.contractUpdate);
+router.delete('/contracts/:id', maintenance_controller_1.MaintenanceController.contractDelete);
+router.get('/work-orders', maintenance_controller_1.MaintenanceController.workOrderList);
+router.post('/work-orders', maintenance_controller_1.MaintenanceController.workOrderCreate);
+router.put('/work-orders/:id', maintenance_controller_1.MaintenanceController.workOrderUpdate);
+router.delete('/work-orders/:id', maintenance_controller_1.MaintenanceController.workOrderDelete);
+router.put('/work-orders/:id/assign', maintenance_controller_1.MaintenanceController.workOrderAssign);
+router.put('/work-orders/:id/complete', maintenance_controller_1.MaintenanceController.workOrderComplete);
+router.get('/stats', maintenance_controller_1.MaintenanceController.stats);
+exports.default = router;
+//# sourceMappingURL=maintenance.routes.js.map

@@ -1,5 +1,5 @@
 import PageTemplate from '@/sections/PageTemplate';
-import { legacyApi } from '@/api/services';
+import { departmentService } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import { Building2 } from 'lucide-react';
 
@@ -77,8 +77,8 @@ const normalizeDept = (data: any) => ({
 
 const deptService = {
   list: async (params: QueryParams = {}) => {
-    const res = (await legacyApi.deptList()) as any;
-    const data = Array.isArray(res.data) ? res.data : res.data?.list || [];
+    const envelope = await departmentService.list();
+    const data = Array.isArray(envelope.data) ? envelope.data : [];
     const list = data.map((item: any) => ({
       ...item,
       manager: item.leader || item.manager || '',
@@ -91,9 +91,18 @@ const deptService = {
       data: { list, total: list.length, page: params?.page || 1, pageSize: params?.pageSize || 10 },
     } as any;
   },
-  create: (data: any) => legacyApi.createDept(normalizeDept(data)),
-  update: (id: string, data: any) => legacyApi.updateDept(Number(id), normalizeDept(data)),
-  delete: (id: string) => legacyApi.deleteDept(Number(id)),
+  create: async (data: any) => {
+    await departmentService.create(normalizeDept(data));
+    return { code: 200, data: null };
+  },
+  update: async (id: string, data: any) => {
+    await departmentService.update(Number(id), normalizeDept(data));
+    return { code: 200, data: null };
+  },
+  delete: async (id: string) => {
+    await departmentService.delete(Number(id));
+    return { code: 200, data: null };
+  },
 };
 
 export default function SystemOrgPage() {
@@ -107,6 +116,11 @@ export default function SystemOrgPage() {
       fields={FIELDS}
       filterFields={FILTER_FIELDS}
       emptyDescription="部门树用于用户归属与数据范围。无数据时请确认组织接口可用，或通过「新增」维护科室/班组。"
+      permission={{
+        create: 'system:view',
+        update: 'system:view',
+        delete: 'system:view',
+      }}
     />
   );
 }

@@ -1,0 +1,1 @@
+import{j as o}from"./ui-vendor-B5FnibwN.js";import{$ as s}from"./index-DcFgr8l0.js";function r({className:t,...e}){return o.jsx("div",{"code-path":"src\\components\\ui\\skeleton.tsx:5:5","data-slot":"skeleton",className:s("bg-accent animate-pulse rounded-md",t),...e})}export{r as S};

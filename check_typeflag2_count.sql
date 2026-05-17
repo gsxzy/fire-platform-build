@@ -1,1 +1,0 @@
-SELECT hex_data, parsed_json, created_at FROM fire_platform.fscn8001_raw_log WHERE JSON_EXTRACT(parsed_json, '$.typeFlag') = 2 AND device_sn = '2211AA3B0000000000000000' AND hex_data NOT LIKE '%1C%' ORDER BY id DESC LIMIT 200;

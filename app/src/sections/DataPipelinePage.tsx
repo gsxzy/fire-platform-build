@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { iotService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 import EmptyState from '@/components/EmptyState';
 import {
@@ -36,7 +36,7 @@ export default function DataPipelinePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await legacyApi.pipelineList() as any;
+      const res = await iotService.pipelineList() as any;
       const data = res.data ?? res;
       if (data && typeof data === 'object') {
         if (data.stats) setLiveStats(prev => ({ ...prev, ...data.stats }));

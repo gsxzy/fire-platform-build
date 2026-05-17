@@ -1,11 +1,72 @@
 import { Op, Sequelize } from 'sequelize';
+import sequelize from '@/config/database';
 import { Alarm } from '@/models';
 import redis from '@/config/redis';
 import { generateAlarmNo } from '@/utils/alarmNo';
+import logger from '@/config/logger';
 
 export class AlarmService {
   // 创建告警并触发推送
   static async createAlarm(data: any) {
+    // ── 编码表关联：若含回路号+点位号，尝试从 fire_host_device_code 补全设备名称和位置 ──
+    if (data.loop_no !== undefined && data.loop_no !== null && data.address !== undefined && data.address !== null) {
+      try {
+        let hostId: number | null = null;
+        // 方式1：通过 host_code 直接查找主机
+        if (data.host_code) {
+          const [hostRows]: any = await sequelize.query(
+            `SELECT id FROM fire_control_room_host WHERE host_no = ? LIMIT 1`,
+            { replacements: [String(data.host_code)] }
+          );
+          if (hostRows?.[0]?.id) hostId = hostRows[0].id;
+        }
+        // 方式2：通过 device_id → unit_id → room_id → host_id
+        if (!hostId && data.device_id) {
+          const [hostRows]: any = await sequelize.query(
+            `SELECT h.id FROM fire_control_room_host h
+             INNER JOIN fire_control_room r ON h.room_id = r.id
+             INNER JOIN fire_device d ON d.unit_id = r.unit_id
+             WHERE d.id = ? LIMIT 1`,
+            { replacements: [Number(data.device_id)] }
+          );
+          if (hostRows?.[0]?.id) hostId = hostRows[0].id;
+        }
+        // 方式3：通过 unit_id → room_id → host_id
+        if (!hostId && data.unit_id) {
+          const [hostRows]: any = await sequelize.query(
+            `SELECT h.id FROM fire_control_room_host h
+             INNER JOIN fire_control_room r ON h.room_id = r.id
+             WHERE r.unit_id = ? LIMIT 1`,
+            { replacements: [Number(data.unit_id)] }
+          );
+          if (hostRows?.[0]?.id) hostId = hostRows[0].id;
+        }
+        if (hostId) {
+          const [codeRows]: any = await sequelize.query(
+            `SELECT device_name, install_location, device_type
+             FROM fire_host_device_code
+             WHERE host_id = ? AND loop_no = ? AND point_no = ? LIMIT 1`,
+            { replacements: [hostId, Number(data.loop_no), Number(data.address)] }
+          );
+          const code = codeRows?.[0];
+          if (code) {
+            if (code.device_name && (!data.device_name || data.device_name === data.device_sn)) {
+              data.device_name = code.device_name;
+            }
+            if (code.install_location) {
+              data.location = code.install_location;
+            }
+            if (code.device_type && !data.device_type) {
+              data.device_type = code.device_type;
+            }
+            logger.info(`[AlarmService] 编码表关联成功: host=${hostId} loop=${data.loop_no} point=${data.address} → ${code.device_name} @ ${code.install_location}`);
+          }
+        }
+      } catch (err: any) {
+        logger.warn(`[AlarmService] 编码表关联失败: ${err.message}`);
+      }
+    }
+
     const alarmNo = generateAlarmNo();
     const alarm = await Alarm.create({ ...data, alarm_no: alarmNo, status: 0 } as any);
     // 转换为前端期望的 camelCase 格式
@@ -63,18 +124,37 @@ export class AlarmService {
     return { success: true };
   }
 
-  // 告警趋势统计
+  // 告警趋势统计（单次聚合查询，替代循环 N+1）
   static async getTrend(days: number = 7) {
+    const start = new Date(); start.setDate(start.getDate() - days + 1); start.setHours(0, 0, 0, 0);
+    const rows = await Alarm.findAll({
+      attributes: [
+        [Sequelize.fn('DATE', Sequelize.col('created_at')), 'date'],
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN alarm_type = 1 THEN 1 ELSE 0 END")), 'fire'],
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN alarm_type = 2 THEN 1 ELSE 0 END")), 'fault'],
+        [Sequelize.fn('SUM', Sequelize.literal("CASE WHEN alarm_type = 3 THEN 1 ELSE 0 END")), 'pre'],
+      ],
+      where: { created_at: { [Op.gte]: start } },
+      group: [Sequelize.fn('DATE', Sequelize.col('created_at'))],
+      raw: true,
+    }) as any[];
+
+    const countMap = new Map<string, { fire: number; fault: number; pre: number }>();
+    for (const r of rows) {
+      const dateStr = String(r.date).slice(0, 10);
+      countMap.set(dateStr, {
+        fire: Number(r.fire) || 0,
+        fault: Number(r.fault) || 0,
+        pre: Number(r.pre) || 0,
+      });
+    }
+
     const result: any[] = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0);
-      const next = new Date(d); next.setDate(next.getDate() + 1);
-      const [fire, fault, pre] = await Promise.all([
-        Alarm.count({ where: { created_at: { [Op.gte]: d, [Op.lt]: next }, alarm_type: 1 } }),
-        Alarm.count({ where: { created_at: { [Op.gte]: d, [Op.lt]: next }, alarm_type: 2 } }),
-        Alarm.count({ where: { created_at: { [Op.gte]: d, [Op.lt]: next }, alarm_type: 3 } }),
-      ]);
-      result.push({ date: d.toISOString().slice(0, 10), fire, fault, pre });
+      const dateStr = d.toISOString().slice(0, 10);
+      const counts = countMap.get(dateStr);
+      result.push({ date: dateStr, fire: counts?.fire || 0, fault: counts?.fault || 0, pre: counts?.pre || 0 });
     }
     return result;
   }

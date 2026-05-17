@@ -10,7 +10,8 @@ export class DashboardService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [
-      alarmPending, alarmToday, deviceTotal, deviceOnlineCount, workOrderPending,
+      alarmPending, alarmToday, deviceTotal, deviceOnlineCount,
+      deviceActiveTotal, deviceActiveOnline, workOrderPending,
       patrolToday, hazardPending, unitTotal, inspectionMonth, userCount,
       todayFire, todayFault, alarmMonth, alarmMonthHandled,
     ] = await Promise.all([
@@ -18,6 +19,8 @@ export class DashboardService {
       Alarm.count({ where: { created_at: { [Op.gte]: todayStart } } }),
       Device.count(),
       Device.count({ where: { status: 1 } }),
+      Device.count({ where: { unit_id: { [Op.ne]: null } } }),
+      Device.count({ where: { unit_id: { [Op.ne]: null }, status: 1 } }),
       MaintenanceWorkOrder.count({ where: { status: { [Op.in]: [0, 1] } } }),
       PatrolRecord.count({ where: { created_at: { [Op.gte]: todayStart } } }),
       Hazard.count({ where: { status: { [Op.in]: [0, 1] } } }),
@@ -44,6 +47,7 @@ export class DashboardService {
       AlarmService.getTrend(7),
       Device.findAll({
         attributes: ['device_type', 'status', [Sequelize.fn('COUNT', Sequelize.col('id')), 'cnt']],
+        where: { unit_id: { [Op.ne]: null } },
         group: ['device_type', 'status'],
         raw: true,
       }),
@@ -104,8 +108,8 @@ export class DashboardService {
       deviceOnlineMap.set(name, agg);
     }
     let deviceOnline = Array.from(deviceOnlineMap.entries()).map(([name, v]) => ({ name, total: v.total, online: v.online }));
-    if (deviceOnline.length === 0 && deviceTotal > 0) {
-      deviceOnline = [{ name: '全部设备', total: deviceTotal, online: deviceOnlineCount }];
+    if (deviceOnline.length === 0 && deviceActiveTotal > 0) {
+      deviceOnline = [{ name: '全部设备', total: deviceActiveTotal, online: deviceActiveOnline }];
     }
 
     const unitTypeLabels: Record<number, { name: string; color: string }> = {
@@ -190,6 +194,10 @@ export class DashboardService {
         offline: deviceTotal - deviceOnlineCount,
         rate: deviceRateStr,
         byType: deviceOnline,
+        activeTotal: deviceActiveTotal,
+        activeOnline: deviceActiveOnline,
+        activeOffline: deviceActiveTotal - deviceActiveOnline,
+        activeRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
       },
       workOrder: { pending: workOrderPending },
       patrol: { today: patrolToday },
@@ -208,6 +216,9 @@ export class DashboardService {
         deviceOnline: deviceOnlineCount,
         unitOnlineRate,
         deviceOnlineRate: deviceRateStr,
+        deviceActiveTotal,
+        deviceActiveOnline,
+        deviceActiveRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
       },
       alarmTrend,
       deviceOnline,

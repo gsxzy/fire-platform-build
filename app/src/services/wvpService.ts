@@ -47,6 +47,8 @@ export interface WvpDevice {
   broadcastPushAfterAck?: boolean;
   serverId?: string;
   channelCount?: number;
+  unitId?: string;
+  unitName?: string;
 }
 
 export interface WvpDeviceChannel {

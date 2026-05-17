@@ -44,15 +44,18 @@ export default function EmptyState({
   const { title: defaultTitle, description: defaultDesc } = defaults[type];
 
   return (
-    <div className={`flex flex-col items-center justify-center py-12 ${className}`}>
-      <div className="w-16 h-16 rounded-2xl bg-slate-800/60 border border-slate-700/40 flex items-center justify-center mb-4 ring-1 ring-slate-700/20">
-        <Icon className="w-7 h-7 text-slate-500" strokeWidth={1.5} />
+    <div className={`flex flex-col items-center justify-center py-14 animate-fade-in-up ${className}`}>
+      <div className="relative mb-5">
+        <div className="w-20 h-20 rounded-2xl bg-slate-800/50 border border-slate-700/30 flex items-center justify-center ring-1 ring-slate-700/20 shadow-lg shadow-slate-900/20">
+          <Icon className="w-8 h-8 text-slate-500" strokeWidth={1.5} />
+        </div>
+        <div className="absolute -inset-1 rounded-2xl border border-slate-700/10 animate-pulse-glow pointer-events-none" />
       </div>
-      <h3 className="text-sm font-medium text-slate-300 mb-1">{title || defaultTitle}</h3>
+      <h3 className="text-sm font-semibold text-slate-200 mb-1.5 tracking-wide">{title || defaultTitle}</h3>
       {(description || defaultDesc) && (
-        <p className="text-xs text-slate-500 max-w-xs text-center leading-relaxed">{description || defaultDesc}</p>
+        <p className="text-xs text-slate-500 max-w-xs text-center leading-relaxed px-4">{description || defaultDesc}</p>
       )}
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-5 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>{action}</div>}
     </div>
   );
 }

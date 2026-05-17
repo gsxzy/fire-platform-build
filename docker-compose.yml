@@ -1,0 +1,319 @@
+# ============================================================================
+# 新致远智慧消防平台 - Docker Compose 编排配置
+# 版本: 2.0.0
+# 功能: 一键启动完整平台（前端 + 后端 + MySQL + Redis + Nginx）
+# 适用环境: 开发 / 测试 / 生产（通过环境变量区分）
+# ============================================================================
+
+version: "3.9"
+
+# ────────────────────────────────────────────────────────────────────────────
+# 全局服务定义
+# ────────────────────────────────────────────────────────────────────────────
+services:
+
+  # ── 前端服务 ──
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: fire-platform-frontend
+    image: xzy/fire-platform-frontend:${VERSION:-2.0.0}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+    networks:
+      - fire-platform-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "service,environment"
+
+  # ── 后端服务 ──
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: fire-platform-backend
+    image: xzy/fire-platform-backend:${VERSION:-2.0.0}
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-5003}:5003"
+    environment:
+      # ── 应用基础 ──
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=5003
+      - APP_NAME=${APP_NAME:-新致远智慧消防平台}
+      - APP_VERSION=${VERSION:-2.0.0}
+
+      # ── 数据库连接（使用服务名作为主机名）──
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-fire_platform}
+      - DB_USER=${DB_USER:-fire_user}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_POOL_MIN=${DB_POOL_MIN:-5}
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
+
+      # ── Redis 连接 ──
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+
+      # ── JWT 安全 ──
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+
+      # ── 日志 ──
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_DIR=/app/logs
+
+      # ── 文件上传 ──
+      - UPLOAD_MAX_SIZE=${UPLOAD_MAX_SIZE:-10485760}
+      - UPLOAD_DIR=/app/uploads
+
+      # ── MQTT Broker（IoT 设备接入）──
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_WS_PORT=${MQTT_WS_PORT:-9001}
+
+      # ── 邮件通知 ──
+      - SMTP_HOST=${SMTP_HOST:-smtp.qq.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-智慧消防平台 <noreply@xzy.cn>}
+
+      # ── 高德地图 ──
+      - AMAP_KEY=${AMAP_KEY:-}
+
+      # ── WVP-PRO GB28181 平台 ──
+      - WVP_PRO_URL=${WVP_PRO_URL:-http://wvp:18080}
+      - WVP_PRO_USER=${WVP_PRO_USER:-admin}
+      - WVP_PRO_SECRET=${WVP_PRO_SECRET:-}
+
+      # ── ZLMediaKit ──
+      - ZLM_API_URL=${ZLM_API_URL:-http://zlm:8081}
+      - ZLM_SECRET=${ZLM_SECRET:-}
+      - ZLM_PLAY_HOST=${ZLM_PLAY_HOST:-}
+
+      # ── CTWing 天翼物联网 ──
+      - CTWING_API_KEY=${CTWING_API_KEY:-}
+      - CTWING_ALLOW_ORPHAN_IOT=${CTWING_ALLOW_ORPHAN_IOT:-0}
+
+      # ── 超级管理员默认账号 ──
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - ADMIN_PHONE=${ADMIN_PHONE:-}
+
+      # ── 心跳与监控 ──
+      - HEARTBEAT_TIMEOUT_MINUTES=${HEARTBEAT_TIMEOUT_MINUTES:-10}
+
+    volumes:
+      - backend-logs:/app/logs
+      - backend-uploads:/app/uploads
+      - ./config/backend/ecosystem.config.js:/app/ecosystem.config.js:ro
+    networks:
+      - fire-platform-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:5003/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service,environment"
+
+  # ── MySQL 数据库 ──
+  mysql:
+    image: mysql:8.0
+    container_name: fire-platform-mysql
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME:-fire_platform}
+      - MYSQL_USER=${DB_USER:-fire_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+      - mysql-backup:/backup
+    networks:
+      - fire-platform-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service,environment"
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+08:00
+      --max_connections=500
+      --innodb_buffer_pool_size=1G
+      --innodb_log_file_size=256M
+      --slow_query_log=1
+      --slow_query_log_file=/var/lib/mysql/slow.log
+      --long_query_time=2
+
+  # ── Redis 缓存 ──
+  redis:
+    image: redis:7-alpine
+    container_name: fire-platform-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - redis-data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - fire-platform-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "service,environment"
+    command: redis-server /usr/local/etc/redis/redis.conf
+
+  # ── Nginx 反向代理（可选，用于生产环境独立部署）──
+  # 如果前端镜像已内置 Nginx，此服务可省略
+  # 但在多实例部署时，独立的 Nginx 可作为统一入口和负载均衡
+  nginx:
+    image: nginx:1.25-alpine-slim
+    container_name: fire-platform-nginx
+    restart: unless-stopped
+    profiles:
+      - proxy      # 仅在使用 docker-compose --profile proxy up 时启动
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+      - "${NGINX_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - fire-platform-net
+    depends_on:
+      - frontend
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 数据卷定义（持久化存储）
+# ────────────────────────────────────────────────────────────────────────────
+volumes:
+  mysql-data:
+    driver: local
+  mysql-backup:
+    driver: local
+  redis-data:
+    driver: local
+  backend-logs:
+    driver: local
+  backend-uploads:
+    driver: local
+  nginx-cache:
+    driver: local
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 网络定义（容器间通信）
+# ────────────────────────────────────────────────────────────────────────────
+networks:
+  fire-platform-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+    labels:
+      - "project=fire-platform"
+      - "environment=${NODE_ENV:-production}"

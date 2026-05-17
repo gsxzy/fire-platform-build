@@ -8,7 +8,7 @@ import {
   MapPin, ChevronUp, Video,
   Zap, Activity,   Filter, Loader2
 } from 'lucide-react';
-import { legacyApi } from '@/api/services';
+import { linkageService } from '@/api/services';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/core/ToastContext';
 import EmptyState from '@/components/EmptyState';
@@ -175,7 +175,7 @@ async function fetchAllLinkageRules(): Promise<Record<string, unknown>[]> {
   let pageNum = 1;
   const all: Record<string, unknown>[] = [];
   for (;;) {
-    const data = (await legacyApi.linkageRuleList({ pageNum, pageSize })) as { list?: Record<string, unknown>[] };
+    const data = (await linkageService.listRules({ pageNum, pageSize })) as { list?: Record<string, unknown>[] };
     const list = data?.list ?? [];
     all.push(...list);
     if (list.length < pageSize) break;
@@ -268,7 +268,7 @@ export default function SafetyLinkagePage() {
     const next = !target.enabled;
     setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: next } : r)));
     try {
-      await legacyApi.updateLinkageRule(Number(id), { status: next ? 1 : 0 });
+      await linkageService.updateRule(Number(id), { status: next ? 1 : 0 });
     } catch (e) {
       setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !next } : r)));
       showError('更新失败', '无法更新规则状态');
@@ -286,7 +286,7 @@ export default function SafetyLinkagePage() {
       lastTriggered: '-',
     };
     try {
-      const created = (await legacyApi.createLinkageRule(ruleToDbPayload(copy))) as Record<string, unknown>;
+      const created = (await linkageService.createRule(ruleToDbPayload(copy))) as Record<string, unknown>;
       setRules((prev) => [...prev, rowToRule(created)]);
     } catch (e) {
       showError('保存失败', '请检查网络或稍后重试');
@@ -298,7 +298,7 @@ export default function SafetyLinkagePage() {
     const prev = rules;
     setRules((prevList) => prevList.filter((r) => r.id !== id));
     try {
-      await legacyApi.deleteLinkageRule(Number(id));
+      await linkageService.deleteRule(Number(id));
     } catch (e) {
       setRules(prev);
       showError('删除失败', '请检查网络或稍后重试');
@@ -311,7 +311,7 @@ export default function SafetyLinkagePage() {
     setShowEditor(false);
     setEditingRule(null);
     try {
-      await legacyApi.updateLinkageRule(Number(updated.id), ruleToDbPayload(updated));
+      await linkageService.updateRule(Number(updated.id), ruleToDbPayload(updated));
     } catch (e) {
       showError('保存失败', '请检查网络或稍后重试');
       logger.error(e);
@@ -581,7 +581,7 @@ export default function SafetyLinkagePage() {
               setShowEditor(false);
               setEditingRule(null);
               try {
-                const created = (await legacyApi.createLinkageRule(ruleToDbPayload(r))) as Record<string, unknown>;
+                const created = (await linkageService.createRule(ruleToDbPayload(r))) as Record<string, unknown>;
                 setRules((prev) => [...prev, rowToRule(created)]);
               } catch (e) {
                 showError('保存失败', '请检查网络或稍后重试');

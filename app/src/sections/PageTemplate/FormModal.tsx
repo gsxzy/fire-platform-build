@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { X, Save, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, Save, AlertTriangle, Loader2, MapPin } from 'lucide-react';
 import type { FormField } from './types';
+import { MapPickerDialog } from './MapPickerDialog';
 
 interface FormModalProps {
   title: string;
@@ -17,6 +18,7 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
 
   const validate = (vals: Record<string, unknown>): Record<string, string> => {
     const errs: Record<string, string> = {};
@@ -73,23 +75,23 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
   const isValid = Object.keys(validate(values)).length === 0;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-slate-700 border border-slate-600/50 rounded-xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-slate-600/30 flex items-center justify-between">
-          <h3 className="text-sm font-medium text-slate-200">{title}</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-200" aria-label="关闭"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fade-in-smooth" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
+      <div className="relative w-full max-w-md bg-slate-800/95 border border-slate-600/40 rounded-xl shadow-2xl shadow-black/30 overflow-hidden animate-scale-in-smooth" onClick={e => e.stopPropagation()} style={{ animationDuration: '0.25s' }}>
+        <div className="p-4 border-b border-slate-600/20 flex items-center justify-between bg-slate-800/80">
+          <h3 className="text-sm font-semibold text-slate-100 tracking-wide">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700/60 transition-all" aria-label="关闭"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin">
           {fields.map(field => {
             const hasErr = touched.has(field.key) && !!errors[field.key];
             return (
             <div key={field.key}>
-              <label className="text-[11px] text-slate-300 mb-1.5 block font-medium">
-                {field.label}{field.required && <span className="text-red-400 ml-0.5">*</span>}
+              <label className="text-[11px] text-slate-300 mb-1.5 block font-medium flex items-center gap-1">
+                {field.label}{field.required && <span className="text-red-400">*</span>}
               </label>
               {field.disabled || field.type === 'readonly' ? (
-                <div className="w-full bg-slate-800/50 border border-slate-600/20 rounded-lg px-3 py-2 text-xs text-slate-400 select-none">
+                <div className="w-full bg-slate-800/60 border border-slate-600/20 rounded-lg px-3 py-2.5 text-xs text-slate-400 select-none">
                   {String(values[field.key] ?? '-')}
                 </div>
               ) : field.type === 'checkbox' ? (
@@ -114,7 +116,7 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
                 <select
                   value={String(values[field.key] ?? '')}
                   onChange={e => handleChange(field.key, e.target.value)}
-                  className={`w-full bg-slate-700/40 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none transition-colors focus:bg-slate-700/60 ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30 focus:border-blue-500/50'}`}
+                  className={`w-full bg-slate-700/30 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none transition-all duration-200 focus:bg-slate-700/50 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30 focus:border-blue-500/50'}`}
                 >
                   <option value="">请选择</option>
                   {field.options?.map(opt => {
@@ -127,23 +129,34 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
               ) : field.type === 'date' ? (
                 <input type="date" value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} className={`w-full bg-slate-700/40 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none transition-colors focus:bg-slate-700/60 ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30 focus:border-blue-500/50'}`} />
               ) : field.type === 'number' ? (
-                <input
-                  type="number"
-                  value={values[field.key] === '' || values[field.key] === undefined || values[field.key] === null
-                    ? ''
-                    : String(values[field.key])}
-                  onChange={e => {
-                    const t = e.target.value;
-                    if (t === '') {
-                      handleChange(field.key, '');
-                      return;
-                    }
-                    const n = Number(t);
-                    handleChange(field.key, Number.isFinite(n) ? n : '');
-                  }}
-                  placeholder={field.placeholder || `输入${field.label}`}
-                  className={`w-full bg-slate-700/30 border rounded-md px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-colors ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30'}`}
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={values[field.key] === '' || values[field.key] === undefined || values[field.key] === null
+                      ? ''
+                      : String(values[field.key])}
+                    onChange={e => {
+                      const t = e.target.value;
+                      if (t === '') {
+                        handleChange(field.key, '');
+                        return;
+                      }
+                      const n = Number(t);
+                      handleChange(field.key, Number.isFinite(n) ? n : '');
+                    }}
+                    placeholder={field.placeholder || `输入${field.label}`}
+                    className={`flex-1 bg-slate-700/30 border rounded-md px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition-colors ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30'}`}
+                  />
+                  {field.key === 'lng' && (
+                    <button
+                      type="button"
+                      onClick={() => setMapPickerOpen(true)}
+                      className="flex-shrink-0 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-md border border-blue-600/30 flex items-center gap-1 transition-colors"
+                    >
+                      <MapPin className="w-3 h-3" /> 地图选点
+                    </button>
+                  )}
+                </div>
               ) : (
                 <Input value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} placeholder={field.placeholder || `输入${field.label}`} className={`h-8 text-xs bg-slate-700/30 text-slate-200 transition-colors ${hasErr ? 'border-red-500/50 focus-visible:ring-red-500/30' : 'border-slate-600/30'}`} />
               )}
@@ -158,6 +171,16 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
           </Button>
         </div>
       </div>
+      <MapPickerDialog
+        open={mapPickerOpen}
+        onClose={() => setMapPickerOpen(false)}
+        onConfirm={(lng, lat) => {
+          handleChange('lng', lng);
+          handleChange('lat', lat);
+        }}
+        initialLng={values.lng !== undefined && values.lng !== '' ? Number(values.lng) : undefined}
+        initialLat={values.lat !== undefined && values.lat !== '' ? Number(values.lat) : undefined}
+      />
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { success, fail, page } from '@/utils/response';
+import { sendSuccess, sendPage } from '@/utils/respond';
+import { fail } from '@/utils/response';
+import { HttpError } from '@/utils/httpError';
 import logger from '@/config/logger';
 import { IoTDevice, ProtocolConfig, DataPipeline, Device, Unit } from '@/models';
 import { DeviceLifecycleStatus, DeviceLifecycleRules } from '@/constants/deviceLifecycle';
@@ -183,10 +185,10 @@ export const IoTController = {
         ],
         order: [['id', 'DESC']],
       });
-      return res.json(page(rows, count, pageNum, pageSize));
+      sendPage(res, req, rows, count, pageNum, pageSize);
     } catch (err: any) {
       logger.error(`[IoTController] deviceList 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async deviceCreate(req: Request, res: Response) {
@@ -201,16 +203,16 @@ export const IoTController = {
         .json(fail('须先在「设备档案」完成入库，并传入档案设备ID（archive_device_id / archiveDeviceId）', 400));
     }
     const devRow = await Device.findByPk(archiveId);
-    if (!devRow) return res.status(404).json(fail('档案中不存在该设备', 404));
+    if (!devRow) throw new HttpError('档案中不存在该设备', 404, 404);
     const dev = devRow as any;
     if (!DeviceLifecycleRules.canConnect(dev.lifecycle_status)) {
       const msg = dev.lifecycle_status === DeviceLifecycleStatus.SCRAPPED
         ? '设备已报废，不可接入'
         : DeviceLifecycleRules.messages.connect;
-      return res.status(400).json(fail(msg, 400));
+      throw new HttpError(msg, 400, 400);
     }
     const archiveSn = String(dev.device_sn || dev.device_no || '').trim();
-    if (!archiveSn) return res.status(400).json(fail('档案缺少设备SN/编号，请先完善档案', 400));
+    if (!archiveSn) throw new HttpError('档案缺少设备SN/编号，请先完善档案', 400, 400);
 
     /* CTWing/第三方平台接入时，device_sn 可用平台设备ID（可能与档案SN不同）
        但创建时若显传 device_sn，优先使用传入值；否则回退到档案SN */
@@ -252,23 +254,23 @@ export const IoTController = {
 
       await t.commit();
 
-      return res.json(
-        success(
-          {
-            id: String(row.id),
-            archive_device_id: String(archiveId),
-            device_sn: row.device_sn,
-            device_name: row.device_name,
-            protocol_type: row.protocol_type,
-            device_type: row.device_type,
-          },
-          existing ? '接入配置已更新' : '接入成功'
-        )
+      sendSuccess(
+        res,
+        req,
+        {
+          id: String(row.id),
+          archive_device_id: String(archiveId),
+          device_sn: row.device_sn,
+          device_name: row.device_name,
+          protocol_type: row.protocol_type,
+          device_type: row.device_type,
+        },
+        existing ? '接入配置已更新' : '接入成功'
       );
     } catch (err: any) {
       await t.rollback().catch(() => {});
       logger.error(`[IoTController] deviceCreate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async deviceUpdate(req: Request, res: Response) {
@@ -278,14 +280,14 @@ export const IoTController = {
       const body = (req.body || {}) as Record<string, unknown>;
       if (hasAccessMetaInBody(body) || (body.protocol_config !== undefined && typeof body.protocol_config === 'object')) {
         const row = await IoTDevice.findOne({ where: whereClause });
-        if (!row) return res.status(404).json(fail('设备不存在', 404));
+        if (!row) throw new HttpError('设备不存在', 404, 404);
         payload.protocol_config = mergeAccessMetaIntoProtocolConfig(body, (row as any).protocol_config);
       }
       if (Object.keys(payload).length === 0) {
-        return res.json(success(null, '暂无更新内容'));
+        sendSuccess(res, req, null, '暂无更新内容');
       }
       const [n] = await IoTDevice.update(payload, { where: whereClause });
-      if (!n) return res.status(404).json(fail('设备不存在', 404));
+      if (!n) throw new HttpError('设备不存在', 404, 404);
 
       // 同步档案扩展字段
       const row = await IoTDevice.findOne({ where: whereClause });
@@ -297,17 +299,17 @@ export const IoTController = {
         }
       }
 
-      return res.json(success(null, '更新成功'));
+      sendSuccess(res, req, null, '更新成功');
     } catch (err: any) {
       logger.error(`[IoTController] deviceUpdate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async deviceDelete(req: Request, res: Response) {
     try {
       const whereClause = resolveIotWhereClause(req.params.id);
       const row = await IoTDevice.findOne({ where: whereClause });
-      if (!row) return res.status(404).json(fail('设备不存在', 404));
+      if (!row) throw new HttpError('设备不存在', 404, 404);
       const r = row as any;
       const archiveId = r.archive_device_id;
       await row.destroy();
@@ -325,75 +327,75 @@ export const IoTController = {
           }
         }
       }
-      return res.json(success(null, '已移除接入'));
+      sendSuccess(res, req, null, '已移除接入');
     } catch (err: any) {
       logger.error(`[IoTController] deviceDelete 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
   async protocolList(req: Request, res: Response) {
     try {
       const list = await ProtocolConfig.findAll({ limit: 1000 });
-      return res.json(success(list));
+      sendSuccess(res, req, list);
     } catch (err: any) {
       logger.error(`[IoTController] protocolList 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async protocolCreate(req: Request, res: Response) {
     try {
       const p = await ProtocolConfig.create(req.body as any);
-      return res.json(success({ id: (p as any).id }, '创建成功'));
+      sendSuccess(res, req, { id: (p as any).id }, '创建成功');
     } catch (err: any) {
       logger.error(`[IoTController] protocolCreate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async protocolUpdate(req: Request, res: Response) {
     try {
       await ProtocolConfig.update(req.body, { where: { id: req.params.id } });
-      return res.json(success(null, '更新成功'));
+      sendSuccess(res, req, null, '更新成功');
     } catch (err: any) {
       logger.error(`[IoTController] protocolUpdate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async protocolDelete(req: Request, res: Response) {
     try {
       await ProtocolConfig.destroy({ where: { id: req.params.id } });
-      return res.json(success(null, '删除成功'));
+      sendSuccess(res, req, null, '删除成功');
     } catch (err: any) {
       logger.error(`[IoTController] protocolDelete 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
   async pipelineList(req: Request, res: Response) {
     try {
       const list = await DataPipeline.findAll({ limit: 1000 });
-      return res.json(success(list));
+      sendSuccess(res, req, list);
     } catch (err: any) {
       logger.error(`[IoTController] pipelineList 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async pipelineCreate(req: Request, res: Response) {
     try {
       const p = await DataPipeline.create(req.body as any);
-      return res.json(success({ id: (p as any).id }, '创建成功'));
+      sendSuccess(res, req, { id: (p as any).id }, '创建成功');
     } catch (err: any) {
       logger.error(`[IoTController] pipelineCreate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
   async pipelineUpdate(req: Request, res: Response) {
     try {
       await DataPipeline.update(req.body, { where: { id: req.params.id } });
-      return res.json(success(null, '更新成功'));
+      sendSuccess(res, req, null, '更新成功');
     } catch (err: any) {
       logger.error(`[IoTController] pipelineUpdate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 };

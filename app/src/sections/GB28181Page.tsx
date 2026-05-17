@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/core/ToastContext';
 import { logger } from '@/lib/logger';
-import { gb28181Service, sipServerService, deviceService } from '@/api/services';
+import { gb28181Service, sipServerService, deviceService, unitService } from '@/api/services';
 import type { Device } from '@/types/db';
 import DataContainer from '@/components/DataContainer';
 import SimpleVideoPlayer from '@/components/SimpleVideoPlayer';
@@ -27,12 +27,16 @@ export default function GB28181Page() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [playVideo, setPlayVideo] = useState<{ streamUrl: string; name: string } | null>(null);
   const [archiveDevices, setArchiveDevices] = useState<Device[]>([]);
+  const [units, setUnits] = useState<{ id: string; unit_name: string }[]>([]);
   const [editing, setEditing] = useState<GB28181Device | null>(null);
 
   useEffect(() => {
     deviceService.list({ pageSize: 9999 }).then((res: any) => {
       setArchiveDevices(res.data?.list || []);
     }).catch((e) => { logger.error('[GB28181] load archive devices failed:', e); });
+    unitService.list({ pageSize: 9999 }).then((res: any) => {
+      setUnits(res.data?.list || []);
+    }).catch((e) => { logger.error('[GB28181] load units failed:', e); });
   }, []);
 
   const loadData = useCallback(async () => {
@@ -156,15 +160,19 @@ export default function GB28181Page() {
         warning('添加失败', '请先从设备档案选择GB28181摄像头设备');
         return;
       }
+      if (!formData.unitId) {
+        warning('添加失败', '请选择所属单位');
+        return;
+      }
 
-      // 使用设备档案主键作为国标表 id（与档案一对一）；不在此改档案 category（档案接口禁止随意改类别）
+      // 使用设备档案主键作为国标表 id（一对一）
       formData.id = archiveId;
       const archive = archiveDevices.find(d => d.id === archiveId);
+      const unit = units.find(u => String(u.id) === String(formData.unitId));
       if (archive) {
-        formData.unitId = archive.unitId;
-        formData.unitName = archive.unitName;
         if (!formData.location) formData.location = archive.location || '';
       }
+      formData.unitName = unit?.unit_name || '';
 
       const res = await gb28181Service.create(formData);
       if (res.code !== 200) {
@@ -214,6 +222,10 @@ export default function GB28181Page() {
       success('修改成功', 'GB28181设备信息已更新');
       setEditing(null);
       await loadData();
+      // 如果当前选中的设备被修改，同步更新 selected 状态
+      if (selected && selected.id === id) {
+        setSelected(prev => prev ? { ...prev, ...data } : prev);
+      }
     } catch (e) {
       logger.error('[GB28181.handleEditDevice] error=', e);
       warning('修改失败', '请稍后重试');
@@ -248,10 +260,17 @@ export default function GB28181Page() {
           </button>
           <span className="text-[10px] text-slate-500 font-mono">{serverStatus.registered}/{serverStatus.max} 已注册</span>
           <button
-            onClick={() => setShowAdd(true)}
-            className="text-[10px] px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg flex items-center gap-1.5 transition-colors"
+            onClick={() => window.location.hash = '#/device-archive'}
+            className="text-[10px] px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center gap-1.5 transition-colors"
           >
-            <Plus className="w-3 h-3" />手动添加
+            <Plus className="w-3 h-3" />创建设备档案
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            disabled={archiveDevices.filter(d => (d.type === 'gb28181-camera' || d.type === 'camera') && !devices.some(dev => dev.id === d.id)).length === 0}
+            className="text-[10px] px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg flex items-center gap-1.5 transition-colors"
+          >
+            <Plus className="w-3 h-3" />添加接入
           </button>
           <button
             onClick={diagnoseDB}
@@ -344,6 +363,7 @@ export default function GB28181Page() {
               <tr className="text-[10px] text-slate-500 border-b border-slate-700/30 bg-slate-800/60">
                 <th className="text-left p-2.5 font-medium">国标编码</th>
                 <th className="text-left p-2.5 font-medium">设备名称</th>
+                <th className="text-left p-2.5 font-medium">所属单位</th>
                 <th className="text-left p-2.5 font-medium">厂商/型号</th>
                 <th className="text-left p-2.5 font-medium">IP:Port</th>
                 <th className="text-left p-2.5 font-medium">状态</th>
@@ -366,6 +386,9 @@ export default function GB28181Page() {
                       <span className="text-slate-200 font-medium">{d.name}</span>
                       {d.catalogSynced && <span className="ml-1.5 text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">已同步</span>}
                       {d.isLocal && <span className="ml-1.5 text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">未注册</span>}
+                    </td>
+                    <td className="p-2.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/40 border border-slate-600/20 text-slate-300">{d.unitName || d.unitId || '未分配'}</span>
                     </td>
                     <td className="p-2.5 text-slate-400">{d.manufacturer} {d.model}</td>
                     <td className="p-2.5 text-slate-500 font-mono">{d.ip}:{d.port}</td>
@@ -428,7 +451,7 @@ export default function GB28181Page() {
               <button onClick={() => setSelected(null)} className="text-slate-500 hover:text-slate-300"><X className="w-4 h-4" /></button>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
               <div className="p-2.5 rounded-lg bg-slate-700/20 border border-slate-700/20 text-[10px]">
                 <span className="text-slate-500 block">传输协议</span>
                 <span className="text-slate-300">{selected.transport}</span>
@@ -445,6 +468,12 @@ export default function GB28181Page() {
                 <span className="text-slate-500 block">最后心跳</span>
                 <span className="text-slate-300">{selected.lastKeepalive}</span>
               </div>
+              {/* ── 所属单位快速分配 ── */}
+              <DetailUnitAssign
+                device={selected}
+                units={units}
+                onAssign={(unitId, unitName) => handleEditDevice(selected.id, { unitId, unitName, deviceId: selected.deviceId })}
+              />
             </div>
 
             <div className="text-[10px] text-slate-400 font-medium mb-2 flex items-center gap-1.5">
@@ -479,10 +508,10 @@ export default function GB28181Page() {
     </DataContainer>
 
     {/* Add Device Modal - 移到 DataContainer 外部，确保空状态时也能显示 */}
-    {showAdd && <AddDeviceModal onClose={() => setShowAdd(false)} onSubmit={handleAddDevice} archiveDevices={archiveDevices} gbDevices={devices} sipRunning={serverStatus.running} />}
+    {showAdd && <AddDeviceModal onClose={() => setShowAdd(false)} onSubmit={handleAddDevice} archiveDevices={archiveDevices} gbDevices={devices} sipRunning={serverStatus.running} units={units} />}
 
     {/* Edit Device Modal */}
-    {editing && <EditDeviceModal device={editing} onClose={() => setEditing(null)} onSubmit={handleEditDevice} />}
+    {editing && <EditDeviceModal device={editing} onClose={() => setEditing(null)} onSubmit={handleEditDevice} units={units} />}
 
     {/* Video Player Modal */}
     {playVideo && <SimpleVideoPlayer streamUrl={playVideo.streamUrl} title={playVideo.name} onClose={() => setPlayVideo(null)} />}
@@ -491,22 +520,26 @@ export default function GB28181Page() {
 }
 
 /* ───── Add Device Modal ───── */
-function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunning }: {
+function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunning, units }: {
   onClose: () => void;
   onSubmit: (data: any) => void;
   archiveDevices: Device[];
   gbDevices: GB28181Device[];
   sipRunning: boolean;
+  units: { id: string; unit_name: string }[];
 }) {
+  const { warning } = useToast();
   const [selectedArchiveId, setSelectedArchiveId] = useState('');
   const [form, setForm] = useState({
     deviceId: '', name: '', ip: '', port: '5060', manufacturer: '', model: '',
     transport: 'UDP' as 'UDP' | 'TCP', username: '', password: '', unitId: '',
     location: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSelectArchive = (id: string) => {
     setSelectedArchiveId(id);
+    setFieldErrors({});
     const d = archiveDevices.find(x => x.id === id);
     if (d) {
       setForm(prev => ({
@@ -521,14 +554,18 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
   };
 
   const handleSubmit = () => {
+    const errors: Record<string, string> = {};
     if (!sipRunning) {
-      alert('SIP服务已停止，请先启动SIP服务后再添加设备');
+      warning('SIP服务已停止', '请先启动SIP服务后再添加设备');
       return;
     }
-    if (!form.deviceId || !form.name) {
-      alert('请填写国标设备编码和设备名称');
+    if (!form.deviceId) errors.deviceId = '请填写国标设备编码';
+    if (!form.name) errors.name = '请填写设备名称';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
+    setFieldErrors({});
     const data = {
       id: `GB-${Date.now()}`,
       ...form,
@@ -572,16 +609,23 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
                   <option key={d.id} value={d.id}>{d.id} - {d.name} ({d.unitName || d.unitId} / {d.location})</option>
                 ))}
             </select>
+            {archiveDevices.filter(d => (d.type === 'gb28181-camera' || d.type === 'camera') && !gbDevices.some(dev => dev.id === d.id)).length === 0 && (
+              <div className="mt-1.5 text-[10px] text-amber-400">
+                无可用的 GB28181 档案设备，请先前往 <a href="#/device-archive" className="underline hover:text-amber-300">设备档案</a> 创建「GB28181摄像头」类型设备并入库。
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] text-slate-400 mb-1 block">国标设备编码 <span className="text-red-400">*</span></label>
-              <input value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })} placeholder="34020000001320000001" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono" />
+              <input value={form.deviceId} onChange={e => { setForm({ ...form, deviceId: e.target.value }); if (fieldErrors.deviceId) setFieldErrors(prev => { const n = { ...prev }; delete n.deviceId; return n; }); }} placeholder="34020000001320000001" className={`w-full bg-slate-700/30 border rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono ${fieldErrors.deviceId ? 'border-red-500/50 ring-1 ring-red-500/20' : 'border-slate-600/30'}`} />
+              {fieldErrors.deviceId && <span className="text-[10px] text-red-400 mt-0.5 block">{fieldErrors.deviceId}</span>}
             </div>
             <div>
               <label className="text-[10px] text-slate-400 mb-1 block">设备名称 <span className="text-red-400">*</span></label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="大厅摄像头" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+              <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors(prev => { const n = { ...prev }; delete n.name; return n; }); }} placeholder="大厅摄像头" className={`w-full bg-slate-700/30 border rounded px-3 py-2 text-xs text-slate-200 outline-none ${fieldErrors.name ? 'border-red-500/50 ring-1 ring-red-500/20' : 'border-slate-600/30'}`} />
+              {fieldErrors.name && <span className="text-[10px] text-red-400 mt-0.5 block">{fieldErrors.name}</span>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -612,8 +656,17 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] text-slate-400 mb-1 block">所属单位</label>
-              <input value={form.unitId} readOnly className="w-full bg-slate-700/20 border border-slate-600/20 rounded px-3 py-2 text-xs text-slate-400 outline-none font-mono" />
+              <label className="text-[10px] text-slate-400 mb-1 block">所属单位 <span className="text-red-400">*</span></label>
+              <select
+                value={form.unitId}
+                onChange={e => setForm({ ...form, unitId: e.target.value })}
+                className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none"
+              >
+                <option value="">请选择单位</option>
+                {units.map(u => (
+                  <option key={u.id} value={u.id}>{u.unit_name}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="text-[10px] text-slate-400 mb-1 block">安装位置</label>
@@ -633,11 +686,13 @@ function AddDeviceModal({ onClose, onSubmit, archiveDevices, gbDevices, sipRunni
 }
 
 /* ───── Edit Device Modal ───── */
-function EditDeviceModal({ device, onClose, onSubmit }: {
+function EditDeviceModal({ device, onClose, onSubmit, units }: {
   device: GB28181Device;
   onClose: () => void;
   onSubmit: (id: string, data: Partial<GB28181Device>) => void;
+  units: { id: string; unit_name: string }[];
 }) {
+  const { warning } = useToast();
   const [form, setForm] = useState({
     deviceId: device.deviceId || '',
     name: device.name || '',
@@ -649,16 +704,26 @@ function EditDeviceModal({ device, onClose, onSubmit }: {
     username: device.username || '',
     password: device.password || '',
     location: device.location || '',
+    unitId: device.unitId || '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = () => {
-    if (!form.deviceId || !form.name) {
-      alert('请填写国标设备编码和设备名称');
+    const errors: Record<string, string> = {};
+    if (!form.deviceId) errors.deviceId = '请填写国标设备编码';
+    if (!form.name) errors.name = '请填写设备名称';
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      warning('表单校验失败', '请检查红色标注的必填项');
       return;
     }
+    setFieldErrors({});
+    const unit = units.find(u => String(u.id) === String(form.unitId));
     onSubmit(device.id, {
       ...form,
       port: Number(form.port),
+      unitName: unit?.unit_name || '',
+      deviceId: form.deviceId || device.deviceId,
       updatedAt: new Date().toISOString(),
     });
   };
@@ -674,11 +739,13 @@ function EditDeviceModal({ device, onClose, onSubmit }: {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] text-slate-400 mb-1 block">国标设备编码 <span className="text-red-400">*</span></label>
-              <input value={form.deviceId} onChange={e => setForm({ ...form, deviceId: e.target.value })} placeholder="34020000001320000001" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono" />
+              <input value={form.deviceId} onChange={e => { setForm({ ...form, deviceId: e.target.value }); if (fieldErrors.deviceId) setFieldErrors(prev => { const n = { ...prev }; delete n.deviceId; return n; }); }} placeholder="34020000001320000001" className={`w-full bg-slate-700/30 border rounded px-3 py-2 text-xs text-slate-200 outline-none font-mono ${fieldErrors.deviceId ? 'border-red-500/50 ring-1 ring-red-500/20' : 'border-slate-600/30'}`} />
+              {fieldErrors.deviceId && <span className="text-[10px] text-red-400 mt-0.5 block">{fieldErrors.deviceId}</span>}
             </div>
             <div>
               <label className="text-[10px] text-slate-400 mb-1 block">设备名称 <span className="text-red-400">*</span></label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="大厅摄像头" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
+              <input value={form.name} onChange={e => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors(prev => { const n = { ...prev }; delete n.name; return n; }); }} placeholder="大厅摄像头" className={`w-full bg-slate-700/30 border rounded px-3 py-2 text-xs text-slate-200 outline-none ${fieldErrors.name ? 'border-red-500/50 ring-1 ring-red-500/20' : 'border-slate-600/30'}`} />
+              {fieldErrors.name && <span className="text-[10px] text-red-400 mt-0.5 block">{fieldErrors.name}</span>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -711,6 +778,15 @@ function EditDeviceModal({ device, onClose, onSubmit }: {
             <label className="text-[10px] text-slate-400 mb-1 block">安装位置</label>
             <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="1F大厅" className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none" />
           </div>
+          <div>
+            <label className="text-[10px] text-slate-400 mb-1 block">所属单位</label>
+            <select value={form.unitId} onChange={e => setForm({ ...form, unitId: e.target.value })} className="w-full bg-slate-700/30 border border-slate-600/30 rounded px-3 py-2 text-xs text-slate-200 outline-none">
+              <option value="">-- 请选择单位 --</option>
+              {units.map(u => (
+                <option key={u.id} value={String(u.id)}>{u.unit_name}</option>
+              ))}
+            </select>
+          </div>
           <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10 text-[10px] text-amber-400">
             提示：修改国标编码后，如果该摄像头已在平面图中绑定，需要重新绑定关联关系。
           </div>
@@ -722,6 +798,68 @@ function EditDeviceModal({ device, onClose, onSubmit }: {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ───── Detail Panel: 所属单位快速分配 ───── */
+function DetailUnitAssign({ device, units, onAssign }: {
+  device: GB28181Device;
+  units: { id: string; unit_name: string }[];
+  onAssign: (unitId: string, unitName: string) => void;
+}) {
+  const [unitId, setUnitId] = useState(device.unitId || '');
+  const [saving, setSaving] = useState(false);
+  const { success, warning } = useToast();
+
+  const currentUnit = units.find(u => String(u.id) === String(device.unitId));
+  const hasUnit = !!currentUnit;
+
+  const handleSave = async () => {
+    if (!unitId) {
+      warning('请选择单位', '所属单位不能为空');
+      return;
+    }
+    const unit = units.find(u => String(u.id) === String(unitId));
+    if (!unit) return;
+    setSaving(true);
+    try {
+      await onAssign(String(unit.id), unit.unit_name);
+      success('分配成功', `已分配到 ${unit.unit_name}`);
+    } catch (e) {
+      warning('分配失败', '请稍后重试');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-2.5 rounded-lg bg-slate-700/20 border border-slate-700/20 text-[10px]">
+      <span className="text-slate-500 block mb-1">所属单位</span>
+      <div className="flex items-center gap-2">
+        <select
+          value={unitId}
+          onChange={e => setUnitId(e.target.value)}
+          className="flex-1 bg-slate-800/50 border border-slate-600/30 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+        >
+          <option value="">-- 请选择单位 --</option>
+          {units.map(u => (
+            <option key={u.id} value={String(u.id)}>{u.unit_name}</option>
+          ))}
+        </select>
+        {(!hasUnit || unitId !== String(device.unitId || '')) && (
+          <button
+            onClick={handleSave}
+            disabled={saving || !unitId}
+            className="px-2 py-1 bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/20 rounded text-[10px] transition-colors disabled:opacity-40"
+          >
+            {saving ? '保存中...' : '保存'}
+          </button>
+        )}
+      </div>
+      {hasUnit && unitId === String(device.unitId || '') && (
+        <span className="text-emerald-400 mt-1 block">✓ 已分配: {currentUnit.unit_name}</span>
+      )}
     </div>
   );
 }

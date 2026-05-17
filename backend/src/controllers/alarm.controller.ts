@@ -1,6 +1,7 @@
-import type { Request, Response } from 'express';
+﻿import type { Request, Response } from 'express';
 import { Op, Sequelize } from 'sequelize';
-import { success, fail, page } from '@/utils/response';
+import { sendSuccess, sendPage } from '@/utils/respond';
+import { HttpError } from '@/utils/httpError';
 import { Alarm, Device, Unit } from '@/models';
 import sequelize from '@/config/database';
 import redis from '@/config/redis';
@@ -27,71 +28,78 @@ function fmtDateTime(date: Date | string | null): string {
 
 export const AlarmController = {
   async getDetail(req: Request, res: Response) {
-    try {
       const { id } = req.params;
       const alarm = await Alarm.findByPk(id, {
         include: [{ model: Device, as: 'device', required: false }],
       }) as any;
-      if (!alarm) return res.status(404).json(fail('告警不存在', 404));
+      if (!alarm) throw new HttpError('告警不存在', 404);
 
       const data = alarm.toJSON ? alarm.toJSON() : alarm;
 
-      // 补充 unit_id / unit_name
+      // 补充 unit_id / unit_name / location / device_name
       let unitId = data.unit_id;
       let unitName = data.unit_name;
+      let location = data.location;
+      let deviceName = data.device_name;
       if (!unitId && data.device?.unit_id) unitId = data.device.unit_id;
-      if (!unitName && data.device?.unit_name) unitName = data.device.unit_name;
+      // Device 模型无 unit_name 字段，此处 unit_name 回退无效，由下方 Unit.findByPk 补救
+      if ((!location || location === '') && data.device?.install_location) location = data.device.install_location;
+      if ((!deviceName || deviceName === '') && data.device?.device_name) deviceName = data.device.device_name;
 
-      // 查询单位详情
-      let unit = null;
-      if (unitId) {
-        try { unit = await Unit.findByPk(unitId, { raw: true }) as any; } catch (e) { /* ignore */ }
-        if (unit && !unitName) unitName = unit.unit_name;
-      }
-
-      // 查询消控室
-      let controlRoom = null;
-      if (unitId) {
+      // 历史报警补救：若 device_id 为 NULL 但 device_name 有值，尝试通过 IoT 设备反查档案
+      if (!data.device_id && deviceName) {
         try {
-          const [crRows]: any = await sequelize.query(
-            `SELECT * FROM fire_control_room WHERE unit_id = ? LIMIT 1`,
-            { replacements: [unitId] }
+          const [iotRows]: any = await sequelize.query(
+            `SELECT archive_device_id FROM fire_iot_device WHERE device_name = ? OR device_sn = ? LIMIT 1`,
+            { replacements: [deviceName, deviceName] }
           );
-          controlRoom = crRows[0] || null;
-        } catch (e) { /* ignore */ }
+          const archiveId = iotRows?.[0]?.archive_device_id;
+          if (archiveId) {
+            const [devRows]: any = await sequelize.query(
+              `SELECT id, device_name, unit_id, install_location FROM fire_device WHERE id = ? LIMIT 1`,
+              { replacements: [archiveId] }
+            );
+            const dev = devRows?.[0];
+            if (dev) {
+              if (!unitId && dev.unit_id) unitId = dev.unit_id;
+              if ((!location || location === '') && dev.install_location) location = dev.install_location;
+              if ((!deviceName || deviceName === '') && dev.device_name) deviceName = dev.device_name;
+            }
+          }
+        } catch { /* ignore */ }
       }
 
-      // 查询关联摄像头
-      let cameras: any[] = [];
+      // 并行查询：单位、消控室、摄像头、平面图（减少数据库往返）
+      let unit: any = null, controlRoom: any = null, cameras: any[] = [], floorPlan: any = null;
+      const parallelQueries: Promise<any>[] = [];
+
       if (unitId) {
-        try {
-          const [camRows]: any = await sequelize.query(
-            `SELECT id, name, location, rtsp_url, stream_url, device_id, channel_id, online_status 
-             FROM cameras WHERE unit_id = ? LIMIT 10`,
+        parallelQueries.push(
+          Unit.findByPk(unitId, { raw: true }).then((u: any) => { unit = u; if (u && !unitName) unitName = u.unit_name; }).catch(() => {}),
+          sequelize.query(`SELECT * FROM fire_control_room WHERE unit_id = ? LIMIT 1`, { replacements: [unitId] })
+            .then(([rows]: any) => { controlRoom = rows?.[0] || null; }).catch(() => {}),
+          sequelize.query(
+            `SELECT id, name, location, rtsp_url, stream_url, device_id, channel_id, online_status FROM cameras WHERE unit_id = ? LIMIT 10`,
             { replacements: [String(unitId)] }
-          );
-          cameras = camRows || [];
-        } catch (e) { /* ignore */ }
+          ).then(([rows]: any) => { cameras = rows || []; }).catch(() => {})
+        );
       }
 
-      // 查询平面图位置
-      let floorPlan = null;
       if (data.device_id) {
-        try {
-          const [fpRows]: any = await sequelize.query(
+        parallelQueries.push(
+          sequelize.query(
             `SELECT f.id as floor_id, f.floor_name, f.floor_no, f.image_url,
-                    b.id as building_id, b.building_name,
-                    dp.x, dp.y
+                    b.id as building_id, b.building_name, dp.x, dp.y
              FROM fire_floor_device_position dp
              JOIN fire_floor f ON f.id = dp.floor_id
              JOIN fire_building b ON b.id = f.building_id
-             WHERE dp.device_id = ?
-             LIMIT 1`,
+             WHERE dp.device_id = ? LIMIT 1`,
             { replacements: [data.device_id] }
-          );
-          floorPlan = fpRows[0] || null;
-        } catch (e) { /* ignore */ }
+          ).then(([rows]: any) => { floorPlan = rows?.[0] || null; }).catch(() => {})
+        );
       }
+
+      await Promise.all(parallelQueries);
 
       if (data.createdAt) data.createdAt = fmtDateTime(data.createdAt);
       if (data.updatedAt) data.updatedAt = fmtDateTime(data.updatedAt);
@@ -110,23 +118,20 @@ export const AlarmController = {
         videoUrl: controlRoom.video_url,
       } : null;
 
-      return res.json(success({
+      sendSuccess(res, req, {
         ...data,
         unit_id: unitId,
         unit_name: unitName,
+        location,
+        device_name: deviceName,
         unit,
         controlRoom: mappedControlRoom,
         relatedCameras: cameras,
         floorPlan,
-      }));
-    } catch (err: any) {
-      logger.error(`[Alarm] getDetail 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`获取告警详情失败: ${err?.message || '未知错误'}`, 500));
-    }
+      });
   },
 
   async list(req: Request, res: Response) {
-    try {
       const { pageNum, pageSize } = sanitizePagination(req);
       const { alarmType, alarmLevel, status, unitId, keyword, startTime, endTime  } = req.query;
       const where: any = {};
@@ -144,13 +149,13 @@ export const AlarmController = {
           {
             model: Device,
             as: 'device',
-            attributes: ['id', 'device_no', 'device_name', 'unit_id'],
+            attributes: ['id', 'device_no', 'device_name', 'unit_id', 'install_location'],
             required: false,
             include: [{ model: Unit, as: 'unit', attributes: ['id', 'unit_name'], required: false }],
           },
         ],
       });
-      // 补充 unit_name：优先告警记录自身，其次取设备档案关联的单位
+      // 补充单位名称、安装位置、设备名称：优先告警记录自身，其次取设备档案关联
       const enriched = rows.map((r: any) => {
         const data = r.toJSON ? r.toJSON() : r;
         if (!data.unit_name && data.device?.unit?.unit_name) {
@@ -159,20 +164,31 @@ export const AlarmController = {
         if (!data.unit_id && data.device?.unit_id) {
           data.unit_id = data.device.unit_id;
         }
-        // 格式化时间为本地可读字符串
-        if (data.createdAt) data.createdAt = fmtDateTime(data.createdAt);
-        if (data.updatedAt) data.updatedAt = fmtDateTime(data.updatedAt);
+        // 补充安装位置：优先告警记录自身，其次取设备档案的 install_location
+        if ((!data.location || data.location === '') && data.device?.install_location) {
+          data.location = data.device.install_location;
+        }
+        // 补充设备名称：优先告警记录自身，其次取设备档案的 device_name
+        if ((!data.device_name || data.device_name === '') && data.device?.device_name) {
+          data.device_name = data.device.device_name;
+        }
+        // 格式化时间为本地可读字符串（同时兼容 created_at / createdAt）
+        if (data.createdAt) {
+          const formatted = fmtDateTime(data.createdAt);
+          data.createdAt = formatted;
+          data.created_at = formatted;
+        }
+        if (data.updatedAt) {
+          const formatted = fmtDateTime(data.updatedAt);
+          data.updatedAt = formatted;
+          data.updated_at = formatted;
+        }
         return data;
       });
-      return res.json(page(enriched, count, +pageNum, +pageSize));
-    } catch (err: any) {
-      logger.error(`[Alarm] list 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendPage(res, req, enriched, count, +pageNum, +pageSize);
   },
 
   async stats(req: Request, res: Response) {
-    try {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const [total, todayCount, pending, byType, byLevel] = await Promise.all([
         Alarm.count(),
@@ -181,15 +197,10 @@ export const AlarmController = {
         Alarm.findAll({ attributes: ['alarm_type', [Sequelize.fn('COUNT', '*'), 'count']], group: ['alarm_type'], raw: true }),
         Alarm.findAll({ attributes: ['alarm_level', [Sequelize.fn('COUNT', '*'), 'count']], group: ['alarm_level'], raw: true }),
       ]);
-      return res.json(success({ total, today: todayCount, pending, byType, byLevel }));
-    } catch (err: any) {
-      logger.error(`[Alarm] stats 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, { total, today: todayCount, pending, byType, byLevel });
   },
 
   async create(req: Request, res: Response) {
-    try {
       const alarmNo = generateAlarmNo();
       const alarm = await Alarm.create({ ...req.body, alarm_no: alarmNo } as any);
 
@@ -209,26 +220,16 @@ export const AlarmController = {
 
       logger.info(`[Alarm] 新告警: ${alarmNo}, type=${(alarm as any).alarm_type}`);
 
-      return res.json(success({ id: (alarm as any).id }, '告警上报成功'));
-    } catch (err: any) {
-      logger.error(`[Alarm] create 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, { id: (alarm as any).id }, '告警上报成功');
   },
 
   async confirm(req: Request, res: Response) {
-    try {
       const { id } = req.params;
       await Alarm.update({ status: 1, confirm_time: new Date() }, { where: { id } });
-      return res.json(success(null, '已确认'));
-    } catch (err: any) {
-      logger.error(`[Alarm] confirm 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '已确认');
   },
 
   async handle(req: Request, res: Response) {
-    try {
       const { id } = req.params;
       const { handleResult } = req.body;
       await Alarm.update({
@@ -236,54 +237,35 @@ export const AlarmController = {
         handler_id: req.user!.userId, handler_name: req.user!.username,
         handle_result: handleResult
       }, { where: { id } });
-      return res.json(success(null, '处理完成'));
-    } catch (err: any) {
-      logger.error(`[Alarm] handle 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '处理完成');
   },
 
   async dismiss(req: Request, res: Response) {
-    try {
       const { id } = req.params;
       await Alarm.update({ status: 3 }, { where: { id } });
-      return res.json(success(null, '已标记为误报'));
-    } catch (err: any) {
-      logger.error(`[Alarm] dismiss 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, null, '已标记为误报');
   },
 
   /** 告警消音：联动设备反控消音（需关联 device_id） */
   async silence(req: Request, res: Response) {
-    try {
       const { id } = req.params;
       const alarm = await Alarm.findByPk(id) as any;
-      if (!alarm) return res.json(fail('告警不存在'));
+      if (!alarm) throw new HttpError('告警不存在', 404);
       if (!alarm.device_id) {
-        return res.json(success(null, '已记录消音（无关联设备，未下发主机指令）'));
+        sendSuccess(res, req, null, '已记录消音（无关联设备，未下发主机指令）');
+        return;
       }
       const result = await DeviceControlService.silence(+alarm.device_id, req.user!.userId, req.user!.username);
-      return res.json(success(result, result.message));
-    } catch (err: any) {
-      logger.error(`[Alarm] silence 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, result, result.message);
   },
 
   async recent(req: Request, res: Response) {
-    try {
       const alarms = await Alarm.findAll({ limit: 10, order: [['created_at', 'DESC']] });
-      return res.json(success(alarms));
-    } catch (err: any) {
-      logger.error(`[Alarm] recent 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, alarms);
   },
 
   async trend(req: Request, res: Response) {
-    try {
-      const days = parseInt(req.query.days as string) || 7;
+      const days = Math.min(Math.max(parseInt(req.query.days as string) || 7, 1), 365);
       const end = new Date(); end.setHours(23, 59, 59, 999);
       const start = new Date(end); start.setDate(start.getDate() - days + 1); start.setHours(0, 0, 0, 0);
 
@@ -314,10 +296,6 @@ export const AlarmController = {
         const dateStr = d.toISOString().slice(0, 10);
         result.push({ date: dateStr, count: countMap.get(dateStr) || 0 });
       }
-      return res.json(success(result));
-    } catch (err: any) {
-      logger.error(`[Alarm] trend 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+      sendSuccess(res, req, result);
   },
 };

@@ -16,6 +16,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./
 COPY .env .env
 RUN mkdir -p uploads logs
-EXPOSE 3000
+EXPOSE 5003
 ENV NODE_ENV=production
 CMD ["node", "dist/app.js"]

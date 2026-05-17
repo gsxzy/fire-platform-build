@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { dashboardService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
 import {
   Cpu, Wifi, WifiOff, AlertTriangle,
@@ -42,7 +42,7 @@ export default function DeviceAnalysisPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await legacyApi.deviceAnalysis() as any;
+      const res = await dashboardService.deviceAnalysis() as any;
       const data = res.data ?? res;
       if (data && typeof data === 'object') {
         if (Array.isArray(data.onlineTrend)) setOnlineTrend(data.onlineTrend as any);

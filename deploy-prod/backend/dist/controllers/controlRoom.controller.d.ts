@@ -1,0 +1,32 @@
+import type { Request, Response } from 'express';
+export declare const ControlRoomController: {
+    list(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    create(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    update(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    delete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    detail(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    videoList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getRealtimeStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDetail(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    silence(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    reset(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    switchMode(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    controlMultiline(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    multilineList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    multilineCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    multilineUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    busPointList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    busPointCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    busPointUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    commandLogs(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDeviceCodeList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDeviceCodeCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDeviceCodeUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDeviceCodeDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    hostDeviceCodeImport(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+};
+//# sourceMappingURL=controlRoom.controller.d.ts.map

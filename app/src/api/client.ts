@@ -6,6 +6,7 @@
 import type { ApiResponse, PaginatedData, QueryParams } from '@/types/db';
 import { ApiClientError, getApiEnvelopeMessage } from '@/types/api';
 import { logger } from '@/lib/logger';
+import { dedupeGet } from '@/api/http/requestCache';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
@@ -241,6 +242,10 @@ async function requestWithRetry<T>(
 }
 
 async function request<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<ApiResponse<T>> {
+  if (method === 'GET' && !body) {
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    return dedupeGet(`GET:${fullUrl}`, () => requestWithRetry<T>(method, url, body, signal, 0));
+  }
   return requestWithRetry(method, url, body, signal, 0);
 }
 
@@ -273,14 +278,8 @@ export const raw = {
   delete: async <T = any>(url: string, signal?: AbortSignal) => (await request<T>('DELETE', url, undefined, signal)).data,
 };
 
-/* ───── LEGACY RAW API（旧体系专用） ───── */
-export const legacyRaw = {
-  get: async <T = any>(url: string, params?: Record<string, unknown>) => raw.get<T>(url, params),
-  post: async <T = any>(url: string, body?: unknown) => raw.post<T>(url, body),
-  put: async <T = any>(url: string, body?: unknown) => raw.put<T>(url, body),
-  patch: async <T = any>(url: string, body?: unknown) => raw.patch<T>(url, body),
-  delete: async <T = any>(url: string) => raw.delete<T>(url),
-};
+/* ───── LEGACY RAW API（已合并到 raw，保留别名兼容） ───── */
+export const legacyRaw = raw;
 
 /* ───── 可取消请求辅助 ───── */
 export function createCancelableRequest<T>(

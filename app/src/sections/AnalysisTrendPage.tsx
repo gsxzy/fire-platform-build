@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { dashboardService } from '@/api/services';
 import { TrendingUp } from 'lucide-react';
 import DataContainer from '@/components/DataContainer';
 import {
@@ -19,8 +19,8 @@ export default function AnalysisTrendPage() {
     setError(null);
     try {
       const [alarmRes, deviceRes] = await Promise.all([
-        legacyApi.alarmTrend() as any,
-        legacyApi.deviceAnalysis() as any,
+        dashboardService.alarmTrend() as any,
+        dashboardService.deviceAnalysis() as any,
       ]);
       const alarmData = alarmRes.data ?? alarmRes;
       if (alarmData && (Array.isArray(alarmData) || typeof alarmData === 'object')) setMonthlyData(alarmData as any);

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="icon" type="image/png" href="./logo.png" />
+    <title>新致远智慧消防远程监控中心</title>
+    <script type="module" crossorigin src="./assets/index-hwUXVTzo.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/react-vendor-q5gn0pT7.js">
+    <link rel="modulepreload" crossorigin href="./assets/ui-vendor-B5FnibwN.js">
+    <link rel="modulepreload" crossorigin href="./assets/canvas-vendor-BhkDeTlt.js">
+    <link rel="modulepreload" crossorigin href="./assets/chart-vendor-qqOfS33_.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-DXNu11OO.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="debug-error" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0f172a;color:#e2e8f0;padding:20px;z-index:99999;font-family:monospace;white-space:pre-wrap;overflow:auto;"></div>
+    <script>
+      (function(){
+        var el = document.getElementById('debug-error');
+        function show(msg) { el.style.display='block'; el.textContent = msg; }
+        window.onerror = function(msg, src, line, col, err) {
+          show('JS Error: ' + msg + '\nAt: ' + src + ':' + line + ':' + col + '\n' + (err && err.stack ? err.stack : ''));
+        };
+        window.onunhandledrejection = function(e) {
+          show('Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+        };
+      })();
+    </script>
+  </body>
+</html>

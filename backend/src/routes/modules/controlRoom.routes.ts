@@ -1,49 +1,48 @@
 import { Router } from 'express';
 import { ControlRoomController } from '@/controllers/controlRoom.controller';
+import { handleController } from '@/utils/handleController';
+import { requirePermission } from '@/middleware/permission';
 import { upload } from '@/middleware/upload';
 
 const router = Router();
+const h = (name: keyof typeof ControlRoomController) =>
+  handleController(`ControlRoom.${String(name)}`, ControlRoomController[name]);
 
-router.get('/', ControlRoomController.list);
-router.post('/', ControlRoomController.create);
+const view = requirePermission('monitor:view');
+const control = requirePermission('monitor:control');
 
-// 报警主机（必须放在 /:id 之前，避免 'hosts' 被匹配为 id）
-router.get('/hosts', ControlRoomController.hostList);
-router.post('/hosts', ControlRoomController.hostCreate);
-router.put('/hosts/:id', ControlRoomController.hostUpdate);
-router.delete('/hosts/:id', ControlRoomController.hostDelete);
-router.get('/hosts/:id', ControlRoomController.hostDetail);
+router.get('/', view, h('list'));
+router.post('/', control, h('create'));
 
-// 主机控制指令（消音 / 复位 / 手自动 / 多线盘）
-router.post('/silence', ControlRoomController.silence);
-router.post('/reset', ControlRoomController.reset);
-router.post('/mode', ControlRoomController.switchMode);
-router.post('/multiline/control', ControlRoomController.controlMultiline);
+router.get('/hosts', view, h('hostList'));
+router.post('/hosts', control, h('hostCreate'));
+router.put('/hosts/:id', control, h('hostUpdate'));
+router.delete('/hosts/:id', control, h('hostDelete'));
+router.get('/hosts/:id', view, h('hostDetail'));
 
-// 多线盘、总线点位
-router.get('/multiline', ControlRoomController.multilineList);
-router.post('/multiline', ControlRoomController.multilineCreate);
-router.put('/multiline/:id', ControlRoomController.multilineUpdate);
-router.get('/bus-points', ControlRoomController.busPointList);
-router.post('/bus-points', ControlRoomController.busPointCreate);
-router.put('/bus-points/:id', ControlRoomController.busPointUpdate);
+router.post('/silence', control, h('silence'));
+router.post('/reset', control, h('reset'));
+router.post('/mode', control, h('switchMode'));
+router.post('/multiline/control', control, h('controlMultiline'));
 
-// 控制日志
-router.get('/command-logs', ControlRoomController.commandLogs);
+router.get('/multiline', view, h('multilineList'));
+router.post('/multiline', control, h('multilineCreate'));
+router.put('/multiline/:id', control, h('multilineUpdate'));
+router.get('/bus-points', view, h('busPointList'));
+router.post('/bus-points', control, h('busPointCreate'));
+router.put('/bus-points/:id', control, h('busPointUpdate'));
 
-// 关联摄像头
-router.get('/videos', ControlRoomController.videoList);
+router.get('/command-logs', view, h('commandLogs'));
+router.get('/videos', view, h('videoList'));
 
-// 报警主机编码表
-router.get('/host-device-codes', ControlRoomController.hostDeviceCodeList);
-router.post('/host-device-codes', ControlRoomController.hostDeviceCodeCreate);
-router.put('/host-device-codes/:id', ControlRoomController.hostDeviceCodeUpdate);
-router.delete('/host-device-codes/:id', ControlRoomController.hostDeviceCodeDelete);
-router.post('/host-device-codes/import', upload.single('file'), ControlRoomController.hostDeviceCodeImport);
+router.get('/host-device-codes', view, h('hostDeviceCodeList'));
+router.post('/host-device-codes', control, h('hostDeviceCodeCreate'));
+router.put('/host-device-codes/:id', control, h('hostDeviceCodeUpdate'));
+router.delete('/host-device-codes/:id', control, h('hostDeviceCodeDelete'));
+router.post('/host-device-codes/import', control, upload.single('file'), h('hostDeviceCodeImport'));
 
-// 消控室更新、删除、详情（必须放在所有具体路由之后，避免通配匹配）
-router.put('/:id', ControlRoomController.update);
-router.delete('/:id', ControlRoomController.delete);
-router.get('/:id', ControlRoomController.detail);
+router.put('/:id', control, h('update'));
+router.delete('/:id', control, h('delete'));
+router.get('/:id', view, h('detail'));
 
 export default router;

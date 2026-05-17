@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { success, fail, page } from '@/utils/response';
+import { sendSuccess, sendPage } from '@/utils/respond';
+import { fail } from '@/utils/response';
+import { HttpError } from '@/utils/httpError';
 import { sanitizePagination } from '@/utils/validator';
 import logger from '@/config/logger';
 import { Device, Unit, IoTDevice } from '@/models';
@@ -101,10 +103,10 @@ export const DeviceAllocationController = {
           lifecycle_status: d.lifecycle_status,
         };
       });
-      return res.json(page(list, count, pageNum, pageSize));
+      sendPage(res, req, list, count, pageNum, pageSize);
     } catch (err: any) {
       logger.error(`[DeviceAllocation] listPending 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
@@ -114,11 +116,11 @@ export const DeviceAllocationController = {
       const deviceIds = parseIds(body);
       const unitRaw = body.unit_id || body.unitId || body.newUnitId;
       const unitId = unitRaw != null && String(unitRaw).trim() !== '' ? parseInt(String(unitRaw), 10) : NaN;
-      if (deviceIds.length === 0) return res.status(400).json(fail('请选择设备', 400));
-      if (!Number.isFinite(unitId) || unitId <= 0) return res.status(400).json(fail('请选择有效单位', 400));
+      if (deviceIds.length === 0) throw new HttpError('请选择设备', 400, 400);
+      if (!Number.isFinite(unitId) || unitId <= 0) throw new HttpError('请选择有效单位', 400, 400);
 
       const unit = await Unit.findByPk(unitId);
-      if (!unit) return res.status(404).json(fail('单位不存在', 404));
+      if (!unit) throw new HttpError('单位不存在', 404, 404);
       const unitName = (unit as any).unit_name || '';
 
       const projectCode = body.project_code != null ? String(body.project_code).slice(0, 64) : null;
@@ -131,16 +133,16 @@ export const DeviceAllocationController = {
 
       // 批量查询：避免 N+1
       const numericIds = deviceIds.map(id => parseInt(String(id), 10)).filter(n => Number.isFinite(n) && n > 0);
-      if (numericIds.length === 0) return res.status(400).json(fail('没有可分配的设备', 400));
+      if (numericIds.length === 0) throw new HttpError('没有可分配的设备', 400, 400);
 
       const devices = await Device.findAll({ where: { id: { [Op.in]: numericIds } } });
-      if (devices.length === 0) return res.status(400).json(fail('没有可分配的设备', 400));
+      if (devices.length === 0) throw new HttpError('没有可分配的设备', 400, 400);
 
       // 预校验所有设备状态
       for (const dev of devices) {
         const d = dev as any;
         if (d.lifecycle_status === DeviceLifecycleStatus.SCRAPPED) {
-          return res.status(400).json(fail(`设备 ${d.device_no} 已报废，不可分配`, 400));
+          throw new HttpError(`设备 ${d.device_no} 已报废，不可分配`, 400, 400);
         }
         if (!DeviceLifecycleRules.canAllocate(d.lifecycle_status)) {
           return res.status(400).json(
@@ -148,15 +150,16 @@ export const DeviceAllocationController = {
           );
         }
         if (d.unit_id != null && Number(d.unit_id) > 0) {
-          return res.status(400).json(fail(`设备 ${d.device_no} 已绑定单位，请先解绑或使用改派`, 400));
+          throw new HttpError(`设备 ${d.device_no} 已绑定单位，请先解绑或使用改派`, 400, 400);
         }
       }
 
+      // 统一事务：全部成功或全部回滚
+      const t = await sequelize.transaction();
       let allocatedCount = 0;
-      for (const dev of devices) {
-        const d = dev as any;
-        const t = await sequelize.transaction();
-        try {
+      try {
+        for (const dev of devices) {
+          const d = dev as any;
           await dev.update({
             unit_id: unitId,
             lifecycle_status: DeviceLifecycleStatus.ASSIGNED,
@@ -171,8 +174,14 @@ export const DeviceAllocationController = {
             `UPDATE fire_device_maintenance SET unit_name = :unitName WHERE device_id = :deviceId`,
             { replacements: { unitName, deviceId: d.id }, transaction: t }
           );
-          await t.commit();
-          await logAllocation({
+          allocatedCount += 1;
+        }
+        await t.commit();
+
+        // 事务提交成功后异步写日志（不影响响应）
+        for (const dev of devices) {
+          const d = dev as any;
+          logAllocation({
             device_id: Number(d.id),
             device_no: d.device_no || '',
             device_name: d.device_name || '',
@@ -188,26 +197,25 @@ export const DeviceAllocationController = {
             operator_id: operatorId,
             operator_name: operatorName,
             remark,
-          });
-          allocatedCount += 1;
-        } catch (innerErr: any) {
-          await t.rollback().catch(() => {});
-          logger.error(`[DeviceAllocation] 设备 ${d.device_no} 分配失败: ${innerErr?.message || innerErr}`);
-          return res.status(500).json(fail(`设备 ${d.device_no} 分配失败: ${innerErr?.message || '未知错误'}`, 500));
+          }).catch(() => {});
         }
-      }
 
-      return res.json(success({ allocatedCount }, '分配成功'));
+        sendSuccess(res, req, { allocatedCount }, '分配成功');
+      } catch (innerErr: any) {
+        await t.rollback().catch(() => {});
+        logger.error(`[DeviceAllocation] 批量分配失败: ${innerErr?.message || innerErr}`);
+        throw new HttpError(`分配失败: ${innerErr?.message || '未知错误'}，已自动回滚，无数据变更`, 500);
+      }
     } catch (err: any) {
       logger.error(`[DeviceAllocation] allocate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
   async unallocate(req: Request, res: Response) {
     try {
       const deviceIds = parseIds((req.body || {}) as Record<string, unknown>);
-      if (deviceIds.length === 0) return res.status(400).json(fail('请选择设备', 400));
+      if (deviceIds.length === 0) throw new HttpError('请选择设备', 400, 400);
 
       const operatorId = (req.body || {}).operator_id != null && (req.body || {}).operator_id !== '' ? Number((req.body || {}).operator_id) : null;
       const operatorName = (req.body || {}).operator_name != null ? String((req.body || {}).operator_name) : null;
@@ -265,10 +273,10 @@ export const DeviceAllocationController = {
         });
         n += 1;
       }
-      return res.json(success({ count: n }, '已解除单位绑定'));
+      sendSuccess(res, req, { count: n }, '已解除单位绑定');
     } catch (err: any) {
       logger.error(`[DeviceAllocation] unallocate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
@@ -279,21 +287,21 @@ export const DeviceAllocationController = {
       const newUnitRaw = body.newUnitId || body.unit_id || body.unitId;
       const newUnitId =
         newUnitRaw != null && String(newUnitRaw).trim() !== '' ? parseInt(String(newUnitRaw), 10) : NaN;
-      if (!deviceId) return res.status(400).json(fail('缺少 deviceId', 400));
-      if (!Number.isFinite(newUnitId) || newUnitId <= 0) return res.status(400).json(fail('请选择有效单位', 400));
+      if (!deviceId) throw new HttpError('缺少 deviceId', 400, 400);
+      if (!Number.isFinite(newUnitId) || newUnitId <= 0) throw new HttpError('请选择有效单位', 400, 400);
 
       const unit = await Unit.findByPk(newUnitId);
-      if (!unit) return res.status(404).json(fail('单位不存在', 404));
+      if (!unit) throw new HttpError('单位不存在', 404, 404);
       const newUnitName = (unit as any).unit_name || '';
 
       const dev = await Device.findByPk(deviceId);
-      if (!dev) return res.status(404).json(fail('设备不存在', 404));
+      if (!dev) throw new HttpError('设备不存在', 404, 404);
       const d = dev as any;
       if (d.lifecycle_status === DeviceLifecycleStatus.SCRAPPED) {
-        return res.status(400).json(fail('设备已报废', 400));
+        throw new HttpError('设备已报废', 400, 400);
       }
       if (d.lifecycle_status < DeviceLifecycleStatus.PLATFORM_CONNECTED) {
-        return res.status(400).json(fail('设备尚未接入，无法改派', 400));
+        throw new HttpError('设备尚未接入，无法改派', 400, 400);
       }
 
       const prevUnitId = d.unit_id;
@@ -342,10 +350,10 @@ export const DeviceAllocationController = {
         operator_name: operatorName,
         remark,
       });
-      return res.json(success(null, '改派成功'));
+      sendSuccess(res, req, null, '改派成功');
     } catch (err: any) {
       logger.error(`[DeviceAllocation] reallocate 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 
@@ -389,10 +397,10 @@ export const DeviceAllocationController = {
           type: 'SELECT' as any,
         }
       );
-      return res.json(page(rows as any[], total, pageNum, pageSize));
+      sendPage(res, req, rows as any[], total, pageNum, pageSize);
     } catch (err: any) {
       logger.error(`[DeviceAllocation] listLogs 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
     }
   },
 };

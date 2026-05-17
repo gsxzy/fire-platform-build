@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { api } from '@/api/services';
+import { floorPlanService as api } from '@/api/services';
 import { useToast } from '@/core/ToastContext';
 import {
   Layout, Upload, ZoomIn, ZoomOut, RotateCcw,
@@ -303,18 +303,20 @@ export default function FloorPlanPage() {
         api.get(`/floors/${floorId}/devices/unmarked`),
         api.get(`/floors/${floorId}/cameras`),
       ]);
-      setCurrentFloor(fRes);
+      const floorRow = fRes as Floor | null;
+      setCurrentFloor(floorRow);
       setDevices(normalizeList(dRes));
       setUnmarked(normalizeList(uRes));
       setCameras(normalizeList(cRes));
       setStageScale(1);
       setStagePos({ x: 0, y: 0 });
       // 解析 CAD 数据
-      if (fRes?.plan_type === 'cad' && fRes?.plan_cad_data) {
+      const floorAny = floorRow as Record<string, unknown> | null;
+      if (floorAny?.plan_type === 'cad' && floorAny?.plan_cad_data) {
         try {
-          const parsed = typeof fRes.plan_cad_data === 'string'
-            ? JSON.parse(fRes.plan_cad_data)
-            : fRes.plan_cad_data;
+          const parsed = typeof floorAny.plan_cad_data === 'string'
+            ? JSON.parse(floorAny.plan_cad_data as string)
+            : floorAny.plan_cad_data;
           setCadData(parsed);
         } catch {
           setCadData(null);

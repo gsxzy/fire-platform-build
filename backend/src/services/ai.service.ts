@@ -1,5 +1,7 @@
 import { Op, Sequelize } from 'sequelize';
 import { AIDecision, SmartAlert, Alarm, Device } from '@/models';
+import { sanitizePagination } from '@/utils/validator';
+import type { Request } from 'express';
 
 export class AIService {
   // AI风险研判
@@ -142,6 +144,48 @@ export class AIService {
 
   static async getTrend(days: number = 7) {
     return AlarmService.getTrend(days);
+  }
+
+  /* ── AI 决策记录 ── */
+  static async decisionList(req: Request) {
+    const { pageNum, pageSize } = sanitizePagination(req);
+    const { count, rows } = await AIDecision.findAndCountAll({
+      limit: +pageSize,
+      offset: (+pageNum - 1) * +pageSize,
+      order: [['created_at', 'DESC']],
+    });
+    return { rows, count, pageNum: +pageNum, pageSize: +pageSize };
+  }
+
+  static async decisionCreate(body: any) {
+    const decisionNo = `AI${Date.now()}${Math.floor(Math.random() * 100)}`;
+    const d = await AIDecision.create({ ...body, decision_no: decisionNo } as any);
+    return { id: (d as any).id, decisionNo };
+  }
+
+  /* ── 智能预警 ── */
+  static async alertList(req: Request) {
+    const { pageNum, pageSize } = sanitizePagination(req);
+    const { status } = req.query;
+    const where: any = {};
+    if (status !== undefined) where.status = status;
+    const { count, rows } = await SmartAlert.findAndCountAll({
+      where,
+      limit: +pageSize,
+      offset: (+pageNum - 1) * +pageSize,
+      order: [['created_at', 'DESC']],
+    });
+    return { rows, count, pageNum: +pageNum, pageSize: +pageSize };
+  }
+
+  static async alertConfirm(id: string | number) {
+    await SmartAlert.update({ status: 1 }, { where: { id } });
+    return { confirmed: true };
+  }
+
+  static async alertHandle(id: string | number) {
+    await SmartAlert.update({ status: 2 }, { where: { id } });
+    return { handled: true };
   }
 }
 

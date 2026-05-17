@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { legacyApi } from '@/api/services';
+import { dashboardService, maintenanceStatsService } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import PageTemplate from '@/sections/PageTemplate';
 import DataContainer from '@/components/DataContainer';
@@ -57,7 +57,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const reportService = {
   list: async (params: QueryParams = {}) => {
-    const res = await legacyApi.weeklyReport() as any;
+    const res = await dashboardService.weeklyReport() as any;
     const data = Array.isArray(res.data) ? res.data : (res.data?.list || []);
     return { code: 200, data: { list: data, total: data.length, page: params?.page || 1, pageSize: params?.pageSize || 10 } } as any;
   }
@@ -76,7 +76,7 @@ export default function AnalysisReportPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await legacyApi.weeklyReport() as any;
+      const res = await dashboardService.weeklyReport() as any;
       const data = res.data ?? res;
       if (data && typeof data === 'object') {
         if (Array.isArray(data.monthlyAlarms)) setMonthlyAlarms(data.monthlyAlarms as any);
@@ -84,7 +84,7 @@ export default function AnalysisReportPage() {
         if (Array.isArray(data.typeDist)) setTypeDist(data.typeDist as any);
         if (Array.isArray(data.workorderTrend)) setWorkorderTrend(data.workorderTrend as any);
       }
-      const maintRes = await legacyApi.maintStats() as any;
+      const maintRes = await maintenanceStatsService.stats() as any;
       const maintData = maintRes.data ?? maintRes;
       if (maintData && (Array.isArray(maintData) || typeof maintData === 'object')) {
         // maint stats

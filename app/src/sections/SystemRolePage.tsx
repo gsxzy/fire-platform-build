@@ -67,6 +67,11 @@ export default function SystemRolePage() {
       fields={FIELDS}
       filterFields={FILTER_FIELDS}
       emptyDescription="角色与菜单、按钮权限绑定后生效。列表为空时请在数据库或权限接口中初始化角色后再同步。"
+      permission={{
+        create: 'system:role:create',
+        update: 'system:role:edit',
+        delete: 'system:role:delete',
+      }}
     />
   );
 }

@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { success, fail, page } from '@/utils/response';
+import { sendSuccess, sendPage } from '@/utils/respond';
+import { HttpError } from '@/utils/httpError';
 import { Unit, Device } from '@/models';
-import logger from '@/config/logger';
 import { sanitizePagination } from '@/utils/validator';
 
 /** 兼容 app 前端 / app/backend 单位字段（name、type 字符串 等）→ fire_unit 表字段 */
@@ -52,7 +52,6 @@ function mapLegacyUnitBody(body: Record<string, unknown>, requireName = true) {
     if (Number.isFinite(sn)) payload.status = sn;
   }
   if (b.remark !== undefined) payload.remark = (b.remark as string) || undefined;
-  /* 前端 risk_level（low/medium/high）与库表 fire_level（1-3）对齐，迁移脚本亦将旧 risk 写入 fire_level */
   if (b.risk_level !== undefined && b.risk_level !== null && b.risk_level !== '') {
     const r = String(b.risk_level);
     if (r === 'low' || r === '1') payload.fire_level = 1;
@@ -60,7 +59,6 @@ function mapLegacyUnitBody(body: Record<string, unknown>, requireName = true) {
     else if (r === 'high' || r === '3') payload.fire_level = 3;
   }
 
-  // ── 补充前端表单缺失字段映射（商用交付补齐） ──
   if (b.contact_email !== undefined) payload.contact_email = (b.contact_email as string) || undefined;
   if (b.legal_person !== undefined) payload.legal_person = (b.legal_person as string) || undefined;
   if (b.license_no !== undefined) payload.license_no = (b.license_no as string) || undefined;
@@ -70,110 +68,89 @@ function mapLegacyUnitBody(body: Record<string, unknown>, requireName = true) {
 
 export const UnitController = {
   async list(req: Request, res: Response) {
-    try {
-      const { pageNum, pageSize } = sanitizePagination(req);
-      const { keyword, unitType: unitTypeRaw, status, type: typeRaw, risk_level: riskRaw } = req.query;
-      const where: any = {};
-      if (keyword) where.unit_name = { [Op.like]: `%${keyword}%` };
-      const typeAlias = (unitTypeRaw ?? typeRaw) as string | undefined;
-      if (typeAlias) {
-        const t = String(typeAlias);
-        if (t === 'general' || t === '1') where.unit_type = 1;
-        else if (t === 'key' || t === '2') where.unit_type = 2;
-        else if (t === 'nine-small' || t === '3') where.unit_type = 3;
-        else {
-          const n = parseInt(t, 10);
-          if (Number.isFinite(n)) where.unit_type = n;
-        }
+    const { pageNum, pageSize } = sanitizePagination(req);
+    const { keyword, unitType: unitTypeRaw, status, type: typeRaw, risk_level: riskRaw } = req.query;
+    const where: Record<string, unknown> = {};
+    if (keyword) where.unit_name = { [Op.like]: `%${keyword}%` };
+    const typeAlias = (unitTypeRaw ?? typeRaw) as string | undefined;
+    if (typeAlias) {
+      const t = String(typeAlias);
+      if (t === 'general' || t === '1') where.unit_type = 1;
+      else if (t === 'key' || t === '2') where.unit_type = 2;
+      else if (t === 'nine-small' || t === '3') where.unit_type = 3;
+      else {
+        const n = parseInt(t, 10);
+        if (Number.isFinite(n)) where.unit_type = n;
       }
-      if (status !== undefined) where.status = status;
-      if (riskRaw) {
-        const r = String(riskRaw);
-        if (r === 'low' || r === '1') where.fire_level = 1;
-        else if (r === 'medium' || r === '2') where.fire_level = 2;
-        else if (r === 'high' || r === '3') where.fire_level = 3;
-      }
-
-      const { count, rows } = await Unit.findAndCountAll({
-        where,
-        limit: pageSize,
-        offset: (pageNum - 1) * pageSize,
-        order: [['created_at', 'DESC']],
-      });
-      return res.json(page(rows, count, pageNum, pageSize));
-    } catch (err: any) {
-      logger.error(`[Unit] list 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
     }
+    if (status !== undefined) where.status = status;
+    if (riskRaw) {
+      const r = String(riskRaw);
+      if (r === 'low' || r === '1') where.fire_level = 1;
+      else if (r === 'medium' || r === '2') where.fire_level = 2;
+      else if (r === 'high' || r === '3') where.fire_level = 3;
+    }
+
+    const { count, rows } = await Unit.findAndCountAll({
+      where,
+      limit: pageSize,
+      offset: (pageNum - 1) * pageSize,
+      order: [['created_at', 'DESC']],
+    });
+    sendPage(res, req, rows, count, pageNum, pageSize);
   },
 
   async create(req: Request, res: Response) {
     const mapped = mapLegacyUnitBody((req.body || {}) as Record<string, unknown>);
-    if ('error' in mapped) {
-      return res.status(400).json(fail(mapped.error, 400));
+    if ('error' in mapped && mapped.error) {
+      throw new HttpError(mapped.error, 400);
     }
     try {
       const unit = await Unit.create(mapped.payload as any);
-      return res.json(success({ id: String((unit as any).id) }, '创建成功'));
-    } catch (e: any) {
-      console.error('Unit create error:', e);
-      logger.error(`[Unit] 创建失败: ${e?.message || '未知错误'}, payload=${JSON.stringify(mapped.payload)}`);
-      return res.status(400).json(fail(e?.message || '创建失败', 400));
+      sendSuccess(res, req, { id: String((unit as any).id) }, '创建成功');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '创建失败';
+      throw new HttpError(msg, 400);
     }
   },
 
   async update(req: Request, res: Response) {
-    try {
-      const mapped = mapLegacyUnitBody((req.body || {}) as Record<string, unknown>, false);
-      if ('error' in mapped) {
-        return res.status(400).json(fail(mapped.error, 400));
-      }
-      if (Object.keys(mapped.payload).length === 0) {
-        return res.json(success(null, '暂无更新内容'));
-      }
-      await Unit.update(mapped.payload, { where: { id: req.params.id } });
-      return res.json(success(null, '更新成功'));
-    } catch (err: any) {
-      logger.error(`[Unit] update 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+    const mapped = mapLegacyUnitBody((req.body || {}) as Record<string, unknown>, false);
+    if ('error' in mapped && mapped.error) {
+      throw new HttpError(mapped.error, 400);
     }
+    if (Object.keys(mapped.payload).length === 0) {
+      sendSuccess(res, req, null, '暂无更新内容');
+      return;
+    }
+    await Unit.update(mapped.payload, { where: { id: req.params.id } });
+    sendSuccess(res, req, null, '更新成功');
   },
 
   async delete(req: Request, res: Response) {
+    const unitId = req.params.id;
+    const t = await sequelize.transaction();
     try {
-      const unitId = req.params.id;
-      const t = await sequelize.transaction();
-      try {
-        /* 先解除该单位下所有设备的绑定，避免产生孤儿引用 */
-        await Device.update(
-          { unit_id: null, lifecycle_status: 1 },
-          { where: { unit_id: unitId }, transaction: t }
-        );
-        await Unit.destroy({ where: { id: unitId }, transaction: t });
-        await t.commit();
-        return res.json(success(null, '删除成功'));
-      } catch (inner: any) {
-        await t.rollback().catch(() => {});
-        throw inner;
-      }
-    } catch (err: any) {
-      logger.error(`[Unit] delete 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+      await Device.update(
+        { unit_id: null, lifecycle_status: 1 },
+        { where: { unit_id: unitId }, transaction: t }
+      );
+      await Unit.destroy({ where: { id: unitId }, transaction: t });
+      await t.commit();
+      sendSuccess(res, req, null, '删除成功');
+    } catch (err) {
+      await t.rollback().catch(() => {});
+      throw err;
     }
   },
 
   async stats(req: Request, res: Response) {
-    try {
-      const total = await Unit.count();
-      const byType = await Unit.findAll({
-        attributes: ['unit_type', [Unit.sequelize!.fn('COUNT', '*'), 'count']],
-        group: ['unit_type'],
-        raw: true,
-      });
-      return res.json(success({ total, byType }));
-    } catch (err: any) {
-      logger.error(`[Unit] stats 失败: ${err?.message || err}`);
-      return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
-    }
+    const total = await Unit.count();
+    const byType = await Unit.findAll({
+      attributes: ['unit_type', [Unit.sequelize!.fn('COUNT', '*'), 'count']],
+      group: ['unit_type'],
+      raw: true,
+    });
+    sendSuccess(res, req, { total, byType });
   },
 };

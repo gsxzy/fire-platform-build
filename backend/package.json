@@ -12,7 +12,8 @@
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:migrate:status": "sequelize-cli db:migrate:status",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test": "tsx src/test-utils/run-all.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

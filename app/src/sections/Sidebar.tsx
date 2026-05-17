@@ -11,6 +11,7 @@ import {
 import { ModuleEngine } from '@/core/platform';
 import { useSidebar } from '@/core/SidebarContext';
 import type { PlatformModule, ModuleMenuChild } from '@/core/platform';
+import { usePermission } from '@/hooks/usePermission';
 import React from 'react';
 
 const IconRenderer: React.FC<{ icon: unknown; className?: string }> = ({ icon: Icon, className }) => {
@@ -39,6 +40,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { collapsed, toggleSidebar, mobile } = useSidebar();
+  const { canModule } = usePermission();
 
   const [menuModules, setMenuModules] = useState<PlatformModule[]>([]);
   const [, forceUpdate] = useState(0);
@@ -53,17 +55,23 @@ export default function Sidebar() {
     return unsubscribe;
   }, []);
 
+  /** 按 RBAC 过滤可见模块（管理员 / 无权限列表时显示全部） */
+  const visibleModules = useMemo(
+    () => menuModules.filter((m) => canModule(m)),
+    [menuModules, canModule]
+  );
+
   const [openMenus, setOpenMenus] = useState<string[]>([]);
 
   // 默认展开第一个有子菜单的模块（避免 monitor 被禁用时展开空菜单）
   useEffect(() => {
-    if (menuModules.length > 0 && openMenus.length === 0) {
-      const firstWithChildren = menuModules.find(m => m.menu?.children?.length);
+    if (visibleModules.length > 0 && openMenus.length === 0) {
+      const firstWithChildren = visibleModules.find(m => m.menu?.children?.length);
       if (firstWithChildren?.menu?.path) {
         setOpenMenus([firstWithChildren.menu.path]);
       }
     }
-  }, [menuModules]);
+  }, [visibleModules]);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
@@ -96,7 +104,7 @@ export default function Sidebar() {
 
   const allMenuItems: MenuFlatItem[] = useMemo(() => {
     const items: MenuFlatItem[] = [];
-    for (const mod of menuModules) {
+    for (const mod of visibleModules) {
       if (!mod.menu) continue;
       const parentLabel = mod.menu.label || mod.name;
       const parentPath = mod.menu.path || mod.path || '';
@@ -126,7 +134,7 @@ export default function Sidebar() {
       }
     }
     return items;
-  }, [menuModules]);
+  }, [visibleModules]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -140,7 +148,7 @@ export default function Sidebar() {
     allMenuItems.filter(item => favorites.includes(item.path)),
   [allMenuItems, favorites]);
 
-  if (menuModules.length === 0) {
+  if (visibleModules.length === 0) {
     return (
       <aside className="h-full flex flex-col transition-all duration-300" style={{ background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', borderRight: '1px solid rgba(71,85,105,0.3)', width: collapsed ? 64 : 220, flexShrink: 0 }}>
         <div className="h-14 flex items-center justify-center px-2" style={{ borderBottom: '1px solid rgba(71,85,105,0.2)' }}>
@@ -177,7 +185,7 @@ export default function Sidebar() {
                 </button>
               </div>
               <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-                {menuModules.map((mod: any) => {
+                {visibleModules.map((mod: any) => {
                   const menu = mod.menu;
                   if (!menu) return null;
                   const hasChildren = !!menu.children?.length;
@@ -354,7 +362,7 @@ export default function Sidebar() {
       )}
 
       <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-        {menuModules.map((mod: any) => {
+        {visibleModules.map((mod: any) => {
           const menu = mod.menu;
           if (!menu) return null;
 
