@@ -8,12 +8,10 @@ class GISService {
     static async getMapPoints() {
         const units = await models_1.Unit.findAll({
             attributes: ['id', 'unit_name', 'unit_type', 'address', 'lng', 'lat', 'status'],
-            where: { lng: { [sequelize_1.Op.not]: null }, lat: { [sequelize_1.Op.not]: null } },
             raw: true,
         });
         const devices = await models_1.Device.findAll({
             attributes: ['id', 'device_name', 'device_type', 'unit_id', 'install_location', 'lng', 'lat', 'status'],
-            where: { lng: { [sequelize_1.Op.not]: null }, lat: { [sequelize_1.Op.not]: null } },
             raw: true,
         });
         const activeAlarms = await models_1.Alarm.findAll({

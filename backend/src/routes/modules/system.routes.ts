@@ -5,6 +5,7 @@ import { SystemController } from '@/controllers/system.controller';
 import { AuthController } from '@/controllers/auth.controller';
 import { requirePermission } from '@/middleware/permission';
 import { handleController } from '@/utils/handleController';
+import { PermissionGroups } from '@/constants/permissions';
 
 const router = Router();
 
@@ -56,5 +57,14 @@ router.post('/screens', requirePermission('system:view'), sh('screenSave'));
 router.get('/modules', sh('modules'));
 router.put('/modules/toggle', requirePermission('system:view'), sh('toggleModule'));
 router.get('/dashboard', sh('dashboard'));
+
+// 人员管理
+router.get('/personnel', requirePermission('system:admin'), sh('personnelList'));
+router.post('/personnel', requirePermission('system:admin'), sh('personnelCreate'));
+router.put('/personnel/:id', requirePermission('system:admin'), sh('personnelUpdate'));
+router.delete('/personnel/:id', requirePermission('system:admin'), sh('personnelDelete'));
+
+// 系统监控
+router.get('/monitor', requirePermission('system:view'), sh('monitor'));
 
 export default router;

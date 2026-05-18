@@ -11,6 +11,8 @@ interface WsCallbacks {
 class WebSocketClient {
   private ws: WebSocket | null = null;
   private callbacks: WsCallbacks = {};
+  private alarmListeners: Set<(alarm: any) => void> = new Set();
+  private deviceStatusListeners: Set<(device: any) => void> = new Set();
   private subscribedTopics: Set<string> = new Set();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private url: string;
@@ -19,6 +21,22 @@ class WebSocketClient {
     this.url = url;
     this.callbacks = callbacks;
     this.connect();
+  }
+
+  addAlarmListener(cb: (alarm: any) => void) {
+    this.alarmListeners.add(cb);
+  }
+
+  removeAlarmListener(cb: (alarm: any) => void) {
+    this.alarmListeners.delete(cb);
+  }
+
+  addDeviceStatusListener(cb: (device: any) => void) {
+    this.deviceStatusListeners.add(cb);
+  }
+
+  removeDeviceStatusListener(cb: (device: any) => void) {
+    this.deviceStatusListeners.delete(cb);
   }
 
   private connect() {
@@ -39,8 +57,10 @@ class WebSocketClient {
           const msg = JSON.parse(event.data);
           if (msg.type === 'new_alarm' && msg.data) {
             this.callbacks.onAlarm?.(msg.data);
+            this.alarmListeners.forEach(cb => cb(msg.data));
           } else if (msg.type === 'device_status' && msg.data) {
             this.callbacks.onDeviceStatus?.(msg.data);
+            this.deviceStatusListeners.forEach(cb => cb(msg.data));
           }
         } catch {
           logger.info('[WS] 收到消息:', event.data);

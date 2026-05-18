@@ -13,6 +13,8 @@ export const patrolRecordService = {
   create: (data: Omit<PatrolRecord, 'id'>) => httpApi.post<null>('/patrol/records', data),
   update: (id: string, data: Partial<PatrolRecord>) => httpApi.put<null>(`/patrol/records/${id}`, data),
   delete: (id: string) => httpApi.delete<null>(`/patrol/records/${id}`),
+  checkIn: (id: string, data: { result?: number; abnormalDesc?: string; photos?: string[]; signature?: string; checkItems?: unknown[] }) =>
+    httpApi.post<null>(`/patrol/records/${id}/checkin`, data),
 };
 
 export const hazardService = {
@@ -20,4 +22,6 @@ export const hazardService = {
   create: (data: Omit<Hazard, 'id'>) => httpApi.post<null>('/patrol/hazards', data),
   update: (id: string, data: Partial<Hazard>) => httpApi.put<null>(`/patrol/hazards/${id}`, data),
   delete: (id: string) => httpApi.delete<null>(`/patrol/hazards/${id}`),
+  rectify: (id: string, data?: { rectificationMeasures?: string; afterPhoto?: string; rectifierName?: string }) =>
+    httpApi.put<null>(`/patrol/hazards/${id}/rectify`, data ?? {}),
 };

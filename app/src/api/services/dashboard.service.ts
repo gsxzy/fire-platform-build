@@ -28,6 +28,15 @@ export const dashboardService = {
   gisPoints: () => raw.get<unknown>('/gis/points'),
   gisSituation: () => raw.get<unknown>('/gis/situation'),
   gisAlarmPoints: () => raw.get<unknown>('/gis/alarm-points'),
+  bigScreenConfig: () => raw.get<Record<string, unknown>>('/bigscreen/config'),
+
+  exportReport: async (type: string, params?: Record<string, unknown>) => {
+    const search = new URLSearchParams({ type, format: 'csv', ...Object.fromEntries(Object.entries(params || {}).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])) });
+    const token = localStorage.getItem('token') || '';
+    const res = await fetch(`/api/reports/export?${search}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`导出失败: ${res.status}`);
+    return res.blob();
+  },
 };
 
 /** @deprecated 使用 dashboardService */

@@ -4,7 +4,7 @@ import {
   Trash2, Edit3, Flag, AlertTriangle, Flame, Wrench, ClipboardCheck,
   Save, Filter, SortAsc, Loader2,
 } from 'lucide-react';
-import { raw } from '@/api/client';
+import { workbenchService } from '@/api/services';
 import EmptyState from '@/components/EmptyState';
 
 interface TodoItem {
@@ -20,7 +20,7 @@ interface TodoItem {
 }
 
 async function fetchTodos(): Promise<TodoItem[]> {
-  const res = await raw.get<any>('/todos/list');
+  const res = await workbenchService.todoList() as any;
   if (Array.isArray(res)) return res;
   const list = res?.list;
   return Array.isArray(list) ? list : [];
@@ -75,7 +75,7 @@ export default function TodoListPage() {
     const next = t.status === 'pending' ? 'doing' : t.status === 'doing' ? 'done' : 'pending';
     const statusMap: Record<string, number> = { pending: 0, doing: 1, done: 2 };
     try {
-      await raw.put(`/todos/${id}`, { status: statusMap[next] });
+      await workbenchService.todoUpdate(id, { status: statusMap[next] });
       setTodos(prev => prev.map(x => x.id === id ? { ...x, status: next } : x));
     } catch (e) {
       console.error('更新待办状态失败', e);
@@ -98,10 +98,10 @@ export default function TodoListPage() {
         due_date: form.dueDate || new Date().toISOString().split('T')[0],
       };
       if (editing) {
-        await raw.put(`/todos/${editing.id}`, payload);
+        await workbenchService.todoUpdate(editing.id, payload);
         setTodos(prev => prev.map(t => t.id === editing.id ? { ...t, ...form } as TodoItem : t));
       } else {
-        const res = await raw.post<any>('/todos', payload);
+        const res = await workbenchService.todoCreate(payload) as any;
         const newId = res?.data?.id || res?.id || Date.now();
         const newTodo: TodoItem = {
           id: newId,
@@ -136,7 +136,7 @@ export default function TodoListPage() {
   const deleteTodo = async (id: number) => {
     if (!confirm('确定删除该待办？')) return;
     try {
-      await raw.delete(`/todos/${id}`);
+      await workbenchService.todoDelete(id);
       setTodos(prev => prev.filter(t => t.id !== id));
     } catch (e) {
       console.error('删除待办失败', e);

@@ -3,7 +3,7 @@ import {
   Megaphone, Plus, X, Edit3, Trash2, Eye, Pin, PinOff,
   ChevronRight, Calendar, User, Clock, Send, Save
 } from 'lucide-react';
-import { raw } from '@/api/client';
+import { workbenchService } from '@/api/services';
 
 interface Notice {
   id: number;
@@ -20,7 +20,7 @@ interface Notice {
 }
 
 async function fetchNotices(): Promise<Notice[]> {
-  const res = await raw.get<any>('/notifications/list');
+  const res = await workbenchService.noticeList() as any;
   if (Array.isArray(res)) return res;
   const list = res?.list;
   return Array.isArray(list) ? list : [];
@@ -69,10 +69,10 @@ export default function NoticePage() {
         status: form.published ? 1 : 0,
       };
       if (editing) {
-        await raw.put(`/notifications/${editing.id}`, payload);
+        await workbenchService.noticeUpdate(editing.id, payload);
         setNotices(prev => prev.map(n => n.id === editing.id ? { ...n, ...form } as Notice : n));
       } else {
-        const res = await raw.post<any>('/notifications', payload);
+        const res = await workbenchService.noticeCreate(payload) as any;
         const newId = res?.data?.id || res?.id || Date.now();
         const newNotice: Notice = {
           id: newId,
@@ -107,7 +107,7 @@ export default function NoticePage() {
   const deleteNotice = async (id: number) => {
     if (!confirm('确定删除该公告？')) return;
     try {
-      await raw.delete(`/notifications/${id}`);
+      await workbenchService.noticeDelete(id);
       setNotices(prev => prev.filter(n => n.id !== id));
     } catch (e) {
       console.error('删除公告失败', e);

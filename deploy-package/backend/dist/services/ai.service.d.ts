@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 export declare class AIService {
     static riskAnalysis(scene: string, inputData: any): Promise<{
         id: any;
@@ -37,5 +38,27 @@ export declare class AIService {
         alarmStats: import("sequelize").Model<any, any>[];
     }>;
     static getTrend(days?: number): Promise<any[]>;
+    static decisionList(req: Request): Promise<{
+        rows: import("sequelize").Model<any, any>[];
+        count: number;
+        pageNum: number;
+        pageSize: number;
+    }>;
+    static decisionCreate(body: any): Promise<{
+        id: any;
+        decisionNo: string;
+    }>;
+    static alertList(req: Request): Promise<{
+        rows: import("sequelize").Model<any, any>[];
+        count: number;
+        pageNum: number;
+        pageSize: number;
+    }>;
+    static alertConfirm(id: string | number): Promise<{
+        confirmed: boolean;
+    }>;
+    static alertHandle(id: string | number): Promise<{
+        handled: boolean;
+    }>;
 }
 //# sourceMappingURL=ai.service.d.ts.map

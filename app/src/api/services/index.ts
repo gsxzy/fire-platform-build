@@ -4,7 +4,6 @@
  *
  * 约定：
  * - `api` / `raw`：HTTP 客户端（来自 client.ts）
- * - `legacyApi`：旧路径兼容，新页面请用领域 service
  * ═══════════════════════════════════════════════════════════════════
  */
 export { api, raw, legacyRaw, paginatedQuery, buildUrl, API_BASE, TOKEN_KEY, REFRESH_KEY } from '../client';
@@ -18,7 +17,6 @@ export {
   deviceConfigService,
   deviceMaintenanceService,
   deviceAllocationService,
-  personnelService,
   cameraService,
 } from './device.service';
 
@@ -32,14 +30,16 @@ export {
 } from './maintenance.service';
 
 export { dashboardService, reportService } from './dashboard.service';
+export { workbenchService } from './workbench.service';
 export { linkageService } from './linkage.service';
 export { authService } from './auth.service';
 export type { LoginResult } from './auth.service';
 export { controlRoomService } from './controlRoom.service';
 export { aiService } from './ai.service';
+export { smartAlertService } from './smartAlert.service';
 export { trainingService } from './training.service';
 export { floorPlanService } from './floorPlan.service';
-export { departmentService, systemConfigService } from './system.service';
+export { departmentService, systemConfigService, moduleService, personnelService, monitorService } from './system.service';
 
 export {
   patrolPlanService,
@@ -47,7 +47,7 @@ export {
   hazardService,
 } from './patrol.service';
 
-export { planService, drillService } from './plan.service';
+export { planService, drillService, drillParticipantService } from './plan.service';
 
 export { inspectionService } from './inspection.service';
 
@@ -66,4 +66,4 @@ export { hostDeviceCodeService, controlRoomConfigService } from './control-room.
 export { deviceControlService, DEVICE_CONTROL_CMD_MAP } from './deviceControl.service';
 export type { DeviceControlCmdType, DeviceControlCommandBody } from './deviceControl.service';
 
-export { legacyApi } from './legacy.service';
+

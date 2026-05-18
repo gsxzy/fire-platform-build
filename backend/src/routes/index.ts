@@ -18,6 +18,8 @@ import deviceMaintenanceRoutes from './modules/deviceMaintenance.routes';
 import maintenanceRoutes from './modules/maintenance.routes';
 import videoRoutes from './modules/video.routes';
 import dutyRoutes from './modules/duty.routes';
+import dispatchRoutes from './modules/dispatch.routes';
+import subsystemRoutes from './modules/subsystem.routes';
 import patrolRoutes from './modules/patrol.routes';
 import planRoutes from './modules/plan.routes';
 import knowledgeRoutes from './modules/knowledge.routes';
@@ -27,7 +29,9 @@ import inspectionRoutes from './modules/inspection.routes';
 import systemRoutes from './modules/system.routes';
 import linkageRoutes from './modules/linkage.routes';
 import aiRoutes from './modules/ai.routes';
+import smartRoutes from './modules/smart.routes';
 import dashboardRoutes from './modules/dashboard.routes';
+import workbenchRoutes from './modules/workbench.routes';
 import deviceControlRoutes from './modules/deviceControl.routes';
 import unitRoutes from './modules/unit.routes';
 
@@ -39,15 +43,15 @@ const router = Router();
 /* ═══════════════════════════════════════════════════════════════════════════
  * 公开接口
  * ═══════════════════════════════════════════════════════════════════════════ */
-const ah = (name: keyof typeof AuthController) =>
+const authHandler = (name: keyof typeof AuthController) =>
   handleController(`Auth.${String(name)}`, AuthController[name]);
 
-router.post('/auth/login', authRateLimiter, ah('login'));
-router.post('/auth/register', authRateLimiter, ah('register'));
-router.post('/auth/refresh', ah('refresh'));
-router.post('/auth/logout', ah('logout'));
+router.post('/auth/login', authRateLimiter, authHandler('login'));
+router.post('/auth/register', authRateLimiter, authHandler('register'));
+router.post('/auth/refresh', authHandler('refresh'));
+router.post('/auth/logout', authHandler('logout'));
 router.get('/health', (req, res) =>
-  res.json(success({ status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() }, 'ok', req.reqId))
+  res.json(success({ status: 'ok', version: '2.0.0', timestamp: Date.now() }, 'ok', req.reqId))
 );
 router.get('/public/stats', SystemController.dashboard);
 
@@ -69,6 +73,7 @@ router.use(authMiddleware);
  * ═══════════════════════════════════════════════════════════════════════════ */
 router.use(floorPlanAppRouter);
 router.use(dashboardRoutes);
+router.use('/workbench', workbenchRoutes);
 router.use('/alarms', alarmRoutes);
 router.use('/control-rooms', controlRoomRoutes);
 router.use('/units', unitRoutes);
@@ -90,9 +95,12 @@ router.use('/inspections', inspectionRoutes);
 router.use('/system', systemRoutes);
 router.use('/linkage', linkageRoutes);
 router.use('/ai', aiRoutes);
+router.use('/smart', smartRoutes);
 router.use('/video', videoRoutes);
 router.use('/device-control', deviceControlRoutes);
 router.use('/duty', dutyRoutes);
+router.use('/dispatches', dispatchRoutes);
+router.use('/subsystems', subsystemRoutes);
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * 兼容旧版路径：Stub 兜底路由（须挂在所有显式路由之后）

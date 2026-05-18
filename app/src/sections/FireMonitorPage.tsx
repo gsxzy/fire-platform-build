@@ -87,9 +87,43 @@ export default function FireMonitorPage() {
     }
   }, []);
 
+  /* 初始加载 */
   useEffect(() => {
     fetchAlarms();
   }, [fetchAlarms]);
+
+  /* WebSocket 实时推送 — 复用全局告警通道 */
+  useEffect(() => {
+    const wsClient = (window as any).wsService?.getClient?.();
+    if (!wsClient) return;
+
+    const onAlarm = (raw: any) => {
+      const newAlarm: FireAlarm = {
+        id: String(raw.id ?? ''),
+        device: raw.device_name || raw.deviceId || '',
+        type: (raw.alarm_type === 'warning' ? 'test' : raw.alarm_type || 'fire') as FireAlarm['type'],
+        unit: raw.unit_name || raw.unitName || '',
+        location: raw.location || '',
+        time: raw.created_at || raw.createdAt || new Date().toLocaleString('zh-CN'),
+        status: (raw.status || 'new') as FireAlarm['status'],
+        level: (raw.alarm_level || raw.level || 'normal') as FireAlarm['level'],
+      };
+      setAlarms(prev => {
+        const idx = prev.findIndex(a => a.id === newAlarm.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = newAlarm;
+          return next;
+        }
+        return [newAlarm, ...prev];
+      });
+    };
+
+    wsClient.addAlarmListener(onAlarm);
+    return () => {
+      wsClient.removeAlarmListener(onAlarm);
+    };
+  }, []);
 
   const filtered = alarms.filter(a => {
     if (filter.type !== 'all' && a.type !== filter.type) return false;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router';
 import {
   Activity, Droplets, Wind, Zap, Lightbulb, Volume2,
   WifiOff, AlertTriangle, CheckCircle, RefreshCw,
@@ -18,8 +19,8 @@ interface SubSystem {
   lastUpdate: string;
 }
 
-async function fetchSubsystems(): Promise<SubSystem[]> {
-  return raw.get<SubSystem[]>('/subsystems');
+async function fetchSubsystems(type?: string): Promise<SubSystem[]> {
+  return raw.get<SubSystem[]>('/subsystems', type ? { type } : undefined);
 }
 
 const TYPE_ICON: Record<string, { icon: any; color: string; bg: string; border: string }> = {
@@ -46,17 +47,21 @@ const FILTERS = [
 ];
 
 export default function SubSystemPage() {
+  const location = useLocation();
+  const pathType = location.pathname.split('/').pop(); // water | elec | vent
+  const activeType = ['water', 'elec', 'vent'].includes(pathType || '') ? pathType : undefined;
+
   const [systems, setSystems] = useState<SubSystem[]>([]);
   const [filter, setFilter] = useState('all');
   const [listLoading, setListLoading] = useState(true);
 
   const loadList = useCallback(() => {
     setListLoading(true);
-    return fetchSubsystems()
+    return fetchSubsystems(activeType)
       .then(data => setSystems(Array.isArray(data) ? data : []))
       .catch(() => setSystems([]))
       .finally(() => setListLoading(false));
-  }, []);
+  }, [activeType]);
 
   useEffect(() => {
     loadList();

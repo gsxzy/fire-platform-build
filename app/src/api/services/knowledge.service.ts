@@ -12,6 +12,13 @@ export interface KnowledgeDocRow {
   status: 'active' | 'inactive';
 }
 
+export interface DocCategoryRow {
+  id: string;
+  name: string;
+  parentId: string;
+  sortOrder: number;
+}
+
 function mapKnowledgeFromApi(raw: any): KnowledgeDocRow {
   return {
     id: String(raw.id ?? ''),
@@ -86,4 +93,16 @@ export const knowledgeService = {
     return httpApi.put(`/knowledge/${id}`, body);
   },
   delete: (id: string) => httpApi.delete(`/knowledge/${id}`),
+
+  categories: () => httpApi.get<DocCategoryRow[] | string[]>('/knowledge/categories'),
+  categoryList: (params: QueryParams = {}) => httpApi.get<{ list: DocCategoryRow[]; total: number }>('/knowledge/categories/list', params),
+  categoryCreate: (data: Omit<DocCategoryRow, 'id'>) => httpApi.post('/knowledge/categories', data),
+  categoryUpdate: (id: string, data: Partial<DocCategoryRow>) => httpApi.put(`/knowledge/categories/${id}`, data),
+  categoryDelete: (id: string) => httpApi.delete(`/knowledge/categories/${id}`),
+
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return httpApi.post<{ url: string; originalName: string; size: number }>('/knowledge/upload', form as any);
+  },
 };

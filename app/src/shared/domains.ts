@@ -18,6 +18,7 @@ export const API_DOMAINS = {
   iot: '/iot',
   video: '/video',
   ai: '/ai',
+  smart: '/smart',
   linkage: '/linkage',
   system: '/system',
   dashboard: '',

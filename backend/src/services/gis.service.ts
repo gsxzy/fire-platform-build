@@ -23,22 +23,49 @@ export class GISService {
     return { units, devices, activeAlarms };
   }
 
-  // 获取区域态势
+  // 获取区域态势（优化：单次聚合查询替代 N+1）
   static async getRegionSituation() {
     const units = await Unit.findAll({ raw: true });
-    const result = [];
-    for (const unit of units as any[]) {
-      const [deviceCount, onlineCount, alarmCount] = await Promise.all([
-        Device.count({ where: { unit_id: unit.id } }),
-        Device.count({ where: { unit_id: unit.id, status: 1 } }),
-        Alarm.count({ where: { unit_id: unit.id, status: 0 } }),
-      ]);
-      result.push({
-        ...unit, deviceCount, onlineCount, alarmCount,
+    if (units.length === 0) return [];
+
+    const unitIds = (units as any[]).map(u => u.id);
+    const [deviceCounts, onlineCounts, alarmCounts] = await Promise.all([
+      Device.findAll({
+        attributes: ['unit_id', [Device.sequelize!.fn('COUNT', '*'), 'count']],
+        where: { unit_id: { [Op.in]: unitIds } },
+        group: ['unit_id'],
+        raw: true,
+      }) as Promise<any[]>,
+      Device.findAll({
+        attributes: ['unit_id', [Device.sequelize!.fn('COUNT', '*'), 'count']],
+        where: { unit_id: { [Op.in]: unitIds }, status: 1 },
+        group: ['unit_id'],
+        raw: true,
+      }) as Promise<any[]>,
+      Alarm.findAll({
+        attributes: ['unit_id', [Alarm.sequelize!.fn('COUNT', '*'), 'count']],
+        where: { unit_id: { [Op.in]: unitIds }, status: 0 },
+        group: ['unit_id'],
+        raw: true,
+      }) as Promise<any[]>,
+    ]);
+
+    const deviceCountMap = new Map(deviceCounts.map(d => [String(d.unit_id), Number(d.count)]));
+    const onlineCountMap = new Map(onlineCounts.map(d => [String(d.unit_id), Number(d.count)]));
+    const alarmCountMap = new Map(alarmCounts.map(d => [String(d.unit_id), Number(d.count)]));
+
+    return (units as any[]).map(unit => {
+      const deviceCount = deviceCountMap.get(String(unit.id)) || 0;
+      const onlineCount = onlineCountMap.get(String(unit.id)) || 0;
+      const alarmCount = alarmCountMap.get(String(unit.id)) || 0;
+      return {
+        ...unit,
+        deviceCount,
+        onlineCount,
+        alarmCount,
         onlineRate: deviceCount ? ((onlineCount / deviceCount) * 100).toFixed(1) : 0,
-      });
-    }
-    return result;
+      };
+    });
   }
 
   // 获取告警点位（地图弹窗用）
@@ -49,6 +76,22 @@ export class GISService {
       order: [['created_at', 'DESC']],
       limit: 100, raw: true,
     });
+  }
+
+  // 获取告警热力图数据
+  static async getAlarmHeatmap() {
+    const alarms = await Alarm.findAll({
+      where: { status: { [Op.in]: [0, 1] } },
+      attributes: ['id', 'alarm_level', 'lng', 'lat'],
+      raw: true,
+    }) as any[];
+    return alarms
+      .filter(a => a.lng != null && a.lat != null && !Number.isNaN(Number(a.lng)) && !Number.isNaN(Number(a.lat)))
+      .map(a => ({
+        lng: Number(a.lng),
+        lat: Number(a.lat),
+        weight: a.alarm_level === 3 ? 1.0 : a.alarm_level === 2 ? 0.7 : 0.4,
+      }));
   }
 
   // 更新设备坐标

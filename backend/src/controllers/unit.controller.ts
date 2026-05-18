@@ -24,8 +24,20 @@ function mapLegacyUnitBody(body: Record<string, unknown>, requireName = true) {
   if (b.id !== undefined && b.id !== '') payload.unit_code = (b.unit_code as string) || String(b.id);
   if (b.type !== undefined || b.supervision_level !== undefined) payload.unit_type = unit_type;
   if (b.address !== undefined) payload.address = (b.address as string) || undefined;
-  if (b.lng !== undefined && b.lng !== '') payload.lng = Number(b.lng);
-  if (b.lat !== undefined && b.lat !== '') payload.lat = Number(b.lat);
+  if (b.lng !== undefined && b.lng !== '') {
+    const lngVal = Number(b.lng);
+    if (Number.isNaN(lngVal) || lngVal < -180 || lngVal > 180) {
+      return { error: '经度必须在 -180 ~ 180 之间' as const };
+    }
+    payload.lng = lngVal;
+  }
+  if (b.lat !== undefined && b.lat !== '') {
+    const latVal = Number(b.lat);
+    if (Number.isNaN(latVal) || latVal < -90 || latVal > 90) {
+      return { error: '纬度必须在 -90 ~ 90 之间' as const };
+    }
+    payload.lat = latVal;
+  }
   if (b.contact_name !== undefined || b.contact !== undefined) {
     payload.contact_name = (b.contact_name as string) || (b.contact as string) || undefined;
   }

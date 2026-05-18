@@ -1,16 +1,12 @@
-import { useState, useEffect } from 'react';
-import { aiService } from '@/api/services';
+import { useState, useEffect, useCallback } from 'react';
+import { aiService, type AIDecisionOverview } from '@/api/services/ai.service';
 import { BrainCircuit, Flame, AlertTriangle, TrendingUp, Shield, Zap, Activity, BarChart3, ChevronRight, RefreshCw, Lightbulb, CheckCircle } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, Tooltip, Legend
 } from 'recharts';
 
-const radarDataInit: any[] = [];
-
-const decisionsInit: any[] = [];
-
-const typeConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
+const typeConfig: Record<string, { icon: typeof Flame; color: string; bg: string; label: string }> = {
   fire: { icon: Flame, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20', label: '火警决策' },
   fault: { icon: AlertTriangle, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', label: '故障分析' },
   warning: { icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20', label: '预警建议' },
@@ -24,25 +20,57 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 };
 
 export default function AIDecisionPage() {
-  const [radarData, setRadarData] = useState(radarDataInit as any);
-  const [decisions, setDecisions] = useState(decisionsInit as any);
+  const [radarData, setRadarData] = useState<AIDecisionOverview['radarData']>([]);
+  const [decisions, setDecisions] = useState<AIDecisionOverview['decisions']>([]);
+  const [stats, setStats] = useState<AIDecisionOverview['stats'] | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadData = useCallback(async () => {
+    setError('');
+    try {
+      const res = await aiService.overview();
+      const data = (res as any)?.data ?? res;
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.radarData)) setRadarData(data.radarData);
+        if (Array.isArray(data.decisions)) setDecisions(data.decisions);
+        if (data.stats) setStats(data.stats);
+      }
+    } catch (e: any) {
+      setError(e?.message || '加载失败');
+    }
+  }, []);
 
   useEffect(() => {
-    aiService.decisionList().then((res: any) => {
-      const data = res.data ?? res;
-      if (data && typeof data === 'object') {
-        if (Array.isArray(data.radarData)) setRadarData(data.radarData as any);
-        if (Array.isArray(data.decisions)) setDecisions(data.decisions as any);
-      }
-    }).catch((e) => { console.error('[AIDecision] load data failed:', e); });
-  }, []);
-  const [refreshing, setRefreshing] = useState(false);
+    loadData();
+  }, [loadData]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    await loadData();
+    setTimeout(() => setRefreshing(false), 400);
+  }, [loadData]);
+
+  const handleExecute = async (id: number) => {
+    try {
+      const res = await aiService.executeDecision(id);
+      const data = (res as any)?.data ?? res;
+      alert(data?.message || '执行成功');
+      // 刷新状态
+      setDecisions((prev) => prev.map((d) => (d.id === id ? { ...d, status: 'active' } : d)));
+    } catch (e: any) {
+      alert(e?.message || '执行失败');
+    }
   };
+
+  const statItems = [
+    { label: '今日决策', value: stats?.todayDecision ?? '--', icon: BrainCircuit, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+    { label: '执行中', value: stats?.active ?? '--', icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    { label: '已处理', value: stats?.handled ?? '--', icon: CheckCircle, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+    { label: '平均置信度', value: stats ? `${stats.avgConfidence}%` : '--', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+    { label: '响应时间', value: stats?.responseTime ?? '--', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -65,15 +93,15 @@ export default function AIDecisionPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+          {error}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: '今日决策', value: '--', icon: BrainCircuit, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-          { label: '执行中', value: '--', icon: Zap, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-          { label: '已处理', value: '--', icon: CheckCircle, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-          { label: '平均置信度', value: '--', icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-          { label: '响应时间', value: '--', icon: Activity, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-        ].map((s: any, i: number) => {
+        {statItems.map((s, i) => {
           const Icon = s.icon;
           return (
             <div key={i} className={`glass rounded-xl p-3 border ${s.border} hover-lift card-shine transition-all`}>
@@ -94,10 +122,15 @@ export default function AIDecisionPage() {
         {/* Left: Decision List */}
         <div className="col-span-2 space-y-2">
           <div className="text-xs font-medium text-slate-200 mb-2">AI决策建议</div>
-          {decisions.map((d: any) => {
-            const tc = typeConfig[d.type];
+          {decisions.length === 0 && (
+            <div className="text-[11px] text-slate-500 bg-slate-800/30 rounded-lg p-4 text-center border border-slate-700/20">
+              暂无 AI 决策建议，可点击「刷新分析」或前往「风险研判」触发分析。
+            </div>
+          )}
+          {decisions.map((d) => {
+            const tc = typeConfig[d.type] || typeConfig.analysis;
             const Icon = tc.icon;
-            const sc = statusConfig[d.status];
+            const sc = statusConfig[d.status] || statusConfig.pending;
             const isExpanded = selectedDecision === d.id;
             return (
               <div
@@ -128,13 +161,22 @@ export default function AIDecisionPage() {
                       {d.content}
                     </div>
                     <div className="flex items-center gap-2 mt-2">
-                      <button className="text-[10px] px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleExecute(d.id); }}
+                        className="text-[10px] px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"
+                      >
                         执行建议
                       </button>
-                      <button className="text-[10px] px-3 py-1.5 bg-slate-700/30 text-slate-400 rounded hover:bg-slate-700/50 transition-colors">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDecisions((prev) => prev.filter((x) => x.id !== d.id)); }}
+                        className="text-[10px] px-3 py-1.5 bg-slate-700/30 text-slate-400 rounded hover:bg-slate-700/50 transition-colors"
+                      >
                         忽略
                       </button>
-                      <button className="text-[10px] px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); alert(JSON.stringify(d.analysis, null, 2)); }}
+                        className="text-[10px] px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                      >
                         查看详情
                       </button>
                     </div>
@@ -154,17 +196,23 @@ export default function AIDecisionPage() {
               </div>
               <span className="text-xs font-medium text-slate-200">单位安全能力对比</span>
             </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="#1e293b" />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: '#94a3b8' }} />
-                <PolarRadiusAxis tick={{ fontSize: 8, fill: '#64748b' }} angle={30} domain={[0, 100]} />
-                <Radar name="本月" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} strokeWidth={2} />
-                <Radar name="上月" dataKey="B" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} strokeWidth={2} />
-                <Legend wrapperStyle={{ fontSize: '9px' }} iconSize={6} />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '10px' }} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {radarData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <RadarChart data={radarData}>
+                  <PolarGrid stroke="#1e293b" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 9, fill: '#94a3b8' }} />
+                  <PolarRadiusAxis tick={{ fontSize: 8, fill: '#64748b' }} angle={30} domain={[0, 100]} />
+                  <Radar name="本月" dataKey="A" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name="上月" dataKey="B" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} strokeWidth={2} />
+                  <Legend wrapperStyle={{ fontSize: '9px' }} iconSize={6} />
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '10px' }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[220px] flex items-center justify-center text-[11px] text-slate-500">
+                暂无雷达图数据
+              </div>
+            )}
           </div>
 
           <div className="glass rounded-xl border border-slate-700/30 p-3 hover-lift transition-all">
@@ -175,12 +223,15 @@ export default function AIDecisionPage() {
               <span className="text-xs font-medium text-slate-200">AI洞察</span>
             </div>
             <div className="space-y-2">
-              {[].map((tip: any, i: number) => (
+              {decisions.slice(0, 3).map((tip, i) => (
                 <div key={i} className="flex items-start gap-2 text-[10px] text-slate-400">
                   <div className="w-1 h-1 rounded-full bg-purple-400 mt-1.5 flex-shrink-0" />
-                  <span>{tip}</span>
+                  <span>{tip.title}</span>
                 </div>
               ))}
+              {decisions.length === 0 && (
+                <div className="text-[10px] text-slate-500">暂无洞察数据</div>
+              )}
             </div>
           </div>
         </div>

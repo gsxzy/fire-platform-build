@@ -1,2 +1,3 @@
 export { default } from './PageTemplate';
-export type { Column, FormField, FilterField, PageTemplateProps } from './types';
+export { default as PageTemplate } from './PageTemplate';
+export type { PageTemplateProps } from './PageTemplate';

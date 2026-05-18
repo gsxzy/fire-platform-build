@@ -1,8 +1,24 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage, sendFail } from '@/utils/respond';
 import { AIService } from '@/services/ai.service';
 
 export const AIController = {
+  async overview(req: Request, res: Response) {
+    const data = await AIService.overview();
+    sendSuccess(res, req, data);
+  },
+
+  async executeDecision(req: Request, res: Response) {
+    const { id } = req.params;
+    const { user } = req as any;
+    try {
+      const result = await AIService.executeDecision(+id, user?.id, user?.real_name || user?.username);
+      sendSuccess(res, req, result, '决策建议已执行');
+    } catch (e: any) {
+      sendFail(res, req, e.message || '执行失败', 400);
+    }
+  },
+
   async decisionList(req: Request, res: Response) {
     const { rows, count, pageNum, pageSize } = await AIService.decisionList(req);
     sendPage(res, req, rows, count, pageNum, pageSize);

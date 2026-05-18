@@ -1,5 +1,5 @@
 import { Op, Sequelize } from 'sequelize';
-import { User, Unit, Device, Alarm, MaintenanceWorkOrder, PatrolRecord, Hazard, FireInspection } from '@/models';
+import { User, Unit, Device, Alarm, MaintenanceWorkOrder, PatrolRecord, Hazard, FireInspection, Subsystem, ScreenConfig, ScreenWidget } from '@/models';
 import { AlarmService } from './alarm.service';
 import { DutyService } from './duty.service';
 
@@ -271,18 +271,66 @@ export class DashboardService {
   static async getBigScreenData() {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const [unitCount, deviceCount, onlineCount, alarmTotal, alarmToday, workOrderTotal,
            workOrderDone, patrolMonth, hazardTotal, inspectionMonth] = await Promise.all([
       Unit.count(), Device.count(), Device.count({ where: { status: 1 } }),
       Alarm.count(), Alarm.count({ where: { created_at: { [Op.gte]: todayStart } } }),
       MaintenanceWorkOrder.count(), MaintenanceWorkOrder.count({ where: { status: 2 } }),
-      PatrolRecord.count({ where: { created_at: { [Op.gte]: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
-      Hazard.count(), FireInspection.count({ where: { created_at: { [Op.gte]: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
+      PatrolRecord.count({ where: { created_at: { [Op.gte]: monthStart } } }),
+      Hazard.count(), FireInspection.count({ where: { created_at: { [Op.gte]: monthStart } } }),
     ]);
 
-    const recentAlarms = await Alarm.findAll({ limit: 20, order: [['created_at', 'DESC']], raw: true });
-    const alarmTrend = await AlarmService.getTrend(7);
+    const [recentAlarmsRaw, alarmTrend, hourlyDataRaw, unitAlarmRaw, deviceTypeRaw, subsystemsRaw] = await Promise.all([
+      Alarm.findAll({ limit: 20, order: [['created_at', 'DESC']], raw: true }),
+      AlarmService.getTrend(7),
+      this.buildHourlyAlarmStats(now),
+      Alarm.findAll({
+        attributes: ['unit_name', [Sequelize.fn('COUNT', '*'), 'count']],
+        where: { created_at: { [Op.gte]: monthStart } },
+        group: ['unit_name'],
+        order: [[Sequelize.fn('COUNT', '*'), 'DESC']],
+        limit: 10,
+        raw: true,
+      }),
+      Device.findAll({
+        attributes: ['device_type', [Sequelize.fn('COUNT', '*'), 'count']],
+        group: ['device_type'],
+        raw: true,
+      }),
+      Subsystem.findAll({ where: { status: 1 }, order: [['sort_order', 'ASC']], raw: true }),
+    ]);
+
+    const recentAlarms = (recentAlarmsRaw as any[]).map(a => ({
+      device: a.device_name || '未知设备',
+      unit: a.unit_name || '未知单位',
+      time: a.created_at ? new Date(a.created_at).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--',
+      type: a.alarm_type === 1 ? '火警' : a.alarm_type === 2 ? '故障' : '监管',
+      level: a.alarm_level === 3 ? '紧急' : a.alarm_level === 2 ? '重要' : '一般',
+    }));
+
+    const unitAlarmData = (unitAlarmRaw as any[]).map((r: any) => ({
+      name: r.unit_name || '未命名单位',
+      value: Number(r.count),
+    }));
+
+    const deviceColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+    const deviceTypeDist = (deviceTypeRaw as any[]).map((r: any, i: number) => ({
+      name: r.device_type || '未分类',
+      value: Number(r.count),
+      color: deviceColors[i % deviceColors.length],
+    }));
+
+    const subsystemStatusMap: Record<string, string> = {
+      water: '消防给水', elec: '电气火灾', vent: '防排烟',
+      light: '应急照明', audio: '消防广播', door: '防火门', gas: '气体灭火',
+    };
+    const systems = (subsystemsRaw as any[]).map((s: any) => ({
+      name: s.name || subsystemStatusMap[s.type] || s.type,
+      status: '正常',
+      color: s.type === 'water' ? '#3b82f6' : s.type === 'elec' ? '#f59e0b' : s.type === 'vent' ? '#10b981' : '#64748b',
+    }));
 
     return {
       summary: { unitCount, deviceCount, onlineCount, onlineRate: deviceCount ? ((onlineCount / deviceCount) * 100).toFixed(1) : 0, alarmTotal, alarmToday },
@@ -290,6 +338,51 @@ export class DashboardService {
       patrol: { month: patrolMonth }, hazard: { total: hazardTotal },
       inspection: { month: inspectionMonth },
       recentAlarms, alarmTrend,
+      hourlyData: hourlyDataRaw,
+      unitAlarmData,
+      deviceTypeDist,
+      systems: systems.length > 0 ? systems : [
+        { name: '消防给水', status: '正常', color: '#3b82f6' },
+        { name: '电气火灾', status: '正常', color: '#f59e0b' },
+        { name: '防排烟', status: '正常', color: '#10b981' },
+        { name: '应急照明', status: '正常', color: '#8b5cf6' },
+        { name: '消防广播', status: '正常', color: '#06b6d4' },
+        { name: '防火门', status: '正常', color: '#ec4899' },
+      ],
+    };
+  }
+
+  private static async buildHourlyAlarmStats(now: Date) {
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const hours: { hour: string; alarm: number; fault: number }[] = [];
+    for (let h = 0; h < 24; h++) {
+      const start = new Date(todayStart); start.setHours(h, 0, 0, 0);
+      const end = new Date(todayStart); end.setHours(h + 1, 0, 0, 0);
+      const [alarm, fault] = await Promise.all([
+        Alarm.count({ where: { created_at: { [Op.gte]: start, [Op.lt]: end }, alarm_type: 1 } }),
+        Alarm.count({ where: { created_at: { [Op.gte]: start, [Op.lt]: end }, alarm_type: 2 } }),
+      ]);
+      hours.push({ hour: `${String(h).padStart(2, '0')}:00`, alarm, fault });
+    }
+    return hours;
+  }
+
+  static async getBigScreenConfig() {
+    const config = await ScreenConfig.findOne({ where: { status: 1 }, order: [['id', 'ASC']] }) as any;
+    if (!config) return null;
+    const widgets = await ScreenWidget.findAll({ where: { screen_id: config.id, status: 1 }, order: [['position_y', 'ASC'], ['position_x', 'ASC']], raw: true });
+    return {
+      screenName: config.screen_name,
+      layout: config.layout_config ? JSON.parse(config.layout_config) : { layout: 'grid', cols: 3, rows: 2 },
+      widgets: (widgets as any[]).map(w => ({
+        type: w.widget_type,
+        name: w.widget_name,
+        config: w.config ? JSON.parse(w.config) : {},
+        x: w.position_x,
+        y: w.position_y,
+        width: w.width,
+        height: w.height,
+      })),
     };
   }
 }

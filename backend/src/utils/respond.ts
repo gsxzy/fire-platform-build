@@ -1,25 +1,5 @@
-import type { Request, Response } from 'express';
-import { success, fail, page } from '@/utils/response';
-
 /**
- * 控制器统一响应 — 自动携带 requestId，与前端 ApiResponse 对齐
+ * @deprecated 请直接从 `@/utils/response` 导入 sendSuccess / sendFail / sendPage
+ * 本文件保留为兼容入口，将在下个大版本移除
  */
-export function sendSuccess<T>(res: Response, req: Request, data: T, msg = '操作成功') {
-  return res.json(success(data, msg, req.reqId));
-}
-
-export function sendFail(res: Response, req: Request, msg: string, code = 400) {
-  return res.status(code >= 400 ? code : 400).json(fail(msg, code, req.reqId));
-}
-
-export function sendPage(
-  res: Response,
-  req: Request,
-  list: unknown[],
-  total: number,
-  pageNum: number,
-  pageSize: number,
-  msg = '查询成功'
-) {
-  return res.json(page(list, total, pageNum, pageSize, req.reqId));
-}
+export { sendSuccess, sendFail, sendPage } from '@/utils/response';

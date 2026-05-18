@@ -1,0 +1,25 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const patrol_controller_1 = require("@/controllers/patrol.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Patrol.${String(name)}`, patrol_controller_1.PatrolController[name]);
+const view = (0, permission_1.requirePermission)('patrol:view');
+router.get('/plans', view, h('planList'));
+router.post('/plans', view, h('planCreate'));
+router.put('/plans/:id', view, h('planUpdate'));
+router.delete('/plans/:id', view, h('planDelete'));
+router.get('/records', view, h('recordList'));
+router.get('/records/:id', view, h('recordById'));
+router.post('/records', view, h('recordCreate'));
+router.put('/records/:id', view, h('recordUpdate'));
+router.delete('/records/:id', view, h('recordDelete'));
+router.get('/hazards', view, h('hazardList'));
+router.post('/hazards', view, h('hazardCreate'));
+router.put('/hazards/:id', view, h('hazardUpdate'));
+router.delete('/hazards/:id', view, h('hazardDelete'));
+router.put('/hazards/:id/rectify', view, h('hazardRectify'));
+exports.default = router;
+//# sourceMappingURL=patrol.routes.js.map

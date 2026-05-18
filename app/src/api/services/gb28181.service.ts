@@ -1,6 +1,14 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
  * GB28181 国标设备服务（含 WVP 模式本地预配置）
+ *
+ * 架构说明：
+ * - WVP_ENABLED = true 时：数据源 = WVP-PRO API + IndexedDB 本地缓存
+ *   设备列表从 WVP 实时拉取，本地预配置（单位/位置）存 IndexedDB。
+ * - WVP_ENABLED = false 时：数据源 = 后端 MySQL `gb28181_devices` 表
+ *   通过 `/iot/gb28181-devices` 正式路由读写。
+ *
+ * 生产环境建议保持 WVP_ENABLED=true，WVP-PRO 负责 SIP 信令与媒体流转。
  * ═══════════════════════════════════════════════════════════════════
  */
 import { api as httpApi, paginatedQuery } from '../client';
@@ -235,7 +243,7 @@ export const gb28181Service = {
         },
       };
     }
-    return paginatedQuery<GB28181Device>('/gb28181-devices/list', params);
+    return paginatedQuery<GB28181Device>('/iot/gb28181-devices', params);
   },
 
   get: async (id: string) => {
@@ -249,7 +257,7 @@ export const gb28181Service = {
       const found = devices.find(d => d.id === id || d.deviceId === id);
       return { code: 200, message: 'success', data: found || null };
     }
-    return httpApi.get<GB28181Device>(`/gb28181-devices/${id}`);
+    return httpApi.get<GB28181Device>(`/iot/gb28181-devices/${id}`);
   },
 
   create: async (data: Omit<GB28181Device, 'id'>) => {
@@ -268,7 +276,7 @@ export const gb28181Service = {
       await saveLocalDevice(localDev);
       return { code: 200, message: 'success', data: null };
     }
-    return httpApi.post<null>('/gb28181-devices', data);
+    return httpApi.post<null>('/iot/gb28181-devices', data);
   },
 
   update: async (id: string, data: Partial<GB28181Device>) => {
@@ -283,7 +291,7 @@ export const gb28181Service = {
       }
       return { code: 200, message: 'success', data: null };
     }
-    return httpApi.put<null>(`/gb28181-devices/${id}`, data);
+    return httpApi.put<null>(`/iot/gb28181-devices/${id}`, data);
   },
 
   delete: async (id: string) => {
@@ -291,14 +299,14 @@ export const gb28181Service = {
       await deleteLocalDevice(id);
       return { code: 200, message: 'success', data: null };
     }
-    return httpApi.delete<null>(`/gb28181-devices/${id}`);
+    return httpApi.delete<null>(`/iot/gb28181-devices/${id}`);
   },
 
   syncCatalog: (deviceId: string) => {
     if (WVP_ENABLED) {
       return Promise.resolve({ code: 200, message: 'success', data: null as any });
     }
-    return httpApi.post<GB28181Device>(`/gb28181-devices/${deviceId}/sync-catalog`, {});
+    return httpApi.post<GB28181Device>(`/iot/gb28181-devices/${deviceId}/sync-catalog`, {});
   },
 
   getStreamUrl: async (deviceId: string, channelId: string) => {
@@ -325,7 +333,7 @@ export const gb28181Service = {
         data: { deviceId, channelId, streamUrl, snapUrl: u(stream.wsFlv) || undefined },
       };
     }
-    return httpApi.get<{ deviceId: string; channelId: string; streamUrl: string; snapUrl?: string }>(`/gb28181-devices/${deviceId}/channels/${channelId}/stream`);
+    return httpApi.get<{ deviceId: string; channelId: string; streamUrl: string; snapUrl?: string }>(`/iot/gb28181-devices/${deviceId}/channels/${channelId}/stream`);
   },
 
   ptzControl: async (deviceId: string, channelId: string, cmd: string, speed?: number) => {
@@ -333,7 +341,7 @@ export const gb28181Service = {
       await videoApi.ptzControl(deviceId, channelId, cmd as any, speed);
       return { code: 200, message: 'success', data: null };
     }
-    return httpApi.post<null>(`/gb28181-devices/${deviceId}/channels/${channelId}/ptz`, { cmd, speed: speed ?? 50 });
+    return httpApi.post<null>(`/iot/gb28181-devices/${deviceId}/channels/${channelId}/ptz`, { cmd, speed: speed ?? 50 });
   },
 
   getPlaybackList: async (deviceId: string, channelId: string, startTime: string, endTime: string) => {
@@ -341,7 +349,7 @@ export const gb28181Service = {
       const stream = await videoApi.getPlayback(deviceId, channelId, startTime, endTime);
       return { code: 200, message: 'success', data: [stream] };
     }
-    return httpApi.get<any[]>(`/gb28181-devices/${deviceId}/channels/${channelId}/playback?start=${startTime}&end=${endTime}`);
+    return httpApi.get<any[]>(`/iot/gb28181-devices/${deviceId}/channels/${channelId}/playback?start=${startTime}&end=${endTime}`);
   },
 };
 

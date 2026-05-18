@@ -93,8 +93,11 @@ function WebSocketManager() {
               dutyOfficerPhone: rawAlarm.control_room?.dutyOfficerPhone || rawAlarm.controlRoom?.dutyOfficerPhone,
               safetyOfficerName: rawAlarm.control_room?.safetyOfficerName || rawAlarm.controlRoom?.safetyOfficerName,
               safetyOfficerPhone: rawAlarm.control_room?.safetyOfficerPhone || rawAlarm.controlRoom?.safetyOfficerPhone,
+              unitContactName: rawAlarm.unit?.contact_name || rawAlarm.unit?.contactName,
+              unitContactPhone: rawAlarm.unit?.contact_phone || rawAlarm.unit?.contactPhone,
               snapshots: rawAlarm.snapshots || [],
               relatedCameras: rawAlarm.relatedCameras || [],
+              dispatchRecords: rawAlarm.dispatchRecords || [],
             });
           },
           onDeviceStatus: (device) => logger.debug('[WS] Device status:', device),

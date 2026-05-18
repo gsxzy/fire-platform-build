@@ -453,7 +453,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
     }
   }
 
-  /* ───── 统一告警模型创建（FSCN8001 扩展版：含 Device/Unit 档案查询 + 编码表关联）──── */
+  /* ───── 统一告警模型创建（FSCN8001 扩展版：含 Device/Unit 档案查询 + 编码表关联 + 网关主机关联）──── */
   protected async createUnifiedAlarm(
     deviceSn: string, alarmType: string, alarmLevel: string,
     description: string | null, rawData: string | null,
@@ -469,11 +469,31 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
       let deviceId: number | null = null;
       let unitId: number | null = null;
       let unitName: string | null = null;
+      let gatewayDeviceId: number | null = null;
+      let gatewayDeviceName: string | null = null;
+      let hostDeviceName: string | null = null;
+
       try {
-        const device = await Device.findOne({ where: { device_sn: deviceSn } }) as any;
-        if (device) {
-          deviceId = device.id ?? null;
-          unitId = device.unit_id ?? null;
+        // 1. 查 FSCN8001 传输装置档案
+        const txDevice = await Device.findOne({ where: { device_sn: deviceSn } }) as any;
+        if (txDevice) {
+          deviceId = txDevice.id ?? null;
+          unitId = txDevice.unit_id ?? null;
+          gatewayDeviceId = txDevice.id ?? null;
+          gatewayDeviceName = txDevice.device_name ?? deviceSn;
+
+          // 2. 若传输装置有关联主机(gateway_id)，查主机档案
+          if (txDevice.gateway_id) {
+            const hostDevice = await Device.findOne({ where: { device_sn: txDevice.gateway_id } }) as any;
+            if (hostDevice) {
+              hostDeviceName = hostDevice.device_name ?? txDevice.gateway_id;
+              // 若传输装置未分配单位，但主机已分配，则以主机单位为准
+              if (!unitId && hostDevice.unit_id) {
+                unitId = hostDevice.unit_id;
+              }
+            }
+          }
+
           if (unitId != null && unitId > 0) {
             const unit = await Unit.findByPk(unitId, { raw: true }) as any;
             unitName = unit?.unit_name ?? null;
@@ -485,15 +505,23 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
 
       const deviceTypeName = deviceType !== null ? (DEVICE_TYPE_NAMES[deviceType] || `未知类型(0x${deviceType.toString(16).padStart(2, '0').toUpperCase()})`) : undefined;
 
+      // 告警位置描述：优先使用主机名，若无主机则使用传输装置名
+      const locationPrefix = hostDeviceName
+        ? `${hostDeviceName}(回路${loopNo ?? '-'}/点位${address ?? '-'})`
+        : (gatewayDeviceName ? `${gatewayDeviceName}(回路${loopNo ?? '-'}/点位${address ?? '-'})` : deviceSn);
+      const alarmLocation = description
+        ? `${locationPrefix} — ${description}`
+        : locationPrefix;
+
       await AlarmService.createAlarm({
         alarm_no: alarmNo,
         alarm_type: typeMap[alarmType] || 5,
         alarm_level: levelMap[alarmLevel] || 1,
         device_id: deviceId,
-        device_name: deviceSn,
+        device_name: hostDeviceName || gatewayDeviceName || deviceSn,
         unit_id: unitId,
         unit_name: unitName,
-        location: description || alarmType,
+        location: alarmLocation,
         alarm_desc: description || alarmType,
         protocol: 'FSCN8001',
         raw_data: rawData,
@@ -502,7 +530,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
         address: address,
         host_code: hostCode !== null ? String(hostCode) : null,
       });
-      logger.warn(`[FSCN8001] 统一告警创建: ${deviceSn} ${alarmType} loop=${loopNo} point=${address}`);
+      logger.warn(`[FSCN8001] 统一告警创建: ${deviceSn} ${alarmType} loop=${loopNo} point=${address} host=${hostDeviceName || '-'}`);
     } catch (err: any) {
       logger.error(`[FSCN8001] 创建统一告警失败: ${err.message}`);
     }
@@ -510,7 +538,8 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
 }
 
 /* ───── 导出单例 ───── */
-const FSCN8001_TCP_PORT = parseInt(process.env.FSCN8001_PORT || '5201', 10);
+// FSCN8001 用户信息传输装置使用 TCP 端口 5200（与 GB26875 同端口，赋安私有帧格式兼容）
+const FSCN8001_TCP_PORT = parseInt(process.env.FSCN8001_PORT || '5200', 10);
 const FSCN8001_HOST = process.env.FSCN8001_HOST || '0.0.0.0';
 
 export const fscn8001Server = new FSCN8001Server(FSCN8001_TCP_PORT, FSCN8001_HOST);

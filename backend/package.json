@@ -8,7 +8,6 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "seed": "tsx src/seeders/index.ts",
-    "db:sync": "tsx src/utils/syncDb.ts",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:migrate:status": "sequelize-cli db:migrate:status",

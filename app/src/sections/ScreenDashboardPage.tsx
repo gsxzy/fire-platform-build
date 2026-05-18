@@ -49,6 +49,7 @@ export default function ScreenDashboardPage() {
   const [deviceTypeDist, setDeviceTypeDist] = useState([] as any);
   const [recentAlarms, setRecentAlarms] = useState([] as any);
   const [systems, setSystems] = useState(systemsInit as any);
+  const [screenData, setScreenData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -56,14 +57,22 @@ export default function ScreenDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await dashboardService.bigScreen() as any;
-      const data = res.data ?? res;
+      const [screenRes, dataRes] = await Promise.all([
+        dashboardService.bigScreen().catch(() => null),
+        dashboardService.bigScreenConfig().catch(() => null),
+      ]);
+      const data = (screenRes as any)?.data ?? screenRes ?? {};
       if (data && typeof data === 'object') {
-        if (Array.isArray(data.hourlyData)) setHourlyData(data.hourlyData as any);
-        if (Array.isArray(data.unitAlarmData)) setUnitAlarmData(data.unitAlarmData as any);
-        if (Array.isArray(data.deviceTypeDist)) setDeviceTypeDist(data.deviceTypeDist as any);
-        if (Array.isArray(data.recentAlarms)) setRecentAlarms(data.recentAlarms as any);
-        if (Array.isArray(data.systems)) setSystems(data.systems as any);
+        if (Array.isArray(data.hourlyData)) setHourlyData(data.hourlyData);
+        if (Array.isArray(data.unitAlarmData)) setUnitAlarmData(data.unitAlarmData);
+        if (Array.isArray(data.deviceTypeDist)) setDeviceTypeDist(data.deviceTypeDist);
+        if (Array.isArray(data.recentAlarms)) setRecentAlarms(data.recentAlarms);
+        if (Array.isArray(data.systems)) setSystems(data.systems);
+        setScreenData(data.summary || null);
+      }
+      const cfg = (dataRes as any)?.data ?? dataRes;
+      if (cfg && typeof cfg === 'object') {
+        // 大屏配置后续可驱动布局，当前仅记录
       }
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
@@ -84,12 +93,15 @@ export default function ScreenDashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const stats = useMemo(() => [
-    { label: '联网单位', value: '--', unit: '家', icon: MapPin, color: '#3b82f6', sub: '在线 --家' },
-    { label: '在线设备', value: '--', unit: '台', icon: Cpu, color: '#10b981', sub: '离线 --台' },
-    { label: '视频通道', value: '--', unit: '路', icon: Video, color: '#8b5cf6', sub: '在线 --路' },
-    { label: '今日告警', value: '--', unit: '条', icon: Bell, color: '#ef4444', sub: '已处理 --条' },
-  ], []);
+  const stats = useMemo(() => {
+    const s = screenData || {};
+    return [
+      { label: '联网单位', value: String(s.unitCount ?? '--'), unit: '家', icon: MapPin, color: '#3b82f6', sub: `在线 ${s.onlineCount ?? '--'}家` },
+      { label: '在线设备', value: String(s.onlineCount ?? '--'), unit: '台', icon: Cpu, color: '#10b981', sub: `离线 ${(s.deviceCount ?? 0) - (s.onlineCount ?? 0)}台` },
+      { label: '设备总数', value: String(s.deviceCount ?? '--'), unit: '台', icon: Video, color: '#8b5cf6', sub: `在线率 ${s.onlineRate ?? '--'}%` },
+      { label: '今日告警', value: String(s.alarmToday ?? '--'), unit: '条', icon: Bell, color: '#ef4444', sub: `累计 ${s.alarmTotal ?? '--'}条` },
+    ];
+  }, [screenData]);
 
   return (
     <DataContainer loading={loading} error={error} data={hourlyData} onRetry={loadData} emptyText="暂无数据">

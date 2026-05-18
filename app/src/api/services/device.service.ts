@@ -1,5 +1,5 @@
 import { api as httpApi, paginatedQuery } from '../client';
-import type { QueryParams, Device, Personnel, Camera } from '@/types/db';
+import type { QueryParams, Device, Camera } from '@/types/db';
 import { createService } from './core';
 
 export const deviceService = {
@@ -40,8 +40,7 @@ export const deviceAllocationService = {
     httpApi.get<any[]>(`/units/${unitId}/devices`, params),
 };
 
-export const personnelService = createService<Personnel>('/personnel');
-
+/** @deprecated 视频监控已统一走 /api/video/*，请使用 videoService / gb28181Service */
 export const cameraService = {
   ...createService<Camera>('/cameras'),
   getStreamUrl: (cameraId: string) => httpApi.get<{ cameraId: string; streamUrl: string; rtspUrl?: string; wsFlvUrl?: string; snapshotUrl?: string }>(`/cameras/${cameraId}/stream`),

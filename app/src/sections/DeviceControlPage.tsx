@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Power, PowerOff, Play, Pause, RotateCcw, Droplets,
+  Power, PowerOff, Play, Pause, RotateCcw,
   AlertTriangle, Search, CheckCircle,
-  XCircle, Clock, Activity, Radio, Zap, Fan, Speaker,
-  ScrollText, ArrowUpDown, History, Cpu, CircleDot,
+  XCircle, Clock, Activity, Radio, Zap, Fan, Droplets,
+  History, Cpu, Speaker, ScrollText, CircleDot, ArrowUpDown,
   MapPin, Gauge, SlidersHorizontal, Settings,
   VolumeX, ArrowRightLeft, Loader2,
 } from 'lucide-react';
@@ -16,105 +16,12 @@ import { getErrorMessage } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/EmptyState';
 import TableBodyPlaceholder from '@/components/TableBodyPlaceholder';
-
-/* ═══════════════ Types ═══════════════ */
-interface IoTDevice {
-  id: number;
-  device_id?: string;
-  device_sn?: string;
-  archive_device_id?: number;
-  device_name: string;
-  protocol?: string;
-  protocol_type?: string;
-  status: string;
-  online_status: string;
-  ip?: string | null;
-  port?: number | null;
-  location?: string | null;
-  unit_name?: string | null;
-}
-
-function resolveArchiveDeviceId(d: IoTDevice): number {
-  const id = d.archive_device_id ?? d.id;
-  return Number(id);
-}
-
-interface ControlLog {
-  id: number;
-  device_id: string;
-  device_name: string;
-  protocol: string;
-  command: string;
-  status: string;
-  response: string | null;
-  error_msg: string | null;
-  sent_at: string;
-  responded_at: string | null;
-}
-
-/* ═══════════════ Helpers ═══════════════ */
-function mapDeviceStatus(status: string, onlineStatus: string): string {
-  const s = (status || '').toLowerCase();
-  const os = (onlineStatus || '').toLowerCase();
-  if (s === 'disabled' || s === 'scrapped') return 'offline';
-  if (s === 'fault' || s === 'maintenance') return 'fault';
-  if (os === 'offline' || s === 'offline') return 'offline';
-  if (os === 'online' || s === 'normal') return 'running';
-  return 'stopped';
-}
-
-function mapDeviceType(protocol: string, name: string): string {
-  const p = (protocol || '').toLowerCase();
-  const n = (name || '').toLowerCase();
-  if (n.includes('风机')) return 'fan';
-  if (n.includes('泵')) return 'pump';
-  if (n.includes('阀')) return 'valve';
-  if (n.includes('广播')) return 'broadcast';
-  if (n.includes('卷帘')) return 'shutter';
-  if (n.includes('电梯')) return 'elevator';
-  if (n.includes('照明') || n.includes('指示')) return 'lighting';
-  if (p === 'gb26875' || p === 'fscn8001') return 'controller';
-  return 'controller';
-}
-
-const typeConfig = (type: string) => {
-  switch (type) {
-    case 'fan': return { label: '风机', icon: Fan, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', gradient: 'from-cyan-500 to-blue-500' };
-    case 'pump': return { label: '水泵', icon: Droplets, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', gradient: 'from-blue-500 to-indigo-500' };
-    case 'valve': return { label: '阀门', icon: ArrowUpDown, color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', gradient: 'from-indigo-500 to-purple-500' };
-    case 'broadcast': return { label: '广播', icon: Speaker, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30', gradient: 'from-purple-500 to-pink-500' };
-    case 'shutter': return { label: '防火卷帘', icon: ScrollText, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', gradient: 'from-orange-500 to-red-500' };
-    case 'elevator': return { label: '电梯', icon: Cpu, color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/30', gradient: 'from-pink-500 to-rose-500' };
-    case 'lighting': return { label: '应急照明', icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', gradient: 'from-yellow-500 to-orange-500' };
-    case 'controller': return { label: '控制器', icon: CircleDot, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', gradient: 'from-emerald-500 to-teal-500' };
-    default: return { label: '设备', icon: Cpu, color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30', gradient: 'from-slate-500 to-slate-400' };
-  }
-};
-
-const statusConfig = (status: string) => {
-  switch (status) {
-    case 'running': return { label: '在线', color: 'text-emerald-400', bg: 'bg-emerald-500/10', dot: 'bg-emerald-400', ring: 'ring-emerald-500/30' };
-    case 'stopped': return { label: '停止', color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-500', ring: 'ring-slate-500/20' };
-    case 'fault': return { label: '故障', color: 'text-red-400', bg: 'bg-red-500/10', dot: 'bg-red-400', ring: 'ring-red-500/30' };
-    case 'offline': return { label: '离线', color: 'text-slate-600', bg: 'bg-slate-600/10', dot: 'bg-slate-600', ring: 'ring-slate-600/20' };
-    default: return { label: status, color: 'text-slate-400', bg: 'bg-slate-500/10', dot: 'bg-slate-500', ring: 'ring-slate-500/20' };
-  }
-};
-
-const CMD_MAP: Record<string, string> = {
-  '启动': 'start',
-  '停止': 'stop',
-  '测试': 'test',
-  '复位': 'reset',
-  '消音': 'mute',
-  '手动': 'manual',
-  '自动': 'auto',
-};
-
-const CMD_LABEL: Record<string, string> = {
-  start: '启动', stop: '停止', test: '测试', reset: '复位',
-  mute: '消音', manual: '手动模式', auto: '自动模式',
-};
+import {
+  resolveArchiveDeviceId, mapDeviceStatus, mapDeviceType,
+  CMD_MAP, CMD_LABEL,
+} from './deviceControl/utils';
+import { typeConfig, statusConfig } from './deviceControl/utils.tsx';
+import type { IoTDevice, ControlLog } from './deviceControl/types';
 
 /* ═══════════════ Main Component ═══════════════ */
 export default function DeviceControlPage() {

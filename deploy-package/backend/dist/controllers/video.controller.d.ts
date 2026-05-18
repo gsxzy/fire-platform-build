@@ -1,19 +1,19 @@
 import type { Request, Response } from 'express';
 export declare const VideoController: {
-    list(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    channels(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    streams(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    streamStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    startStream(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    stopZLMStream(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    getPlayUrl(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    cameraConfigs(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    stopPlay(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    ptzControl(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    presetControl(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    getPlayback(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    snapshot(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    livePreview(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    getStream(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    list(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    channels(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    streams(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    streamStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    startStream(req: Request, res: Response): Promise<void>;
+    stopZLMStream(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getPlayUrl(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    cameraConfigs(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    stopPlay(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    ptzControl(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    presetControl(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getPlayback(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    snapshot(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    livePreview(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
+    getStream(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
 };
 //# sourceMappingURL=video.controller.d.ts.map

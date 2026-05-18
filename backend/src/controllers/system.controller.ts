@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
+import sequelize from '@/config/database';
 import { sendSuccess, sendPage } from '@/utils/respond';
-import { SystemConfig, SystemLog, NotifyTemplate, ScreenConfig, Permission, Department, Alarm, Device, MaintenanceWorkOrder, Unit } from '@/models';
+import { SystemConfig, SystemLog, NotifyTemplate, ScreenConfig, Permission, Department, Alarm, Device, MaintenanceWorkOrder, Unit, Personnel } from '@/models';
 import redis from '@/config/redis';
 import { sanitizePagination } from '@/utils/validator';
 
@@ -172,5 +173,96 @@ export const SystemController = {
       await redis.set('platform_modules', JSON.stringify(modules));
     }
     sendSuccess(res, req, null, '模块状态已更新');
+  },
+
+  /* ── Personnel ── */
+  async personnelList(req: Request, res: Response) {
+    const { pageNum, pageSize } = sanitizePagination(req);
+    const { keyword, role, status } = req.query as Record<string, string>;
+    const where: any = {};
+    if (keyword) {
+      where[Op.or] = [
+        { name: { [Op.like]: `%${keyword}%` } },
+        { phone: { [Op.like]: `%${keyword}%` } },
+        { unit_name: { [Op.like]: `%${keyword}%` } },
+      ];
+    }
+    if (role) where.role = role;
+    if (status !== undefined) where.status = +status;
+    const { count, rows } = await Personnel.findAndCountAll({
+      where,
+      limit: +pageSize,
+      offset: (+pageNum - 1) * +pageSize,
+      order: [['created_at', 'DESC']],
+    });
+    sendPage(res, req, rows, count, +pageNum, +pageSize);
+  },
+
+  async personnelCreate(req: Request, res: Response) {
+    const p = await Personnel.create(req.body as any);
+    sendSuccess(res, req, { id: (p as any).id }, '创建成功');
+  },
+
+  async personnelUpdate(req: Request, res: Response) {
+    await Personnel.update(req.body, { where: { id: req.params.id } });
+    sendSuccess(res, req, null, '更新成功');
+  },
+
+  async personnelDelete(req: Request, res: Response) {
+    await Personnel.destroy({ where: { id: req.params.id } });
+    sendSuccess(res, req, null, '删除成功');
+  },
+
+  /* ── Monitor ── */
+  async monitor(req: Request, res: Response) {
+    const os = await import('os');
+    const process = await import('process');
+    const uptimeSec = process.uptime();
+    const uptimeStr = uptimeSec > 86400
+      ? `${Math.floor(uptimeSec / 86400)}天${Math.floor((uptimeSec % 86400) / 3600)}小时`
+      : uptimeSec > 3600
+        ? `${Math.floor(uptimeSec / 3600)}小时${Math.floor((uptimeSec % 3600) / 60)}分钟`
+        : `${Math.floor(uptimeSec / 60)}分钟`;
+
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const memPercent = Math.round((usedMem / totalMem) * 100);
+
+    const cpus = os.cpus();
+    const loadAvg = os.loadavg();
+    const cpuPercent = cpus.length > 0 ? Math.min(100, Math.round((loadAvg[0] / cpus.length) * 100)) : 0;
+
+    const [[dev]] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive`) as any;
+    const [[online]] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive WHERE status='normal'`) as any;
+
+    const metrics = [
+      { name: 'CPU使用率', value: cpuPercent, unit: '%', status: cpuPercent > 80 ? 'critical' : cpuPercent > 60 ? 'warning' : 'normal', trend: 'stable', history: [cpuPercent] },
+      { name: '内存使用率', value: memPercent, unit: '%', status: memPercent > 85 ? 'critical' : memPercent > 70 ? 'warning' : 'normal', trend: 'stable', history: [memPercent] },
+      { name: '磁盘使用', value: 0, unit: '%', status: 'normal', trend: 'stable', history: [0] },
+      { name: '网络延迟', value: 0, unit: 'ms', status: 'normal', trend: 'stable', history: [0] },
+    ];
+
+    const services = [
+      {
+        name: 'fire-platform (Node.js)',
+        status: 'running' as const,
+        uptime: uptimeStr,
+        version: process.version,
+        pid: process.pid,
+        memory: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
+      },
+    ];
+
+    sendSuccess(res, req, {
+      metrics,
+      services,
+      overview: {
+        uptime: uptimeStr,
+        dbConnections: '--',
+        deviceOnlineRate: dev?.c ? `${Math.round((online?.c || 0) / dev.c * 100)}%` : '0%',
+        qps: '--',
+      },
+    });
   },
 };

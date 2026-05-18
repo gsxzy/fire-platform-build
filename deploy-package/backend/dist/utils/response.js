@@ -1,8 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.page = exports.fail = exports.success = void 0;
-exports.successForReq = successForReq;
-exports.failForReq = failForReq;
 function buildEnvelope(p) {
     const env = {
         code: p.code,
@@ -26,11 +24,5 @@ const page = (list, total, pageNum, pageSize, requestId) => buildEnvelope({
     requestId,
 });
 exports.page = page;
-/** 从当前请求携带 requestId（推荐在控制器中使用） */
-function successForReq(req, data, msg = '操作成功') {
-    return (0, exports.success)(data, msg, req.reqId);
-}
-function failForReq(req, msg = '操作失败', code = 400) {
-    return (0, exports.fail)(msg, code, req.reqId);
-}
+// 如需从请求自动携带 requestId，请使用 success(data, msg, req.reqId) 或 fail(msg, code, req.reqId)
 //# sourceMappingURL=response.js.map

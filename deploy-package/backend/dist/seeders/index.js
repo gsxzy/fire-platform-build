@@ -69,7 +69,7 @@ async function seed() {
             where: { role_code: 'operator' },
             defaults: { role_name: '运维人员', role_code: 'operator', description: '日常运维操作', status: 1, sort: 1 }
         });
-        const viewerRole = await models_1.Role.findOrCreate({
+        await models_1.Role.findOrCreate({
             where: { role_code: 'viewer' },
             defaults: { role_name: '监控查看员', role_code: 'viewer', description: '只读查看权限', status: 1, sort: 2 }
         });

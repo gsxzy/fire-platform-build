@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AIService = void 0;
 const sequelize_1 = require("sequelize");
 const models_1 = require("@/models");
+const validator_1 = require("@/utils/validator");
 class AIService {
     // AI风险研判
     static async riskAnalysis(scene, inputData) {
@@ -130,6 +131,44 @@ class AIService {
     }
     static async getTrend(days = 7) {
         return alarm_service_1.AlarmService.getTrend(days);
+    }
+    /* ── AI 决策记录 ── */
+    static async decisionList(req) {
+        const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
+        const { count, rows } = await models_1.AIDecision.findAndCountAll({
+            limit: +pageSize,
+            offset: (+pageNum - 1) * +pageSize,
+            order: [['created_at', 'DESC']],
+        });
+        return { rows, count, pageNum: +pageNum, pageSize: +pageSize };
+    }
+    static async decisionCreate(body) {
+        const decisionNo = `AI${Date.now()}${Math.floor(Math.random() * 100)}`;
+        const d = await models_1.AIDecision.create({ ...body, decision_no: decisionNo });
+        return { id: d.id, decisionNo };
+    }
+    /* ── 智能预警 ── */
+    static async alertList(req) {
+        const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
+        const { status } = req.query;
+        const where = {};
+        if (status !== undefined)
+            where.status = status;
+        const { count, rows } = await models_1.SmartAlert.findAndCountAll({
+            where,
+            limit: +pageSize,
+            offset: (+pageNum - 1) * +pageSize,
+            order: [['created_at', 'DESC']],
+        });
+        return { rows, count, pageNum: +pageNum, pageSize: +pageSize };
+    }
+    static async alertConfirm(id) {
+        await models_1.SmartAlert.update({ status: 1 }, { where: { id } });
+        return { confirmed: true };
+    }
+    static async alertHandle(id) {
+        await models_1.SmartAlert.update({ status: 2 }, { where: { id } });
+        return { handled: true };
     }
 }
 exports.AIService = AIService;

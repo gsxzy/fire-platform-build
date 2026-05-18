@@ -26,4 +26,10 @@ router.put('/work-orders/:id/assign', dispatch, h('workOrderAssign'));
 router.put('/work-orders/:id/complete', dispatch, h('workOrderComplete'));
 router.get('/stats', view, h('stats'));
 
+/* ── 维保记录 ── */
+router.get('/records', view, h('recordList'));
+router.post('/records', view, h('recordCreate'));
+router.put('/records/:id', view, h('recordUpdate'));
+router.delete('/records/:id', view, h('recordDelete'));
+
 export default router;

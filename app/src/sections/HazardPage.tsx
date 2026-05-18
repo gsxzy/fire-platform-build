@@ -148,6 +148,7 @@ export default function HazardPage() {
       addable
       actions
       batchable
+      permission={{ create: 'patrol:manage', update: 'patrol:manage', delete: 'patrol:manage' }}
       emptyDescription="隐患登记、整改期限与闭环状态统一在此管理。无数据时请通过巡检或检查入口创建隐患单。"
     />
   );

@@ -8,10 +8,6 @@ if (!process.env.JWT_SECRET) {
 export const SECRET: Secret = process.env.JWT_SECRET;
 const EXPIRES = (process.env.JWT_EXPIRES_IN || '24h') as SignOptions['expiresIn'];
 
-if (!process.env.JWT_SECRET) {
-  console.warn('[JWT] 警告：未设置 JWT_SECRET 环境变量，使用默认密钥（生产环境极不安全）');
-}
-
 const signOptions = (expiresIn: SignOptions['expiresIn']): SignOptions => ({ expiresIn });
 
 export const signToken = (payload: object) => jwt.sign(payload, SECRET, signOptions(EXPIRES));

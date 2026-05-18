@@ -1,0 +1,20 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const linkage_controller_1 = require("@/controllers/linkage.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Linkage.${String(name)}`, linkage_controller_1.LinkageController[name]);
+const view = (0, permission_1.requirePermission)('monitor:view');
+const control = (0, permission_1.requirePermission)('monitor:control');
+router.get('/rules', view, h('list'));
+router.post('/rules', control, h('create'));
+router.put('/rules/:id', control, h('update'));
+router.delete('/rules/:id', control, h('delete'));
+router.post('/rules/:id/trigger', control, h('manualTrigger'));
+router.get('/status/:alarmId', view, h('getStatus'));
+router.post('/preset', control, h('applyPreset'));
+router.get('/records', view, h('getRecords'));
+exports.default = router;
+//# sourceMappingURL=linkage.routes.js.map

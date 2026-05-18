@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/core/ToastContext";
-import { legacyRaw } from "@/api/client";
+import { api as httpApi } from "@/api/client";
 import { getErrorMessage } from "@/types/api";
 import DataContainer from "@/components/DataContainer";
 import {
@@ -177,14 +177,14 @@ export default function HandoverPage() {
     setLoading(true);
     setError(null);
     try {
-      const pageData = await legacyRaw.get<{ list: Record<string, unknown>[]; total?: number }>("/duty/logs", {
-        pageNum: 1,
+      const pageData = await httpApi.get<{ list: Record<string, unknown>[]; total?: number }>("/duty/logs", {
+        page: 1,
         pageSize: 200,
       });
-      const rows = Array.isArray(pageData?.list) ? pageData.list : [];
-      const mapped = rows
-        .map((row) => mapDutyLogToHandover(row))
-        .filter((x): x is HandoverItem => x != null);
+      const rows = Array.isArray((pageData as any)?.data?.list) ? (pageData as any).data.list : [];
+      const mapped = (rows as any[])
+        .map((row: any) => mapDutyLogToHandover(row))
+        .filter((x: any): x is HandoverItem => x != null);
       setList(mapped);
     } catch (e: unknown) {
       setError(e instanceof Error ? e : new Error(getErrorMessage(e)));

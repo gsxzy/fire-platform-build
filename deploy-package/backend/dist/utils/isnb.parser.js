@@ -298,14 +298,12 @@ function parseIsnbFrame(hexStr) {
         let offset = 0;
         // ─── UP_HEADER ───
         const messageId = buf.readUInt8(offset++);
-        const fixedSign = buf.readUInt8(offset++);
+        buf.readUInt8(offset++);
         const devType = buf.readUInt8(offset++);
-        const mac = buf.slice(offset, offset + 6).toString('hex');
         offset += 6;
         const time = buf.readUInt32BE(offset);
         offset += 4;
-        const devTypeEx = buf.readUInt8(offset++);
-        const pci = buf.readUInt16BE(offset);
+        buf.readUInt8(offset++);
         offset += 2;
         const snr = buf.readInt8(offset++);
         const ecl = buf.readUInt8(offset++);
@@ -313,7 +311,6 @@ function parseIsnbFrame(hexStr) {
         offset += 2;
         const upHeaderLen = buf.readUInt32BE(offset);
         offset += 4;
-        const packageNo = buf.readUInt32BE(offset);
         offset += 4;
         // QCCID (20 bytes)
         const qccid = buf.slice(offset, offset + 20).toString('ascii').replace(/\0/g, '').trim();
@@ -325,23 +322,20 @@ function parseIsnbFrame(hexStr) {
         const imsi = buf.slice(offset, offset + 20).toString('ascii').replace(/\0/g, '').trim();
         offset += 20;
         // NB模块版本 (24 bytes)
-        const nbModuleVersion = buf.slice(offset, offset + 24).toString('ascii').replace(/\0/g, '').trim();
         offset += 24;
         // 扩展字段（根据 upHeaderLen 判断是否存在）
         // 基础头长度 = 112 字节（包含 upHeaderLen 自身 4B）
         // upHeaderLen >= 116: CID(4B) | >=120: LAC(4B) | >=140: swVer(20B) | >=160: hwVer(20B) | >=180: model(20B) | >=190: protoVer(10B)
-        let cid;
-        let lac;
         let softwareVersion = '';
         let hardwareVersion = '';
         let deviceModel = '';
         let protocolVersion = '';
         if (upHeaderLen >= 116 && buf.length >= offset + 4) {
-            cid = buf.readUInt32BE(offset);
+            buf.readUInt32BE(offset);
             offset += 4;
         }
         if (upHeaderLen >= 120 && buf.length >= offset + 4) {
-            lac = buf.readUInt32BE(offset);
+            buf.readUInt32BE(offset);
             offset += 4;
         }
         if (upHeaderLen >= 140 && buf.length >= offset + 20) {
@@ -370,13 +364,11 @@ function parseIsnbFrame(hexStr) {
                 hasAlarm: false, hasFault: false,
             });
         }
-        const mchRes = buf.readUInt8(offset++);
+        buf.readUInt8(offset++);
         const msgType = buf.readUInt8(offset++);
         const shield = buf.readUInt8(offset++);
-        const mchVersion = buf.readUInt8(offset++);
-        const mchLen = buf.readUInt16BE(offset);
+        buf.readUInt8(offset++);
         offset += 2;
-        const chanRscType = buf.readUInt16BE(offset);
         offset += 2;
         const chanRscValue = buf.readUInt16BE(offset);
         offset += 2;

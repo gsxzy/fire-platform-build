@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useToast } from '@/core/ToastContext';
-import { personnelService } from '@/api/services';
+import { personnelService, unitService } from '@/api/services';
 import { getErrorMessage } from '@/types/api';
 import DataContainer from '@/components/DataContainer';
 import {
@@ -44,6 +44,8 @@ const ROLE_TABS: { key: PersonnelRoleFilter; label: string }[] = [
 /* ===== Mock Data Cleared ===== */
 const mockPersonnel: PersonnelItem[] = [];
 
+interface UnitOption { id: string; name: string; }
+
 const roleStyle = (role: string) => {
   const map: Record<string, { color: string; bg: string }> = {
     manager: { color: 'text-blue-400', bg: 'bg-blue-500/10' },
@@ -64,10 +66,12 @@ const statusStyle = (status: string) => {
 /* ===== Modal ===== */
 function PersonnelModal({
   item,
+  units,
   onSave,
   onClose,
 }: {
   item: PersonnelItem | null;
+  units: UnitOption[];
   onSave: (data: Omit<PersonnelItem, 'id'>) => Promise<void> | void;
   onClose: () => void;
 }) {
@@ -137,10 +141,7 @@ function PersonnelModal({
             <label className="text-[10px] text-slate-400 mb-1 block">所属单位 <span className="text-red-400">*</span></label>
             <select value={form.unitName} onChange={e => setForm({ ...form, unitName: e.target.value })} className="w-full h-8 px-2 text-xs bg-slate-700/30 border border-slate-600/30 rounded text-slate-200 outline-none">
               <option value="">请选择单位</option>
-              <option>万达广场商业中心</option>
-              <option>兰州大学第二医院</option>
-              <option>兰州中心</option>
-              <option>甘肃省博物馆</option>
+              {units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -204,6 +205,7 @@ function DeleteModal({ name, onConfirm, onClose, loading }: { name: string; onCo
 export default function PersonnelPage() {
   const { success, error: showError } = useToast();
   const [list, setList] = useState<PersonnelItem[]>(mockPersonnel);
+  const [units, setUnits] = useState<UnitOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [keyword, setKeyword] = useState('');
@@ -218,8 +220,18 @@ export default function PersonnelPage() {
     setError(null);
     try {
       const res: any = await personnelService.list({ keyword, page: 1, pageSize: 100 });
-      const data = Array.isArray(res.data) ? res.data : (res.data?.list || []);
-      if (data.length > 0) setList(data);
+      const data = (Array.isArray(res.data) ? res.data : (res.data?.list || [])).map((item: any) => ({
+        id: String(item.id),
+        name: item.name || '',
+        phone: item.phone || '',
+        unitId: String(item.unit_id || ''),
+        unitName: item.unit_name || '',
+        role: item.role || 'operator',
+        certType: item.cert_type || '',
+        certNo: item.cert_no || '',
+        status: item.status === 1 ? 'normal' as const : 'disabled' as const,
+      }));
+      setList(data);
     } catch (e: unknown) {
       setError(e instanceof Error ? e : new Error(getErrorMessage(e)));
     } finally {
@@ -227,8 +239,22 @@ export default function PersonnelPage() {
     }
   };
 
+  const fetchUnits = async () => {
+    try {
+      const res: any = await unitService.list({ page: 1, pageSize: 1000 });
+      const data = (Array.isArray(res.data) ? res.data : (res.data?.list || [])).map((u: any) => ({
+        id: String(u.id),
+        name: u.unit_name || u.name || '',
+      }));
+      setUnits(data);
+    } catch (e) {
+      console.warn('加载单位列表失败:', e);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchUnits();
   }, [keyword]);
 
   const filtered = useMemo(() => {
@@ -250,20 +276,26 @@ export default function PersonnelPage() {
   const handleSave = async (data: Omit<PersonnelItem, 'id'>) => {
     const now = new Date().toISOString();
     const payload = {
-      ...data,
-      unitId: data.unitId || 'U-001',
-      createdAt: now,
-      updatedAt: now,
+      name: data.name,
+      phone: data.phone,
+      role: data.role,
+      unit_id: data.unitId || (units[0]?.id || '0'),
+      unit_name: data.unitName || (units[0]?.name || ''),
+      cert_type: data.certType,
+      cert_no: data.certNo,
+      status: data.status === 'normal' ? 1 : 0,
+      created_at: now,
+      updated_at: now,
     };
     try {
       if (editingItem) {
         await personnelService.update(editingItem.id, payload as any);
         success('保存成功', `${data.name} 的信息已更新`);
-        setList(prev => prev.map(p => p.id === editingItem.id ? { ...p, ...payload } : p));
+        setList(prev => prev.map(p => p.id === editingItem.id ? { ...p, ...data, status: data.status } : p));
       } else {
         const res: any = await personnelService.create(payload as any);
         const newId = res?.data?.id || `P-${Date.now()}`;
-        const newItem: PersonnelItem = { ...data, id: String(newId), unitId: data.unitId || 'U-001' };
+        const newItem: PersonnelItem = { ...data, id: String(newId) };
         setList(prev => [newItem, ...prev]);
         success('新增成功', `${data.name} 已添加`);
       }
@@ -395,7 +427,7 @@ export default function PersonnelPage() {
         </DataContainer>
       </div>
 
-      {modalOpen && <PersonnelModal item={editingItem} onSave={handleSave} onClose={() => { setModalOpen(false); setEditingItem(null); }} />}
+      {modalOpen && <PersonnelModal item={editingItem} units={units} onSave={handleSave} onClose={() => { setModalOpen(false); setEditingItem(null); }} />}
       {deletingItem && <DeleteModal name={deletingItem.name} onConfirm={handleDelete} onClose={() => setDeletingItem(null)} loading={deleteLoading} />}
     </div>
   );

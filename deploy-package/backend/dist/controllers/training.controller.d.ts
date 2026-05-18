@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express';
 export declare const TrainingController: {
-    courseList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    courseCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    courseUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    courseDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    examList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    examCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    courseList(req: Request, res: Response): Promise<void>;
+    courseCreate(req: Request, res: Response): Promise<void>;
+    courseUpdate(req: Request, res: Response): Promise<void>;
+    courseDelete(req: Request, res: Response): Promise<void>;
+    examList(req: Request, res: Response): Promise<void>;
+    examCreate(req: Request, res: Response): Promise<void>;
 };
 //# sourceMappingURL=training.controller.d.ts.map

@@ -56,6 +56,7 @@ const PAGE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType<object>>
 
   /* ── 告警中心 alarm ── */
   '/alarm/center': lazyWithRetry(() => import('@/sections/AlarmCenterPage')),
+  '/alarm/config': lazyWithRetry(() => import('@/sections/AlarmConfigPage')),
 
   /* ── 值守中心 duty ── */
   '/duty/dispatch': lazyWithRetry(() => import('@/sections/AlarmDispatchPage')),

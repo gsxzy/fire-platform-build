@@ -64,7 +64,7 @@ app.use('/api', routes);
 app.get('/health', (req, res) => {
   res.json(
     success(
-      { status: 'ok', version: '2.0.0', timestamp: new Date().toISOString() },
+      { status: 'ok', version: '2.0.0', timestamp: Date.now() },
       'ok',
       req.reqId
     )
@@ -73,17 +73,14 @@ app.get('/health', (req, res) => {
 
 /* ── 错误处理 ── */
 app.use(errorLogger);
-app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Unhandled error:', err);
   if (err instanceof HttpError) {
     return res.status(err.httpStatus).json(fail(err.message, err.businessCode, req.reqId));
   }
   const e = err as { status?: number; statusCode?: number; message?: string };
   const status = e.status ?? e.statusCode ?? 500;
-  const msg =
-    process.env.NODE_ENV === 'production'
-      ? '服务器内部错误'
-      : (e.message || '服务器内部错误');
+  const msg = process.env.NODE_ENV === 'production' ? '服务器内部错误' : (e.message || '服务器内部错误');
   res.status(status).json(fail(msg, status, req.reqId));
 });
 

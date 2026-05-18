@@ -115,6 +115,7 @@ export default function PatrolRecordPage() {
       addable
       actions
       batchable
+      permission={{ create: 'patrol:manage', update: 'patrol:manage', delete: 'patrol:manage' }}
       emptyDescription="移动端或现场签到产生的巡检记录将同步至此。无数据请检查巡检任务是否已下发并完成。"
     />
   );

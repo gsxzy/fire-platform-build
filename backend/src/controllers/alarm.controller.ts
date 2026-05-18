@@ -2,7 +2,7 @@
 import { Op, Sequelize } from 'sequelize';
 import { sendSuccess, sendPage } from '@/utils/respond';
 import { HttpError } from '@/utils/httpError';
-import { Alarm, Device, Unit } from '@/models';
+import { Alarm, Device, Unit, DispatchRecord } from '@/models';
 import sequelize from '@/config/database';
 import redis from '@/config/redis';
 import { WebSocketService } from '@/websocket/websocket.service';
@@ -69,8 +69,8 @@ export const AlarmController = {
         } catch { /* ignore */ }
       }
 
-      // 并行查询：单位、消控室、摄像头、平面图（减少数据库往返）
-      let unit: any = null, controlRoom: any = null, cameras: any[] = [], floorPlan: any = null;
+      // 并行查询：单位、消控室、摄像头、平面图、处置记录（减少数据库往返）
+      let unit: any = null, controlRoom: any = null, cameras: any[] = [], floorPlan: any = null, dispatchRecords: any[] = [];
       const parallelQueries: Promise<any>[] = [];
 
       if (unitId) {
@@ -99,12 +99,30 @@ export const AlarmController = {
         );
       }
 
+      // 查询处置记录
+      parallelQueries.push(
+        DispatchRecord.findAll({
+          where: { alarm_id: alarm.id },
+          order: [['created_at', 'ASC']],
+          raw: true,
+        }).then((records: any[]) => { dispatchRecords = records || []; }).catch(() => {})
+      );
+
       await Promise.all(parallelQueries);
 
       if (data.createdAt) data.createdAt = fmtDateTime(data.createdAt);
       if (data.updatedAt) data.updatedAt = fmtDateTime(data.updatedAt);
 
+      // 格式化 dispatchRecords 时间
+      dispatchRecords.forEach((r: any) => {
+        if (r.created_at) r.created_at = fmtDateTime(r.created_at);
+        if (r.dispatch_time) r.dispatch_time = fmtDateTime(r.dispatch_time);
+        if (r.verify_time) r.verify_time = fmtDateTime(r.verify_time);
+        if (r.resolve_time) r.resolve_time = fmtDateTime(r.resolve_time);
+      });
+
       // 映射 controlRoom 为前端期望的 camelCase 字段
+      // 优先取 fire_control_room，若不存在则回退到 fire_unit 的 contact_name/contact_phone
       const mappedControlRoom = controlRoom ? {
         roomName: controlRoom.room_name,
         dutyPerson: controlRoom.duty_person,
@@ -116,7 +134,18 @@ export const AlarmController = {
         safetyOfficerName: controlRoom.duty_person,
         safetyOfficerPhone: controlRoom.duty_phone,
         videoUrl: controlRoom.video_url,
-      } : null;
+      } : (unit ? {
+        roomName: null,
+        dutyPerson: unit.contact_name,
+        dutyPhone: unit.contact_phone,
+        managerName: unit.contact_name,
+        managerPhone: unit.contact_phone,
+        dutyOfficerName: unit.contact_name,
+        dutyOfficerPhone: unit.contact_phone,
+        safetyOfficerName: unit.contact_name,
+        safetyOfficerPhone: unit.contact_phone,
+        videoUrl: null,
+      } : null);
 
       sendSuccess(res, req, {
         ...data,
@@ -128,6 +157,7 @@ export const AlarmController = {
         controlRoom: mappedControlRoom,
         relatedCameras: cameras,
         floorPlan,
+        dispatchRecords,
       });
   },
 
@@ -226,6 +256,30 @@ export const AlarmController = {
   async confirm(req: Request, res: Response) {
       const { id } = req.params;
       await Alarm.update({ status: 1, confirm_time: new Date() }, { where: { id } });
+      // 同步创建/更新接警处置记录
+      const alarm = await Alarm.findByPk(id, { raw: true }) as any;
+      if (alarm) {
+        const [record] = await DispatchRecord.findOrCreate({
+          where: { alarm_id: alarm.id },
+          defaults: {
+            alarm_id: alarm.id,
+            alarm_no: alarm.alarm_no,
+            phase: 'verify',
+            status: 'handling',
+            verify_time: new Date(),
+            handler_id: req.user!.userId,
+            handler_name: req.user!.username,
+            unit_id: alarm.unit_id,
+            unit_name: alarm.unit_name,
+            device_id: alarm.device_id,
+            device_name: alarm.device_name,
+            location: alarm.location,
+          } as any,
+        });
+        if (!(record as any).isNewRecord) {
+          await (record as any).update({ phase: 'verify', status: 'handling', verify_time: new Date(), handler_id: req.user!.userId, handler_name: req.user!.username });
+        }
+      }
       sendSuccess(res, req, null, '已确认');
   },
 
@@ -237,12 +291,61 @@ export const AlarmController = {
         handler_id: req.user!.userId, handler_name: req.user!.username,
         handle_result: handleResult
       }, { where: { id } });
+      // 同步创建/更新接警处置记录
+      const alarm = await Alarm.findByPk(id, { raw: true }) as any;
+      if (alarm) {
+        const [record] = await DispatchRecord.findOrCreate({
+          where: { alarm_id: alarm.id },
+          defaults: {
+            alarm_id: alarm.id,
+            alarm_no: alarm.alarm_no,
+            phase: 'archive',
+            status: 'resolved',
+            resolve_time: new Date(),
+            handler_id: req.user!.userId,
+            handler_name: req.user!.username,
+            resolve_note: handleResult,
+            unit_id: alarm.unit_id,
+            unit_name: alarm.unit_name,
+            device_id: alarm.device_id,
+            device_name: alarm.device_name,
+            location: alarm.location,
+          } as any,
+        });
+        if (!(record as any).isNewRecord) {
+          await (record as any).update({ phase: 'archive', status: 'resolved', resolve_time: new Date(), handler_id: req.user!.userId, handler_name: req.user!.username, resolve_note: handleResult });
+        }
+      }
       sendSuccess(res, req, null, '处理完成');
   },
 
   async dismiss(req: Request, res: Response) {
       const { id } = req.params;
       await Alarm.update({ status: 3 }, { where: { id } });
+      // 同步创建/更新接警处置记录
+      const alarm = await Alarm.findByPk(id, { raw: true }) as any;
+      if (alarm) {
+        const [record] = await DispatchRecord.findOrCreate({
+          where: { alarm_id: alarm.id },
+          defaults: {
+            alarm_id: alarm.id,
+            alarm_no: alarm.alarm_no,
+            phase: 'archive',
+            status: 'confirmed_false',
+            resolve_time: new Date(),
+            handler_id: req.user!.userId,
+            handler_name: req.user!.username,
+            unit_id: alarm.unit_id,
+            unit_name: alarm.unit_name,
+            device_id: alarm.device_id,
+            device_name: alarm.device_name,
+            location: alarm.location,
+          } as any,
+        });
+        if (!(record as any).isNewRecord) {
+          await (record as any).update({ phase: 'archive', status: 'confirmed_false', resolve_time: new Date(), handler_id: req.user!.userId, handler_name: req.user!.username });
+        }
+      }
       sendSuccess(res, req, null, '已标记为误报');
   },
 

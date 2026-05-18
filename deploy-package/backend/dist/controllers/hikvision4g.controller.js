@@ -307,7 +307,6 @@ async function syncUnifiedDevice(deviceSn, ip, deviceType, state) {
         const today = new Date();
         const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
         let deviceId = null;
-        let lastErr = null;
         for (let attempt = 0; attempt < 3; attempt++) {
             const seq = Math.floor(Math.random() * 900) + 100;
             const deviceNo = `EQ-${datePrefix}-${String(seq).padStart(3, '0')}`;
@@ -320,7 +319,6 @@ async function syncUnifiedDevice(deviceSn, ip, deviceType, state) {
                 break;
             }
             catch (e) {
-                lastErr = e;
                 if (e?.original?.code === 'ER_DUP_ENTRY' && attempt < 2)
                     continue;
                 throw e;

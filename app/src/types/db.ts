@@ -284,6 +284,15 @@ export interface Drill {
   createdAt: string;
 }
 
+/* ───── 14.1 演练参与人表 (drill_participants) ───── */
+export interface DrillParticipant {
+  id: string;
+  drillId: string;
+  name: string;
+  role?: string;
+  createdAt: string;
+}
+
 /* ───── 15. 消防检查表 (inspections) ───── */
 export interface Inspection {
   id: string;               // 检查编号

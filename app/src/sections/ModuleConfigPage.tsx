@@ -7,6 +7,8 @@
 import { useState, useLayoutEffect, useCallback } from 'react';
 import { ModuleEngine, CATEGORY_LABELS } from '@/core/platform';
 import { useToast } from '@/core/ToastContext';
+import { moduleService } from '@/api/services';
+import { getErrorMessage } from '@/types/api';
 import {
   ToggleRight, ToggleLeft, RefreshCw, Database, Server,
   Shield, AlertTriangle, ChevronDown, ChevronRight, Puzzle
@@ -29,20 +31,44 @@ export default function ModuleConfigPage() {
 
   useLayoutEffect(() => {
     refresh();
-    const unsub = ModuleEngine.subscribe(() => {
-      // 模块状态变更已触发刷新
-      refresh();
-    });
+    const unsub = ModuleEngine.subscribe(() => refresh());
     return () => unsub();
   }, [refresh]);
 
-  const toggleModule = (mod: PlatformModule) => {
-    if (mod.status === 'enabled') {
-      ModuleEngine.disable(mod.id);
-      warning('模块已禁用', `${mod.name} 模块已下线，对应菜单和路由已自动隐藏`);
-    } else {
-      ModuleEngine.enable(mod.id);
-      success('模块已启用', `${mod.name} 模块已上线，对应菜单和路由已自动生效`);
+  /* ── 从后端同步模块状态 ── */
+  const syncFromBackend = useCallback(async () => {
+    try {
+      const res: any = await moduleService.list();
+      const backendModules = Array.isArray(res) ? res : (res?.data || []);
+      if (backendModules.length > 0) {
+        ModuleEngine.bulkUpdateFromBackend(backendModules.map((m: any) => ({
+          id: m.id,
+          status: m.status === 'enabled' ? 'enabled' : 'disabled',
+        })));
+        refresh();
+      }
+    } catch (e) {
+      console.warn('[ModuleConfig] 同步后端模块状态失败:', getErrorMessage(e));
+    }
+  }, [refresh]);
+
+  useLayoutEffect(() => {
+    syncFromBackend();
+  }, [syncFromBackend]);
+
+  const toggleModule = async (mod: PlatformModule) => {
+    const nextStatus = mod.status === 'enabled' ? 'disabled' : 'enabled';
+    try {
+      await moduleService.toggle(mod.id, nextStatus);
+      if (nextStatus === 'enabled') {
+        ModuleEngine.enable(mod.id);
+        success('模块已启用', `${mod.name} 模块已上线，对应菜单和路由已自动生效`);
+      } else {
+        ModuleEngine.disable(mod.id);
+        warning('模块已禁用', `${mod.name} 模块已下线，对应菜单和路由已自动隐藏`);
+      }
+    } catch (e) {
+      warning('操作失败', getErrorMessage(e, '模块状态同步失败'));
     }
   };
 

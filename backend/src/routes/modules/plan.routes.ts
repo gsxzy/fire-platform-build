@@ -18,5 +18,8 @@ router.get('/drills', view, h('drillList'));
 router.post('/drills', manage, h('drillCreate'));
 router.put('/drills/:id', manage, h('drillUpdate'));
 router.delete('/drills/:id', manage, h('drillDelete'));
+router.get('/drills/:id/participants', view, h('participantList'));
+router.post('/drills/:id/participants', manage, h('participantCreate'));
+router.delete('/drills/:id/participants/:participantId', manage, h('participantDelete'));
 
 export default router;

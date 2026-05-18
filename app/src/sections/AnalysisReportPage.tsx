@@ -3,7 +3,7 @@ import { dashboardService, maintenanceStatsService } from '@/api/services';
 import type { QueryParams } from '@/types/db';
 import PageTemplate from '@/sections/PageTemplate';
 import DataContainer from '@/components/DataContainer';
-import { BarChart3, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Calendar, Download } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -71,6 +71,26 @@ export default function AnalysisReportPage() {
   const [workorderTrend, setWorkorderTrend] = useState(workorderTrendInit as any);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (type: string) => {
+    try {
+      setExporting(true);
+      const blob = await dashboardService.exportReport(type);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `报表_${type}_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '导出失败');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   async function loadData() {
     setLoading(true);
@@ -107,7 +127,38 @@ export default function AnalysisReportPage() {
   return (
     <DataContainer loading={loading} error={error} data={monthlyAlarms} onRetry={loadData} emptyText="暂无数据">
     <div className="space-y-4">
-      <PageTemplate title="统计报表" icon={BarChart3} badge="7份" columns={COLUMNS} service={reportService} fields={FIELDS} addable={false} emptyDescription="固定格式报表由后端生成后在此列出。若为空请确认报表任务已配置或联系管理员开放导出接口。" />
+      <PageTemplate
+        title="统计报表"
+        icon={BarChart3}
+        badge="7份"
+        columns={COLUMNS}
+        service={reportService}
+        fields={FIELDS}
+        addable={false}
+        extraHeaderActions={
+          <div className="flex items-center gap-2">
+            {[
+              { label: '日报', type: 'daily' },
+              { label: '周报', type: 'weekly' },
+              { label: '月报', type: 'monthly' },
+              { label: '设备', type: 'device' },
+              { label: '维保', type: 'maintenance' },
+              { label: '巡检', type: 'patrol' },
+            ].map(item => (
+              <button
+                key={item.type}
+                onClick={() => handleExport(item.type)}
+                disabled={exporting}
+                className="text-[10px] px-2 py-1 rounded bg-slate-700/50 hover:bg-blue-500/20 text-slate-300 hover:text-blue-400 transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <Download className="w-3 h-3" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        }
+        emptyDescription="固定格式报表由后端生成后在此列出。若为空请确认报表任务已配置或联系管理员开放导出接口。"
+      />
 
       {/* Charts Section */}
       <div className="bg-slate-800/50 border border-slate-700/30 rounded-lg p-4">

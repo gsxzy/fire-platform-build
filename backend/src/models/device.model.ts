@@ -58,6 +58,8 @@ export const Device = sequelize.define('device', {
     { name: 'idx_lifecycle_created', fields: ['lifecycle_status', 'created_at'] },
     /* 复合索引：设备编号/名称/SN 联合搜索 */
     { name: 'idx_device_search', fields: ['device_no', 'device_name', 'device_sn'] },
+    /* 网关关联索引：查询传输装置关联的主机 */
+    { name: 'idx_gateway_id', fields: ['gateway_id'] },
   ],
 });
 

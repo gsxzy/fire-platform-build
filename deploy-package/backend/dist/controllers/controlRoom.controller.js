@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ControlRoomController = void 0;
 const sequelize_1 = require("sequelize");
 const database_1 = __importDefault(require("@/config/database"));
+const respond_1 = require("@/utils/respond");
 const response_1 = require("@/utils/response");
 const models_1 = require("@/models");
 const controlRoom_service_1 = require("@/services/controlRoom.service");
@@ -80,7 +81,7 @@ exports.ControlRoomController = {
                     loop_count: host?.loop_count || 0,
                 };
             });
-            return res.json((0, response_1.page)(enriched, count, pageNum, pageSize));
+            (0, respond_1.sendPage)(res, req, enriched, count, pageNum, pageSize);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] list 失败: ${err?.message || err}`);
@@ -103,7 +104,7 @@ exports.ControlRoomController = {
                 }, { transaction: t });
             }
             await t.commit();
-            return res.json((0, response_1.success)({ id: roomId }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: roomId }, '创建成功');
         }
         catch (err) {
             await t.rollback();
@@ -112,12 +113,11 @@ exports.ControlRoomController = {
         }
     },
     async update(req, res) {
-        const t = await database_1.default.transaction();
         try {
             const roomId = req.params.id;
-            await models_1.ControlRoom.update(req.body, { where: { id: roomId }, transaction: t });
+            await models_1.ControlRoom.update(req.body, { where: { id: roomId } });
             // 同步更新关联的报警主机
-            const host = await models_1.ControlRoomHost.findOne({ where: { room_id: roomId }, transaction: t });
+            const host = await models_1.ControlRoomHost.findOne({ where: { room_id: roomId } });
             if (host) {
                 const hostUpdate = {};
                 if (req.body.host_model !== undefined || req.body.controllerModel !== undefined) {
@@ -130,7 +130,7 @@ exports.ControlRoomController = {
                     hostUpdate.host_name = req.body.host_name || req.body.hostNo || '报警主机1号';
                 }
                 if (Object.keys(hostUpdate).length > 0) {
-                    await models_1.ControlRoomHost.update(hostUpdate, { where: { id: host.id }, transaction: t });
+                    await models_1.ControlRoomHost.update(hostUpdate, { where: { id: host.id } });
                 }
             }
             else if (req.body.host_model || req.body.host_no || req.body.controllerModel || req.body.hostNo) {
@@ -141,13 +141,11 @@ exports.ControlRoomController = {
                     host_model: req.body.host_model || req.body.controllerModel || '',
                     host_no: req.body.host_no || req.body.hostNo || '',
                     status: 1,
-                }, { transaction: t });
+                });
             }
-            await t.commit();
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
-            await t.rollback();
             logger_1.default.error(`[ControlRoom] update 失败: ${err?.message || err}`);
             return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
         }
@@ -155,7 +153,7 @@ exports.ControlRoomController = {
     async delete(req, res) {
         try {
             await models_1.ControlRoom.destroy({ where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '删除成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '删除成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] delete 失败: ${err?.message || err}`);
@@ -171,7 +169,7 @@ exports.ControlRoomController = {
                 models_1.ControlRoomHost.findAll({ where: { room_id: room.id } }),
                 models_1.Device.findAll({ where: { unit_id: room.unit_id }, limit: 20 }),
             ]);
-            return res.json((0, response_1.success)({ room, hosts, devices }));
+            (0, respond_1.sendSuccess)(res, req, { room, hosts, devices });
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] detail 失败: ${err?.message || err}`);
@@ -208,84 +206,10 @@ exports.ControlRoomController = {
                     streamUrl: '',
                 };
             });
-            return res.json((0, response_1.success)(cameras));
+            (0, respond_1.sendSuccess)(res, req, cameras);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] videoList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
-    },
-    /* ── 实时物联状态 ── */
-    async getRealtimeStatus(req, res) {
-        try {
-            const roomId = req.query.roomId ? String(req.query.roomId) : undefined;
-            const room = roomId ? await models_1.ControlRoom.findByPk(roomId) : null;
-            if (!room)
-                return res.json((0, response_1.fail)('消控室不存在'));
-            const unitId = room.unit_id;
-            if (!unitId) {
-                return res.json((0, response_1.success)({
-                    pressure_1: 0, pressure_2: 0, liquid_level_1: 0, liquid_level_2: 0,
-                    video_status: 1, host_status: 1, current_mode: 2, silenced: 0,
-                    fire_count: 0, fault_count: 0, shield_count: 0, feedback_count: 0,
-                }));
-            }
-            // 查询该单位下的 IoT 设备最新遥测数据
-            let telemetryRows = [];
-            try {
-                const [rows] = await database_1.default.query(`
-          SELECT t.iot_device_id, t.pressure_kpa, t.level_m, t.temperature, t.battery_pct, t.created_at
-          FROM iot_telemetry t
-          INNER JOIN (
-            SELECT iot_device_id, MAX(created_at) AS max_created
-            FROM iot_telemetry
-            WHERE iot_device_id IN (
-              SELECT id FROM fire_iot_device WHERE unit_id = :unitId
-            )
-            GROUP BY iot_device_id
-          ) latest ON t.iot_device_id = latest.iot_device_id AND t.created_at = latest.max_created
-          ORDER BY t.created_at DESC
-        `, {
-                    replacements: { unitId: String(unitId) },
-                    type: database_1.default.QueryTypes?.SELECT || 'SELECT',
-                });
-                telemetryRows = Array.isArray(rows) ? rows : [];
-            }
-            catch (telemetryErr) {
-                logger_1.default.warn(`[ControlRoom] 查询遥测数据失败: ${telemetryErr.message}`);
-                telemetryRows = [];
-            }
-            // 映射压力/液位数据（按设备顺序）
-            const pressureDevices = telemetryRows.filter((r) => r.pressure_kpa !== null && r.pressure_kpa !== undefined);
-            const levelDevices = telemetryRows.filter((r) => r.level_m !== null && r.level_m !== undefined);
-            const pressure_1 = pressureDevices.length > 0 ? Number(pressureDevices[0].pressure_kpa) / 1000 : 0;
-            const pressure_2 = pressureDevices.length > 1 ? Number(pressureDevices[1].pressure_kpa) / 1000 : 0;
-            const liquid_level_1 = levelDevices.length > 0 ? Number(levelDevices[0].level_m) : 0;
-            const liquid_level_2 = levelDevices.length > 1 ? Number(levelDevices[1].level_m) : 0;
-            // 统计该单位下的火警/故障数量（24小时内）
-            let fireCount = 0, faultCount = 0;
-            try {
-                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                const alarmResult = await database_1.default.query(`SELECT alarm_type, COUNT(*) as cnt FROM fire_alarm WHERE unit_id = :unitId AND created_at >= :since GROUP BY alarm_type`, { replacements: { unitId: String(unitId), since: twentyFourHoursAgo.toISOString() }, type: database_1.default.QueryTypes?.SELECT || 'SELECT' });
-                const alarmRows = Array.isArray(alarmResult) ? alarmResult : [];
-                for (const row of alarmRows) {
-                    if (row.alarm_type === 1)
-                        fireCount = Number(row.cnt || 0);
-                    if (row.alarm_type === 2)
-                        faultCount = Number(row.cnt || 0);
-                }
-            }
-            catch (alarmErr) {
-                logger_1.default.warn(`[ControlRoom] 统计报警数量失败: ${alarmErr.message}`);
-            }
-            return res.json((0, response_1.success)({
-                pressure_1, pressure_2, liquid_level_1, liquid_level_2,
-                video_status: 1, host_status: 1, current_mode: 2, silenced: 0,
-                fire_count: fireCount, fault_count: faultCount, shield_count: 0, feedback_count: 0,
-            }));
-        }
-        catch (err) {
-            logger_1.default.error(`[ControlRoom] getRealtimeStatus 失败: ${err?.message || err}`);
             return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
         }
     },
@@ -297,7 +221,7 @@ exports.ControlRoomController = {
             if (roomId)
                 where.room_id = roomId;
             const hosts = await models_1.ControlRoomHost.findAll({ where, order: [['id', 'ASC']] });
-            return res.json((0, response_1.success)(hosts));
+            (0, respond_1.sendSuccess)(res, req, hosts);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostList 失败: ${err?.message || err}`);
@@ -307,7 +231,7 @@ exports.ControlRoomController = {
     async hostCreate(req, res) {
         try {
             const host = await models_1.ControlRoomHost.create(req.body);
-            return res.json((0, response_1.success)({ id: host.id }, '主机添加成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: host.id }, '主机添加成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostCreate 失败: ${err?.message || err}`);
@@ -317,7 +241,7 @@ exports.ControlRoomController = {
     async hostUpdate(req, res) {
         try {
             await models_1.ControlRoomHost.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostUpdate 失败: ${err?.message || err}`);
@@ -327,7 +251,7 @@ exports.ControlRoomController = {
     async hostDelete(req, res) {
         try {
             await models_1.ControlRoomHost.destroy({ where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '删除成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '删除成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDelete 失败: ${err?.message || err}`);
@@ -339,7 +263,7 @@ exports.ControlRoomController = {
             const data = await controlRoom_service_1.ControlRoomService.getHostDetail(+req.params.id);
             if (!data)
                 return res.json((0, response_1.fail)('主机不存在'));
-            return res.json((0, response_1.success)(data));
+            (0, respond_1.sendSuccess)(res, req, data);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDetail 失败: ${err?.message || err}`);
@@ -351,7 +275,7 @@ exports.ControlRoomController = {
         try {
             const { hostId } = req.body;
             const result = await controlRoom_service_1.ControlRoomService.silenceHost(+hostId, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result, result.msg));
+            (0, respond_1.sendSuccess)(res, req, result, result.msg);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] silence 失败: ${err?.message || err}`);
@@ -363,7 +287,7 @@ exports.ControlRoomController = {
         try {
             const { hostId } = req.body;
             const result = await controlRoom_service_1.ControlRoomService.resetHost(+hostId, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result, result.msg));
+            (0, respond_1.sendSuccess)(res, req, result, result.msg);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] reset 失败: ${err?.message || err}`);
@@ -375,7 +299,7 @@ exports.ControlRoomController = {
         try {
             const { hostId, mode } = req.body;
             const result = await controlRoom_service_1.ControlRoomService.switchMode(+hostId, mode, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result, result.msg));
+            (0, respond_1.sendSuccess)(res, req, result, result.msg);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] switchMode 失败: ${err?.message || err}`);
@@ -387,7 +311,7 @@ exports.ControlRoomController = {
         try {
             const { hostId, pointId, action } = req.body;
             const result = await controlRoom_service_1.ControlRoomService.controlMultiline(+hostId, +pointId, action, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result, result.msg));
+            (0, respond_1.sendSuccess)(res, req, result, result.msg);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] controlMultiline 失败: ${err?.message || err}`);
@@ -402,7 +326,7 @@ exports.ControlRoomController = {
             if (hostId)
                 where.host_id = hostId;
             const list = await models_1.MultilinePanel.findAll({ where, order: [['point_no', 'ASC']] });
-            return res.json((0, response_1.success)(list));
+            (0, respond_1.sendSuccess)(res, req, list);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] multilineList 失败: ${err?.message || err}`);
@@ -412,7 +336,7 @@ exports.ControlRoomController = {
     async multilineCreate(req, res) {
         try {
             const p = await models_1.MultilinePanel.create(req.body);
-            return res.json((0, response_1.success)({ id: p.id }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: p.id }, '创建成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] multilineCreate 失败: ${err?.message || err}`);
@@ -422,7 +346,7 @@ exports.ControlRoomController = {
     async multilineUpdate(req, res) {
         try {
             await models_1.MultilinePanel.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] multilineUpdate 失败: ${err?.message || err}`);
@@ -441,7 +365,7 @@ exports.ControlRoomController = {
             if (status !== undefined)
                 where.status = status;
             const list = await models_1.BusPoint.findAll({ where, order: [['loop_no', 'ASC'], ['point_no', 'ASC']] });
-            return res.json((0, response_1.success)(list));
+            (0, respond_1.sendSuccess)(res, req, list);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] busPointList 失败: ${err?.message || err}`);
@@ -451,7 +375,7 @@ exports.ControlRoomController = {
     async busPointCreate(req, res) {
         try {
             const p = await models_1.BusPoint.create(req.body);
-            return res.json((0, response_1.success)({ id: p.id }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: p.id }, '创建成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] busPointCreate 失败: ${err?.message || err}`);
@@ -461,7 +385,7 @@ exports.ControlRoomController = {
     async busPointUpdate(req, res) {
         try {
             await models_1.BusPoint.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] busPointUpdate 失败: ${err?.message || err}`);
@@ -473,7 +397,7 @@ exports.ControlRoomController = {
         try {
             const { hostId, pageNum = 1, pageSize = 20 } = req.query;
             const data = await controlRoom_service_1.ControlRoomService.getCommandLogs(hostId ? +hostId : undefined, +pageNum, +pageSize);
-            return res.json((0, response_1.page)(data.list, data.total, data.pageNum, data.pageSize));
+            (0, respond_1.sendPage)(res, req, data.list, data.total, data.pageNum, data.pageSize);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] commandLogs 失败: ${err?.message || err}`);
@@ -518,7 +442,7 @@ exports.ControlRoomController = {
                 offset: (pageNum - 1) * pageSize,
                 order: [['loop_no', 'ASC'], ['point_no', 'ASC']],
             });
-            return res.json((0, response_1.page)(rows, count, pageNum, pageSize));
+            (0, respond_1.sendPage)(res, req, rows, count, pageNum, pageSize);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDeviceCodeList 失败: ${err?.message || err}`);
@@ -528,7 +452,7 @@ exports.ControlRoomController = {
     async hostDeviceCodeCreate(req, res) {
         try {
             const item = await models_1.HostDeviceCode.create(req.body);
-            return res.json((0, response_1.success)({ id: item.id }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: item.id }, '创建成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDeviceCodeCreate 失败: ${err?.message || err}`);
@@ -538,7 +462,7 @@ exports.ControlRoomController = {
     async hostDeviceCodeUpdate(req, res) {
         try {
             await models_1.HostDeviceCode.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDeviceCodeUpdate 失败: ${err?.message || err}`);
@@ -548,7 +472,7 @@ exports.ControlRoomController = {
     async hostDeviceCodeDelete(req, res) {
         try {
             await models_1.HostDeviceCode.destroy({ where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '删除成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '删除成功');
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDeviceCodeDelete 失败: ${err?.message || err}`);
@@ -641,26 +565,16 @@ exports.ControlRoomController = {
                 return res.status(400).json((0, response_1.fail)('未解析到有效数据', 400));
             let successCount = 0;
             let failCount = 0;
-            try {
-                const result = await models_1.HostDeviceCode.bulkCreate(imports, {
-                    updateOnDuplicate: ['device_type', 'device_name', 'install_location', 'floor', 'parent_device', 'status', 'updated_at'],
-                });
-                successCount = result.length;
-                failCount = imports.length - successCount;
-            }
-            catch (bulkErr) {
-                logger_1.default.warn(`[ControlRoom] 编码表批量导入失败，尝试逐条导入: ${bulkErr.message}`);
-                for (const item of imports) {
-                    try {
-                        await models_1.HostDeviceCode.upsert(item);
-                        successCount++;
-                    }
-                    catch {
-                        failCount++;
-                    }
+            for (const item of imports) {
+                try {
+                    await models_1.HostDeviceCode.upsert(item);
+                    successCount++;
+                }
+                catch {
+                    failCount++;
                 }
             }
-            return res.json((0, response_1.success)({ total: imports.length, success: successCount, failed: failCount }, `导入完成：成功 ${successCount} 条，失败 ${failCount} 条`));
+            (0, respond_1.sendSuccess)(res, req, { total: imports.length, success: successCount, failed: failCount }, `导入完成：成功 ${successCount} 条，失败 ${failCount} 条`);
         }
         catch (err) {
             logger_1.default.error(`[ControlRoom] hostDeviceCodeImport 失败: ${err?.message || err}`);

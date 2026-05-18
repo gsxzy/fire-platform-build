@@ -25,6 +25,11 @@ export const DashboardController = {
     sendSuccess(res, req, data);
   },
 
+  async bigScreenConfig(req: Request, res: Response) {
+    const data = await DashboardService.getBigScreenConfig();
+    sendSuccess(res, req, data);
+  },
+
   async deviceAnalysis(req: Request, res: Response) {
     const data = await AnalysisService.deviceAnalysis(parseDays(req));
     sendSuccess(res, req, data);
@@ -65,6 +70,11 @@ export const DashboardController = {
     sendSuccess(res, req, data);
   },
 
+  async gisAlarmHeatmap(req: Request, res: Response) {
+    const data = await GISService.getAlarmHeatmap();
+    sendSuccess(res, req, data);
+  },
+
   async dailyReport(req: Request, res: Response) {
     const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
     const data = await ReportService.generateDailyReport(date);
@@ -100,5 +110,29 @@ export const DashboardController = {
     const { startDate, endDate } = req.query;
     const data = await ReportService.generatePatrolReport(startDate as string, endDate as string);
     sendSuccess(res, req, data);
+  },
+
+  async exportReport(req: Request, res: Response) {
+    const { type, format = 'csv' } = req.query;
+    const result = await ReportService.exportReport(
+      String(type || 'daily'),
+      {
+        date: req.query.date as string,
+        endDate: req.query.endDate as string,
+        year: req.query.year ? parseInt(req.query.year as string, 10) : undefined,
+        month: req.query.month ? parseInt(req.query.month as string, 10) : undefined,
+        unitId: req.query.unitId ? parseInt(req.query.unitId as string, 10) : undefined,
+        startDate: req.query.startDate as string,
+        days: parseDays(req),
+        format: String(format),
+      }
+    );
+    res.setHeader('Content-Type', result.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    if ('buffer' in result && result.buffer) {
+      res.send(result.buffer);
+    } else {
+      res.send('\uFEFF' + result.content);
+    }
   },
 };

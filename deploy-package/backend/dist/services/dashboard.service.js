@@ -10,11 +10,13 @@ class DashboardService {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const [alarmPending, alarmToday, deviceTotal, deviceOnlineCount, workOrderPending, patrolToday, hazardPending, unitTotal, inspectionMonth, userCount, todayFire, todayFault, alarmMonth, alarmMonthHandled,] = await Promise.all([
+        const [alarmPending, alarmToday, deviceTotal, deviceOnlineCount, deviceActiveTotal, deviceActiveOnline, workOrderPending, patrolToday, hazardPending, unitTotal, inspectionMonth, userCount, todayFire, todayFault, alarmMonth, alarmMonthHandled,] = await Promise.all([
             models_1.Alarm.count({ where: { status: 0 } }),
             models_1.Alarm.count({ where: { created_at: { [sequelize_1.Op.gte]: todayStart } } }),
             models_1.Device.count(),
             models_1.Device.count({ where: { status: 1 } }),
+            models_1.Device.count({ where: { unit_id: { [sequelize_1.Op.ne]: null } } }),
+            models_1.Device.count({ where: { unit_id: { [sequelize_1.Op.ne]: null }, status: 1 } }),
             models_1.MaintenanceWorkOrder.count({ where: { status: { [sequelize_1.Op.in]: [0, 1] } } }),
             models_1.PatrolRecord.count({ where: { created_at: { [sequelize_1.Op.gte]: todayStart } } }),
             models_1.Hazard.count({ where: { status: { [sequelize_1.Op.in]: [0, 1] } } }),
@@ -30,6 +32,7 @@ class DashboardService {
             alarm_service_1.AlarmService.getTrend(7),
             models_1.Device.findAll({
                 attributes: ['device_type', 'status', [sequelize_1.Sequelize.fn('COUNT', sequelize_1.Sequelize.col('id')), 'cnt']],
+                where: { unit_id: { [sequelize_1.Op.ne]: null } },
                 group: ['device_type', 'status'],
                 raw: true,
             }),
@@ -89,8 +92,8 @@ class DashboardService {
             deviceOnlineMap.set(name, agg);
         }
         let deviceOnline = Array.from(deviceOnlineMap.entries()).map(([name, v]) => ({ name, total: v.total, online: v.online }));
-        if (deviceOnline.length === 0 && deviceTotal > 0) {
-            deviceOnline = [{ name: '全部设备', total: deviceTotal, online: deviceOnlineCount }];
+        if (deviceOnline.length === 0 && deviceActiveTotal > 0) {
+            deviceOnline = [{ name: '全部设备', total: deviceActiveTotal, online: deviceActiveOnline }];
         }
         const unitTypeLabels = {
             1: { name: '一般单位', color: '#3b82f6' },
@@ -170,6 +173,10 @@ class DashboardService {
                 offline: deviceTotal - deviceOnlineCount,
                 rate: deviceRateStr,
                 byType: deviceOnline,
+                activeTotal: deviceActiveTotal,
+                activeOnline: deviceActiveOnline,
+                activeOffline: deviceActiveTotal - deviceActiveOnline,
+                activeRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
             },
             workOrder: { pending: workOrderPending },
             patrol: { today: patrolToday },
@@ -188,6 +195,9 @@ class DashboardService {
                 deviceOnline: deviceOnlineCount,
                 unitOnlineRate,
                 deviceOnlineRate: deviceRateStr,
+                deviceActiveTotal,
+                deviceActiveOnline,
+                deviceActiveRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
             },
             alarmTrend,
             deviceOnline,

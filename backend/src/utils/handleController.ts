@@ -1,7 +1,7 @@
 import type { Request, Response, RequestHandler } from 'express';
 import logger from '@/config/logger';
 import { HttpError } from '@/utils/httpError';
-import { sendFail } from '@/utils/respond';
+import { sendFail } from '@/utils/response';
 
 type ControllerFn = (req: Request, res: Response) => Promise<unknown> | void;
 

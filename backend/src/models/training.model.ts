@@ -21,3 +21,28 @@ export const TrainingExam = sequelize.define('training_exam', {
   duration: DataTypes.INTEGER,
   status: { type: DataTypes.TINYINT, defaultValue: 1 },
 }, { tableName: 'fire_training_exam', comment: '考核试卷表' });
+
+/** 考试成绩记录（P1 新增） */
+export const TrainingRecord = sequelize.define('training_record', {
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  record_no: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+  exam_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+  exam_name: DataTypes.STRING(200),
+  examinee_name: { type: DataTypes.STRING(50), allowNull: false },
+  examinee_id: DataTypes.BIGINT.UNSIGNED,
+  answers: DataTypes.TEXT,              // JSON: { questionId: answer }
+  score: { type: DataTypes.INTEGER, defaultValue: 0 },
+  total_score: DataTypes.INTEGER,
+  pass: { type: DataTypes.BOOLEAN, defaultValue: false },
+  duration: DataTypes.INTEGER,          // 答题用时（秒）
+  cert_no: DataTypes.STRING(50),        // 证书编号（通过后生成）
+  status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0未通过 1已通过 2作废' },
+}, {
+  tableName: 'fire_training_record',
+  comment: '培训考核成绩记录表',
+  indexes: [
+    { name: 'idx_exam_id', fields: ['exam_id'] },
+    { name: 'idx_examinee', fields: ['examinee_id'] },
+    { name: 'idx_cert_no', fields: ['cert_no'] },
+  ],
+});

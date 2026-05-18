@@ -1,0 +1,1 @@
+import{v as s,j as c,N as t}from"./react-vendor-BNMf_tL6.js";function r(){const{search:e}=s();return c.jsx(t,{"code-path":"src\\sections\\DeviceAccessRedirect.tsx:6:10",to:{pathname:"/device/access",search:e},replace:!0})}export{r as default};

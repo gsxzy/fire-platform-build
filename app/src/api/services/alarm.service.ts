@@ -75,7 +75,9 @@ export const alarmService = {
   },
   confirm: (id: string, handler: string, note?: string, confirmResult?: string) =>
     httpApi.put<null>(`/alarms/${id}/confirm`, { handler, handleTime: new Date().toISOString(), handleNote: note, confirmResult }),
-  handle: (id: string, handler: string, note?: string) =>
-    httpApi.put<null>(`/alarms/${id}/handle`, { handler, handleTime: new Date().toISOString(), handleNote: note }),
-  getDetail: (id: string) => httpApi.get<Alarm & { unitAddress?: string; controlRoom: ControlRoomConfig | null; snapshots: AlarmSnapshot[]; relatedCameras: Camera[] }>(`/alarms/${id}/detail`),
+  handle: (id: string, result: string) =>
+    httpApi.put<null>(`/alarms/${id}/handle`, { handleResult: result }),
+  dismiss: (id: string, result: string) =>
+    httpApi.put<null>(`/alarms/${id}/dismiss`, { handleResult: result }),
+  getDetail: (id: string) => httpApi.get<Alarm & { unitAddress?: string; controlRoom: ControlRoomConfig | null; snapshots: AlarmSnapshot[]; relatedCameras: Camera[]; dispatchRecords?: any[] }>(`/alarms/${id}/detail`),
 };

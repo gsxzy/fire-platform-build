@@ -1,5 +1,5 @@
 import { api as httpApi, paginatedQuery } from '../client';
-import type { QueryParams, Plan, Drill } from '@/types/db';
+import type { QueryParams, Plan, Drill, DrillParticipant } from '@/types/db';
 
 export const planService = {
   list: (params: QueryParams = {}) => paginatedQuery<Plan>('/plans', { ...params, pageNum: params.page, pageSize: params.pageSize }),
@@ -9,8 +9,14 @@ export const planService = {
 };
 
 export const drillService = {
-  list: (params: QueryParams = {}) => paginatedQuery<Drill>('/drills', { ...params, pageNum: params.page, pageSize: params.pageSize }),
-  create: (data: Omit<Drill, 'id'>) => httpApi.post<null>('/drills', data),
-  update: (id: string, data: Partial<Drill>) => httpApi.put<null>(`/drills/${id}`, data),
-  delete: (id: string) => httpApi.delete<null>(`/drills/${id}`),
+  list: (params: QueryParams = {}) => paginatedQuery<Drill>('/plans/drills', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Drill, 'id'>) => httpApi.post<null>('/plans/drills', data),
+  update: (id: string, data: Partial<Drill>) => httpApi.put<null>(`/plans/drills/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/plans/drills/${id}`),
+};
+
+export const drillParticipantService = {
+  list: (drillId: string) => httpApi.get<DrillParticipant[]>(`/plans/drills/${drillId}/participants`),
+  create: (drillId: string, data: Omit<DrillParticipant, 'id' | 'drillId'>) => httpApi.post<null>(`/plans/drills/${drillId}/participants`, data),
+  delete: (drillId: string, participantId: string) => httpApi.delete<null>(`/plans/drills/${drillId}/participants/${participantId}`),
 };

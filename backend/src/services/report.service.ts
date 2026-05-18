@@ -1,5 +1,30 @@
 import { Op, Sequelize } from 'sequelize';
 import { Alarm, Device, MaintenanceWorkOrder, PatrolRecord, Hazard, FireInspection } from '@/models';
+import xlsx from 'xlsx';
+
+function toCSV(rows: Record<string, unknown>[], headers?: string[]): string {
+  if (!rows.length) return '';
+  const cols = headers || Object.keys(rows[0]);
+  const lines: string[] = [cols.join(',')];
+  for (const row of rows) {
+    lines.push(cols.map(c => {
+      const v = row[c];
+      const s = v == null ? '' : String(v);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(','));
+  }
+  return lines.join('\n');
+}
+
+function toXLSX(rows: Record<string, unknown>[], sheetName = 'Sheet1'): Buffer {
+  const ws = xlsx.utils.json_to_sheet(rows);
+  const wb = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(wb, ws, sheetName);
+  return xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
 
 export class ReportService {
   // 日报
@@ -94,6 +119,92 @@ export class ReportService {
       group: ['result'], raw: true,
     });
     return { total: records.length, records, byResult };
+  }
+
+  // 通用报表导出（CSV / XLSX）
+  static async exportReport(
+    type: string,
+    params: {
+      date?: string; endDate?: string; year?: number; month?: number;
+      unitId?: number; startDate?: string; days?: number; format?: string;
+    }
+  ) {
+    const fmt = String(params.format || 'csv').toLowerCase();
+    const isXlsx = fmt === 'xlsx';
+    const now = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+    switch (type) {
+      case 'daily': {
+        const report = await this.generateDailyReport(params.date || new Date().toISOString().slice(0, 10));
+        const rows = (report.alarms as any[]).map(a => ({
+          告警编号: a.alarm_no,
+          告警类型: a.alarm_type,
+          告警级别: a.alarm_level,
+          设备名称: a.device_name,
+          单位名称: a.unit_name,
+          位置: a.location,
+          告警描述: a.alarm_desc,
+          创建时间: a.created_at,
+        }));
+        if (isXlsx) return { buffer: toXLSX(rows, '告警明细'), filename: `日报_${report.date}_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `日报_${report.date}_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      case 'weekly': {
+        const report = await this.generateWeeklyReport(params.endDate || new Date().toISOString().slice(0, 10));
+        const rows = report.trend.map((t: any) => ({ 日期: t.date, 告警数: t.count }));
+        if (isXlsx) return { buffer: toXLSX(rows, '告警趋势'), filename: `周报_${report.endDate}_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `周报_${report.endDate}_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      case 'monthly': {
+        const report = await this.generateMonthlyReport(params.year || new Date().getFullYear(), params.month || new Date().getMonth() + 1);
+        const rows = report.trend.map((t: any) => ({ 日期: t.date, 告警数: t.count }));
+        if (isXlsx) return { buffer: toXLSX(rows, '告警趋势'), filename: `月报_${report.year}${String(report.month).padStart(2, '0')}_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `月报_${report.year}${String(report.month).padStart(2, '0')}_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      case 'device': {
+        const report = await this.generateDeviceReport(params.unitId);
+        const rows = (report.devices as any[]).map((d: any) => ({
+          设备编号: d.device_no,
+          设备名称: d.device_name,
+          设备类型: d.device_type,
+          安装位置: d.install_location,
+          状态: d.status,
+          创建时间: d.created_at,
+        }));
+        if (isXlsx) return { buffer: toXLSX(rows, '设备台账'), filename: `设备报表_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `设备报表_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      case 'maintenance': {
+        const s = params.startDate || new Date().toISOString().slice(0, 10);
+        const e = params.endDate || new Date().toISOString().slice(0, 10);
+        const report = await this.generateMaintenanceReport(s, e);
+        const rows = (report.orders as any[]).map((o: any) => ({
+          工单编号: o.work_order_no,
+          工单标题: o.title,
+          单位名称: o.unit_name,
+          状态: o.status,
+          创建时间: o.created_at,
+        }));
+        if (isXlsx) return { buffer: toXLSX(rows, '工单列表'), filename: `维保报表_${s}_${e}_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `维保报表_${s}_${e}_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      case 'patrol': {
+        const s = params.startDate || new Date().toISOString().slice(0, 10);
+        const e = params.endDate || new Date().toISOString().slice(0, 10);
+        const report = await this.generatePatrolReport(s, e);
+        const rows = (report.records as any[]).map((r: any) => ({
+          巡检编号: r.patrol_no,
+          单位名称: r.unit_name,
+          巡检日期: r.patrol_date,
+          结果: r.result,
+          创建时间: r.created_at,
+        }));
+        if (isXlsx) return { buffer: toXLSX(rows, '巡检记录'), filename: `巡检报表_${s}_${e}_${now}.xlsx`, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+        return { content: toCSV(rows), filename: `巡检报表_${s}_${e}_${now}.csv`, contentType: 'text/csv; charset=utf-8' };
+      }
+      default:
+        throw new Error(`不支持的报表类型: ${type}`);
+    }
   }
 
   private static async getDailyTrend(start: Date, end: Date) {

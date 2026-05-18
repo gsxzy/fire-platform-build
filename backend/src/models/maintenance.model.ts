@@ -47,3 +47,29 @@ export const MaintenanceWorkOrder = sequelize.define('maintenance_work_order', {
   labor_cost: DataTypes.DECIMAL(10, 2),
   satisfaction: { type: DataTypes.TINYINT, comment: '1-5星' },
 }, { tableName: 'fire_maint_work_order', comment: '维保工单表' });
+
+export const MaintenanceRecord = sequelize.define('maintenance_record', {
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  record_no: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+  work_order_id: DataTypes.BIGINT.UNSIGNED,
+  device_id: DataTypes.BIGINT.UNSIGNED,
+  device_name: DataTypes.STRING(100),
+  unit_id: DataTypes.BIGINT.UNSIGNED,
+  unit_name: DataTypes.STRING(200),
+  record_type: { type: DataTypes.STRING(32), comment: 'inspection/repair/maintenance/replacement' },
+  content: DataTypes.TEXT,
+  result: DataTypes.TEXT,
+  staff_name: DataTypes.STRING(50),
+  record_date: DataTypes.DATEONLY,
+  status: { type: DataTypes.TINYINT, defaultValue: 0, comment: '0待完成 1已完成' },
+  material_cost: DataTypes.DECIMAL(10, 2),
+  labor_cost: DataTypes.DECIMAL(10, 2),
+}, {
+  tableName: 'fire_maint_record',
+  comment: '维保记录表',
+  indexes: [
+    { name: 'idx_work_order', fields: ['work_order_id'] },
+    { name: 'idx_device', fields: ['device_id'] },
+    { name: 'idx_record_date', fields: ['record_date'] },
+  ],
+});

@@ -1,4 +1,3 @@
-import type { Request } from 'express';
 /** 与前端 ApiResponse / getApiEnvelopeMessage 对齐的 JSON 信封 */
 export interface ApiJsonEnvelope<T = unknown> {
     code: number;
@@ -18,7 +17,4 @@ export declare const page: (list: unknown[], total: number, pageNum: number, pag
     pageSize: number;
     pages: number;
 }>;
-/** 从当前请求携带 requestId（推荐在控制器中使用） */
-export declare function successForReq(req: Request, data: unknown, msg?: string): ApiJsonEnvelope<unknown>;
-export declare function failForReq(req: Request, msg?: string, code?: number): ApiJsonEnvelope<null>;
 //# sourceMappingURL=response.d.ts.map

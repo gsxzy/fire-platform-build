@@ -152,6 +152,7 @@ export default function PatrolPlanPage() {
       addable
       actions
       batchable
+      permission={{ create: 'patrol:manage', update: 'patrol:manage', delete: 'patrol:manage' }}
       emptyTitle="暂无巡检计划"
       emptyDescription="请先配置巡检路线与周期，执行层将按计划自动生成任务。"
     />

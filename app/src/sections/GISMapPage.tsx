@@ -2,11 +2,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import {
-  MapPin, Wifi, WifiOff, Flame, Maximize2, Minimize2,
-  Search, RotateCcw, AlertTriangle, Phone, Building2, Wrench,
-  X, PanelLeftOpen, PanelLeftClose
+  Maximize2, Minimize2,
+  Search, RotateCcw, AlertTriangle,
+  PanelLeftOpen, PanelLeftClose, Layers
 } from 'lucide-react';
 import { useAMap } from '@/hooks/useAMap';
 import type { MapUnit } from '@/types/map';
@@ -15,57 +14,10 @@ import { GANSU_MAP_BOUNDS, bindGansuViewport, resetMapToGansuOverview } from '@/
 import { MapTooltip } from '@/components/MapTooltip';
 import { logger } from '@/lib/logger';
 import { api } from '@/api/client';
-
-function formatUnitTypeLabel(t: unknown): string {
-  const n = Number(t);
-  if (n === 2) return '重点单位';
-  if (n === 3) return '九小场所';
-  if (n === 1) return '一般单位';
-  return typeof t === 'string' && t ? t : '未知';
-}
-
-function mapGisUnitRow(
-  u: Record<string, unknown>,
-  devices: Record<string, unknown>[],
-  activeAlarms: Record<string, unknown>[]
-): MapUnit {
-  const uid = Number(u.id);
-  const unitDevices = devices.filter((d) => Number(d.unit_id) === uid);
-  const onlineCount = unitDevices.filter((d) => Number(d.status) === 1).length;
-  const faultCount = unitDevices.filter((d) => Number(d.status) !== 1).length;
-  const alarmsForUnit = activeAlarms.filter((a) => {
-    const rid = a.unit_id != null ? Number(a.unit_id) : NaN;
-    if (rid === uid) return true;
-    const un = String(a.unit_name ?? '');
-    return un && un === String(u.unit_name ?? '');
-  });
-
-  const ut = Number(u.unit_type);
-  let type: MapUnit['type'] = 'general';
-  if (ut === 2) type = 'key';
-  else if (ut === 3) type = 'nine-small';
-
-  const rawLat = Number(u.lat);
-  const rawLng = Number(u.lng);
-  // 无坐标单位标记为 NaN，前端不渲染地图标记但保留列表展示
-  const lat = rawLat || NaN;
-  const lng = rawLng || NaN;
-
-  return {
-    id: String(u.id ?? ''),
-    name: String(u.unit_name ?? `单位${u.id}`),
-    lat,
-    lng,
-    type,
-    unitType: formatUnitTypeLabel(u.unit_type),
-    address: String(u.address ?? ''),
-    online: unitDevices.length === 0 ? Number(u.status) === 1 : onlineCount >= Math.ceil(unitDevices.length / 2),
-    alarm: alarmsForUnit.length,
-    fault: faultCount,
-    devices: unitDevices.length,
-    controlRoom: false,
-  };
-}
+import { mapGisUnitRow } from './gisMap/utils';
+import StatCards from './gisMap/components/StatCards';
+import UnitSidebar from './gisMap/components/UnitSidebar';
+import UnitDetailCard from './gisMap/components/UnitDetailCard';
 
 export default function GISMapPage() {
   const { loading, loaded, error, AMap } = useAMap();
@@ -75,11 +27,13 @@ export default function GISMapPage() {
   const [selectedUnit, setSelectedUnit] = useState<MapUnit | null>(null);
   const [tooltipUnit, setTooltipUnit] = useState<MapUnit | null>(null);
   const [tooltipPos] = useState({ x: 0, y: 0 });
-  
+
   const [searchKeyword, setSearchKeyword] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [gisDataError, setGisDataError] = useState<string | null>(null);
+  const [heatmapVisible, setHeatmapVisible] = useState(false);
+  const [heatmapData, setHeatmapData] = useState<Array<{ lng: number; lat: number; weight: number }>>([]);
 
   // 加载 GIS 点位（单位 + 设备 + 活跃告警聚合）
   useEffect(() => {
@@ -111,6 +65,21 @@ export default function GISMapPage() {
     };
   }, []);
 
+  // 加载告警热力图数据
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<Array<{ lng: number; lat: number; weight: number }>>('/gis/alarm-heatmap');
+        if (cancelled) return;
+        if (res.code === 200 && res.data) setHeatmapData(res.data);
+      } catch (err) {
+        logger.warn('[GIS] 热力图数据加载失败:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // 初始化地图
   useEffect(() => {
     if (!loaded || !AMap || !mapContainerRef.current) return;
@@ -131,12 +100,10 @@ export default function GISMapPage() {
         mapStyle: 'amap://styles/darkblue',
       });
 
-      // 添加控件
       map.addControl(new AMap.Scale());
       map.addControl(new AMap.ToolBar());
       map.addControl(new AMap.ControlBar());
 
-      // 绑定甘肃视野
       bindGansuViewport(map, AMap);
 
       mapRef.current = map;
@@ -154,11 +121,9 @@ export default function GISMapPage() {
       return false;
     }
 
-    // 1. 立即尝试
     if (tryInit()) return;
     logger.warn('[GIS] 初始尺寸为0，启动ResizeObserver监听...');
 
-    // 2. ResizeObserver 监听尺寸变化
     const observer = new ResizeObserver(() => {
       if (tryInit()) {
         observer.disconnect();
@@ -166,7 +131,6 @@ export default function GISMapPage() {
     });
     observer.observe(container);
 
-    // 3. requestAnimationFrame 循环检测（备用）
     let rafId = 0;
     let checkCount = 0;
     const checkLoop = () => {
@@ -175,7 +139,7 @@ export default function GISMapPage() {
         observer.disconnect();
         return;
       }
-      if (checkCount < 300) { // 最多检测5秒 (60fps * 5)
+      if (checkCount < 300) {
         rafId = requestAnimationFrame(checkLoop);
       } else {
         observer.disconnect();
@@ -191,20 +155,46 @@ export default function GISMapPage() {
     };
   }, [loaded, AMap]);
 
+  // 热力图层控制
+  useEffect(() => {
+    if (!mapRef.current || !AMap) return;
+    const map = mapRef.current as any;
+    if (!heatmapVisible) {
+      if (map.__heatmap) {
+        map.__heatmap.hide();
+      }
+      return;
+    }
+    if (heatmapData.length === 0) return;
+
+    if (map.__heatmap) {
+      map.__heatmap.show();
+      map.__heatmap.setDataSet({ data: heatmapData, max: 1.0 });
+      return;
+    }
+
+    AMap.plugin(['AMap.HeatMap'], () => {
+      if (!mapRef.current) return;
+      const heatmap = new (AMap as any).HeatMap(mapRef.current, {
+        radius: 25,
+        opacity: [0, 0.8],
+      });
+      heatmap.setDataSet({ data: heatmapData, max: 1.0 });
+      map.__heatmap = heatmap;
+    });
+  }, [heatmapVisible, heatmapData, AMap]);
+
   // 当 units 或地图就绪时渲染标记点
   useEffect(() => {
     if (!mapRef.current || !AMap || units.length === 0) return;
-    // 延迟一帧确保地图容器已布局
     const timer = setTimeout(() => {
       const map = mapRef.current;
       if (!map) return;
 
-      // 清除旧标记
       const existing = map.getAllOverlays('marker');
       if (existing?.length) map.remove(existing);
 
       units.forEach((unit) => {
-        // 跳过无有效坐标的单位（不渲染地图标记，但保留侧边栏列表）
         if (!unit.lng || !unit.lat || Number.isNaN(unit.lng) || Number.isNaN(unit.lat)) {
           return;
         }
@@ -214,7 +204,6 @@ export default function GISMapPage() {
         const hasFault = unit.fault > 0;
         const isOffline = !unit.online;
 
-        // 告警优先色 > 故障色 > 类型色
         const glowColor = hasAlarm ? '#ef4444' : hasFault ? '#f59e0b' : cfg.color;
         const bgColor = isOffline ? '#64748b' : glowColor;
         const opacity = isOffline ? '0.5' : '1';
@@ -267,7 +256,6 @@ export default function GISMapPage() {
   // 处理单位点击
   const handleUnitClick = useCallback((unit: MapUnit) => {
     setSelectedUnit(unit);
-    // 仅对有效坐标单位移动地图
     if (mapRef.current && AMap && unit.lng && unit.lat && !Number.isNaN(unit.lng) && !Number.isNaN(unit.lat)) {
       mapRef.current.setZoomAndCenter(12, [unit.lng, unit.lat]);
     }
@@ -403,109 +391,26 @@ export default function GISMapPage() {
                   <PanelLeftOpen className="w-5 h-5 text-slate-300" />
                 )}
               </button>
+              <button
+                onClick={() => setHeatmapVisible(v => !v)}
+                className={`p-2 rounded-lg transition-colors ${heatmapVisible ? 'bg-orange-500/20 text-orange-400' : 'hover:bg-slate-700/50 text-slate-300'}`}
+                title={heatmapVisible ? '关闭热力图' : '显示告警热力图'}
+              >
+                <Layers className="w-5 h-5" />
+              </button>
             </CardContent>
           </Card>
         </div>
 
-        {/* 统计卡片 */}
-        <div className="flex items-center gap-3">
-          <Card className="bg-slate-900/90 backdrop-blur-md border-slate-700">
-            <CardContent className="px-4 py-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-400" />
-                <span className="text-slate-400 text-xs">单位总数</span>
-                <Badge className="ml-2 bg-blue-600">{stats.total}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900/90 backdrop-blur-md border-slate-700">
-            <CardContent className="px-4 py-2">
-              <div className="flex items-center gap-2">
-                <Wifi className="w-4 h-4 text-green-400" />
-                <span className="text-slate-400 text-xs">在线</span>
-                <Badge className="ml-2 bg-green-600">{stats.online}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900/90 backdrop-blur-md border-slate-700">
-            <CardContent className="px-4 py-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-400" />
-                <span className="text-slate-400 text-xs">告警</span>
-                <Badge className="ml-2 bg-red-600">{stats.alarm}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-900/90 backdrop-blur-md border-slate-700">
-            <CardContent className="px-4 py-2">
-              <div className="flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-yellow-400" />
-                <span className="text-slate-400 text-xs">故障</span>
-                <Badge className="ml-2 bg-yellow-600">{stats.fault}</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <StatCards stats={stats} />
       </div>
 
-      {/* 侧边栏 */}
-      <div
-        className={`absolute left-4 top-20 bottom-4 z-20 transition-all duration-300 ${
-          sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
-        }`}
-      >
-        <Card className="h-full bg-slate-900/90 backdrop-blur-md border-slate-700 overflow-hidden flex flex-col">
-          <CardContent className="flex-1 overflow-y-auto">
-            <div className="space-y-2">
-              {filteredUnits.map((unit) => (
-                <div
-                  key={unit.id}
-                  className={`p-3 rounded-xl cursor-pointer transition-all duration-200 ${
-                    selectedUnit?.id === unit.id
-                      ? 'bg-blue-600/30 border border-blue-500/50'
-                      : 'bg-slate-800/50 hover:bg-slate-700/50 border border-transparent'
-                  }`}
-                  onClick={() => handleUnitClick(unit)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ background: typeConfig(unit.type).color }}
-                      />
-                      <span className="text-sm font-medium text-slate-200 truncate">
-                        {unit.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {(!unit.lng || !unit.lat || Number.isNaN(unit.lng) || Number.isNaN(unit.lat)) && (
-                        <Badge className="bg-slate-600 text-[10px]">未定位</Badge>
-                      )}
-                      {unit.alarm > 0 && (
-                        <Badge className="bg-red-600 text-xs">{unit.alarm}</Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-400">
-                    <span className="flex items-center gap-1">
-                      {unit.online ? (
-                        <Wifi className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <WifiOff className="w-3 h-3 text-red-400" />
-                      )}
-                      {unit.online ? '在线' : '离线'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Flame className="w-3 h-3 text-orange-400" />
-                      {unit.devices} 设备
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <UnitSidebar
+        open={sidebarOpen}
+        units={filteredUnits}
+        selectedUnit={selectedUnit}
+        onUnitClick={handleUnitClick}
+      />
 
       {/* 地图容器 */}
       <div
@@ -514,77 +419,8 @@ export default function GISMapPage() {
         onClick={handleMapClick}
       />
 
-      {/* 选中单位详情弹窗 */}
       {selectedUnit && (
-        <div className="absolute bottom-4 right-4 z-20 w-96">
-          <Card className="bg-slate-900/95 backdrop-blur-md border-slate-700">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-4 h-4 rounded-full"
-                    style={{ background: typeConfig(selectedUnit.type).color }}
-                  />
-                  <div>
-                    <h3 className="font-bold text-slate-100">{selectedUnit.name}</h3>
-                    <span className="text-xs text-slate-400">{typeConfig(selectedUnit.type).label}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedUnit(null)}
-                  className="p-1 hover:bg-slate-700 rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4 text-slate-400" />
-                </button>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-slate-500" />
-                  <span className="text-slate-400">{selectedUnit.unitType}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-slate-500" />
-                  <span className="text-slate-400">{selectedUnit.address}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedUnit.online ? (
-                    <Wifi className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <WifiOff className="w-4 h-4 text-red-400" />
-                  )}
-                  <span className={selectedUnit.online ? 'text-green-400' : 'text-red-400'}>
-                    {selectedUnit.online ? '在线' : '离线'}
-                  </span>
-                  {(!selectedUnit.lng || !selectedUnit.lat || Number.isNaN(selectedUnit.lng) || Number.isNaN(selectedUnit.lat)) && (
-                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">未定位</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-2 text-slate-400">
-                    <Flame className="w-4 h-4 text-orange-400" />
-                    {selectedUnit.devices} 设备
-                  </span>
-                  {selectedUnit.alarm > 0 && (
-                    <span className="flex items-center gap-2 text-red-400">
-                      <AlertTriangle className="w-4 h-4" />
-                      {selectedUnit.alarm} 告警
-                    </span>
-                  )}
-                </div>
-                {selectedUnit.manager && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-slate-500" />
-                    <span className="text-slate-400">{selectedUnit.manager}</span>
-                    {selectedUnit.managerPhone && (
-                      <span className="text-slate-300 ml-auto">{selectedUnit.managerPhone}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <UnitDetailCard unit={selectedUnit} onClose={() => setSelectedUnit(null)} />
       )}
 
       {/* 工具提示 */}

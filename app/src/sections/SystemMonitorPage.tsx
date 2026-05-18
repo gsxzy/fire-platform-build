@@ -4,7 +4,7 @@ import {
   Server, Database, Zap, TrendingUp, TrendingDown, Minus,
   CheckCircle, AlertTriangle, XCircle, RefreshCw
 } from 'lucide-react';
-import { raw } from '@/api/client';
+import { monitorService, systemConfigService } from '@/api/services';
 import EmptyState from '@/components/EmptyState';
 
 interface Metric {
@@ -39,20 +39,33 @@ interface OverviewData {
   qps?: string;
 }
 
-async function fetchMetrics(): Promise<Metric[]> {
-  return raw.get<Metric[]>('/system-monitor/metrics');
+async function fetchMonitorData(): Promise<{
+  metrics: Metric[];
+  services: Service[];
+  overview: OverviewData;
+}> {
+  const res: any = await monitorService.get();
+  const data = res?.data || {};
+  return {
+    metrics: data.metrics || [],
+    services: data.services || [],
+    overview: data.overview || {},
+  };
 }
-async function fetchServices(): Promise<Service[]> {
-  return raw.get<Service[]>('/system-monitor/services');
-}
-async function fetchLogs(): Promise<any[]> {
-  const res = await raw.get<any>('/system-monitor/logs');
-  const data = Array.isArray(res) ? res : (res?.list || []);
-  return data;
-}
-async function fetchOverview(): Promise<OverviewData> {
-  const res = await raw.get<any>('/system-monitor/overview');
-  return res || {};
+
+async function fetchSystemLogs(): Promise<LogEntry[]> {
+  try {
+    const res: any = await systemConfigService.logs({ pageNum: 1, pageSize: 50 });
+    const list = Array.isArray(res.data) ? res.data : (res.data?.list || []);
+    return list.map((r: any) => ({
+      time: r.created_at || r.time || '-',
+      level: (r.result === 'error' ? 'error' : r.result === 'warn' ? 'warn' : 'info') as LogEntry['level'],
+      module: r.module || r.action || r.operation || '系统',
+      message: r.detail || r.message || r.params || '-',
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export default function SystemMonitorPage() {
@@ -67,21 +80,14 @@ export default function SystemMonitorPage() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [m, s, l, o] = await Promise.all([
-        fetchMetrics().catch(() => []),
-        fetchServices().catch(() => []),
-        fetchLogs().catch(() => []),
-        fetchOverview().catch(() => ({})),
+      const [{ metrics: m, services: s, overview: o }, logsData] = await Promise.all([
+        fetchMonitorData(),
+        fetchSystemLogs(),
       ]);
-      setMetrics(m || []);
-      setServices(s || []);
-      setLogs((l || []).map((r: any) => ({
-        time: r.created_at || r.time || '-',
-        level: (r.result === 'error' ? 'error' : r.result === 'warn' ? 'warn' : 'info') as any,
-        module: r.module || r.action || '系统',
-        message: r.detail || r.message || '-',
-      })));
-      setOverview(o || {});
+      setMetrics(m);
+      setServices(s);
+      setLogs(logsData);
+      setOverview(o);
     } catch {
       // 静默失败，保留旧数据
     } finally {

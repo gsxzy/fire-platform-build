@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/core/ToastContext";
-import { dutyShiftService, dutyService } from "@/api/services";
+import { dutyService } from "@/api/services";
 import { getErrorMessage } from "@/types/api";
 import DataContainer from "@/components/DataContainer";
 import {
@@ -163,19 +163,7 @@ export default function DutyShiftPage() {
           }
         } catch { /* ignore invalid JSON */ }
       }
-      const res2: any = await dutyShiftService.list({ page: 1, pageSize: 100 });
-      const data = Array.isArray(res2?.data) ? res2.data : (res2?.data?.list || []);
-      if (data.length > 0) {
-        setSchedules(data.map((d: any) => ({
-          date: d.date || "",
-          dayOfWeek: d.dayOfWeek || "",
-          shiftName: d.shiftName || "",
-          staffNames: d.staffNames || [],
-          status: d.status || "empty",
-        })));
-      } else {
-        setSchedules(generateWeekData());
-      }
+      setSchedules(generateWeekData());
     } catch (e: unknown) {
       setError(e instanceof Error ? e : new Error(getErrorMessage(e)));
       setSchedules(generateWeekData());

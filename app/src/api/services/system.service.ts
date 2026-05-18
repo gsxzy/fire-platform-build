@@ -1,5 +1,5 @@
 import { api as httpApi, raw, paginatedQuery } from '../client';
-import type { QueryParams, User, Role, SystemLog } from '@/types/db';
+import type { QueryParams, User, Role, SystemLog, Personnel } from '@/types/db';
 import { createService } from './core';
 
 export const userService = {
@@ -30,4 +30,27 @@ export const systemConfigService = {
   list: () => raw.get<unknown>('/system/config'),
   set: (key: string, value: string) => raw.post<null>('/system/config', { configKey: key, configValue: value }),
   logs: (params?: Record<string, unknown>) => raw.get<unknown>('/system/logs', params),
+};
+
+/** 模块配置 — 同步后端 Redis */
+export const moduleService = {
+  list: () => raw.get<{ id: string; name: string; status: string; priority: number }[]>('/system/modules'),
+  toggle: (moduleId: string, status: string) => httpApi.put<null>('/system/modules/toggle', { moduleId, status }),
+};
+
+/** 人员管理 — 正式路由 /system/personnel */
+export const personnelService = {
+  list: (params: QueryParams = {}) => paginatedQuery<Personnel>('/system/personnel', { ...params, pageNum: params.page, pageSize: params.pageSize }),
+  create: (data: Omit<Personnel, 'id'>) => httpApi.post<{ id: number }>('/system/personnel', data),
+  update: (id: string, data: Partial<Personnel>) => httpApi.put<null>(`/system/personnel/${id}`, data),
+  delete: (id: string) => httpApi.delete<null>(`/system/personnel/${id}`),
+};
+
+/** 系统监控 */
+export const monitorService = {
+  get: () => raw.get<{
+    metrics: { name: string; value: number; unit: string; status: string; trend: string; history: number[] }[];
+    services: { name: string; status: string; uptime: string; version: string; pid: number; memory: string }[];
+    overview: { uptime: string; dbConnections: string; deviceOnlineRate: string; qps: string };
+  }>('/system/monitor'),
 };

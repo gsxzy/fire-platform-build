@@ -8,6 +8,7 @@ import { Device, IoTDevice, ControlCommand } from '@/models';
 import { iotGateway } from '@/iot';
 import { gb26875Server } from '@/protocols/gb26875.server';
 import logger from '@/config/logger';
+import redis from '@/config/redis';
 
 export interface ControlRequest {
   deviceId: number;
@@ -22,9 +23,40 @@ export interface ControlResult {
   commandId?: number;
   message: string;
   result?: any;
+  needConfirm?: boolean;
+  confirmToken?: string;
 }
 
+/** 高危操作类型：3=复位 4=消音 */
+const HIGH_RISK_CMD_TYPES = new Set([3, 4]);
+
 export class DeviceControlService {
+  /**
+   * 判断是否为高危操作
+   */
+  static isHighRisk(commandType: number): boolean {
+    return HIGH_RISK_CMD_TYPES.has(commandType);
+  }
+
+  /**
+   * 高危操作二次确认 Token 管理
+   * - 无 token 时生成并返回 needConfirm=true
+   * - 有 token 时验证，通过后删除 token 返回 needConfirm=false
+   */
+  static async requireConfirmToken(commandType: number, confirmToken?: string): Promise<{ needConfirm: boolean; token?: string }> {
+    if (!this.isHighRisk(commandType)) return { needConfirm: false };
+    if (!confirmToken) {
+      const token = `CFM${Date.now()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+      await redis.setex(`ctrl:confirm:${token}`, 300, String(commandType));
+      return { needConfirm: true, token };
+    }
+    const stored = await redis.get(`ctrl:confirm:${confirmToken}`);
+    if (!stored || stored !== String(commandType)) {
+      throw new Error('确认令牌无效或已过期，请重新确认');
+    }
+    await redis.del(`ctrl:confirm:${confirmToken}`);
+    return { needConfirm: false };
+  }
   /**
    * 发送控制指令
    */
@@ -212,23 +244,31 @@ export class DeviceControlService {
   }
 
   /**
-   * 批量控制
+   * 批量控制（并行执行 + 超时重试）
    */
-  static async batchControl(deviceIds: number[], commandType: number, params: any, operatorId: number, operatorName: string): Promise<ControlResult[]> {
-    const results: ControlResult[] = [];
+  static async batchControl(deviceIds: number[], commandType: number, params: any, operatorId: number, operatorName: string, maxRetries = 2): Promise<ControlResult[]> {
+    const executeOne = async (deviceId: number): Promise<ControlResult> => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const result = await this.sendCommand({
+          deviceId,
+          commandType,
+          params,
+          operatorId,
+          operatorName
+        });
+        if (result.success || attempt === maxRetries) return result;
+        logger.warn(`[BatchControl] device ${deviceId} attempt ${attempt + 1} failed, retrying...`);
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+      return { success: false, message: '重试次数耗尽' };
+    };
 
-    for (const deviceId of deviceIds) {
-      const result = await this.sendCommand({
-        deviceId,
-        commandType,
-        params,
-        operatorId,
-        operatorName
-      });
-      results.push(result);
-    }
-
-    return results;
+    const results = await Promise.allSettled(deviceIds.map(id => executeOne(id)));
+    return results.map((r, i) =>
+      r.status === 'fulfilled'
+        ? r.value
+        : { success: false, message: `设备 ${deviceIds[i]} 执行异常: ${r.reason}` }
+    );
   }
 
   /**

@@ -1,4 +1,4 @@
-
+import type { Request, Response } from 'express';
 
 /** 与前端 ApiResponse / getApiEnvelopeMessage 对齐的 JSON 信封 */
 export interface ApiJsonEnvelope<T = unknown> {
@@ -42,4 +42,26 @@ export const page = (list: unknown[], total: number, pageNum: number, pageSize: 
     requestId,
   });
 
-// 如需从请求自动携带 requestId，请使用 success(data, msg, req.reqId) 或 fail(msg, code, req.reqId)
+/* ═══════════════════════════════════════════════════════════
+   控制器统一响应 — 自动携带 requestId
+   ═══════════════════════════════════════════════════════════ */
+
+export function sendSuccess<T>(res: Response, req: Request, data: T, msg = '操作成功') {
+  return res.json(success(data, msg, req.reqId));
+}
+
+export function sendFail(res: Response, req: Request, msg: string, code = 400) {
+  return res.status(code >= 400 ? code : 400).json(fail(msg, code, req.reqId));
+}
+
+export function sendPage(
+  res: Response,
+  req: Request,
+  list: unknown[],
+  total: number,
+  pageNum: number,
+  pageSize: number,
+  msg = '查询成功'
+) {
+  return res.json(page(list, total, pageNum, pageSize, req.reqId));
+}

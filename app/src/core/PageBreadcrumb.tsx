@@ -162,6 +162,7 @@ const MODULE_PATH_LABELS: Record<string, string> = {
   '/monitor/subsys': '子系统监控',
   '/alarm': '告警中心',
   '/alarm/center': '告警总览',
+  '/alarm/config': '告警配置',
   '/duty': '值守中心',
   '/duty/dispatch': '接警处置',
   '/duty/log': '值班日志',

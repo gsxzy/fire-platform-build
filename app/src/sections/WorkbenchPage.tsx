@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router';
 import {
-  LayoutDashboard, Bell, Flame, AlertTriangle, Wrench, ClipboardList,
+  LayoutDashboard, Bell, Flame, Wrench, ClipboardList,
   Building2, Cpu, Shield, BookOpen, PhoneCall,
-  Activity, BarChart3, Wifi, TrendingUp, TrendingDown,
-  Zap, User, Phone, Sun, Thermometer, Droplets,
+  Activity, BarChart3, Wifi, Zap, User, Phone, Sun, Thermometer, Droplets,
   CheckSquare, Square
 } from 'lucide-react';
 import {
@@ -14,34 +13,19 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend
 } from 'recharts';
-import { dashboardService } from '@/api/services';
+import { dashboardService, workbenchService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
-
-/* ---------- 默认数据 ---------- */
-const DEFAULT_ALARM_TREND: { day: string; fire: number; fault: number; warn: number }[] = [];
-
-const DEFAULT_DEVICE_ONLINE: { name: string; total: number; online: number }[] = [];
-
-const DEFAULT_UNIT_STATUS: { name: string; value: number; color: string }[] = [];
-
-const DEFAULT_WEEKLY_STATS: { week: string; alarms: number; handled: number }[] = [];
-
-const DEFAULT_SHORTCUTS: any[] = [];
-
-const DEFAULT_TODOS: any[] = [];
-
-interface StatItem {
-  label: string;
-  value: number | string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  trend: string;
-  up: boolean;
-}
+import AnimatedStatCard from './workbench/components/AnimatedStatCard';
+import CustomTooltip from './workbench/components/CustomTooltip';
+import {
+  DEFAULT_ALARM_TREND, DEFAULT_DEVICE_ONLINE, DEFAULT_UNIT_STATUS,
+  DEFAULT_WEEKLY_STATS, DEFAULT_SHORTCUTS, DEFAULT_TODOS,
+} from './workbench/types';
+import type { StatItem } from './workbench/types';
 
 const STAT_ITEMS: StatItem[] = [
   { label: '今日火警', value: 0, icon: Flame, color: 'red', trend: '0', up: false },
-  { label: '今日故障', value: 0, icon: AlertTriangle, color: 'yellow', trend: '0', up: false },
+  { label: '我的待办', value: 0, icon: CheckSquare, color: 'emerald', trend: '0', up: false },
   { label: '待确认告警', value: 0, icon: Bell, color: 'orange', trend: '0', up: false },
   { label: '维保工单', value: 0, icon: Wrench, color: 'emerald', trend: '0', up: false },
   { label: '巡检任务', value: 0, icon: ClipboardList, color: 'cyan', trend: '0', up: false },
@@ -50,140 +34,6 @@ const STAT_ITEMS: StatItem[] = [
   { label: '在线设备', value: 0, icon: Cpu, color: 'emerald', trend: '0', up: false },
 ];
 
-/* ---------- Sparkline 数据 ---------- */
-const sparkDataMap: Record<string, number[]> = {};
-
-/* ---------- 颜色映射 ---------- */
-const colorMap: Record<string, { text: string; bg: string; border: string; iconColor: string }> = {
-  red: { text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', iconColor: 'text-red-400' },
-  yellow: { text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', iconColor: 'text-yellow-400' },
-  orange: { text: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', iconColor: 'text-orange-400' },
-  emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', iconColor: 'text-emerald-400' },
-  cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', iconColor: 'text-cyan-400' },
-  blue: { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', iconColor: 'text-blue-400' },
-};
-
-/* ---------- 工具：数字动画 ---------- */
-function useAnimatedNumber(target: number, duration = 1200) {
-  const [display, setDisplay] = useState(0);
-  const startRef = useRef<number>(0);
-  const fromRef = useRef<number>(0);
-  const toRef = useRef<number>(target);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    fromRef.current = display;
-    toRef.current = target;
-    startRef.current = performance.now();
-
-    const step = (now: number) => {
-      const elapsed = now - startRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-      const current = Math.round(fromRef.current + (toRef.current - fromRef.current) * easeOutQuart);
-      setDisplay(current);
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(step);
-      }
-    };
-    rafRef.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [target, duration]);
-
-  return display;
-}
-
-/* ---------- 组件：自定义 Tooltip ---------- */
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-900/95 border border-slate-700/60 rounded-lg p-2.5 shadow-2xl backdrop-blur-sm">
-        <p className="text-[10px] text-slate-300 font-medium mb-1.5">{label}</p>
-        {payload.map((p: any, i: number) => (
-          <div key={i} className="flex items-center gap-1.5 text-[9px]">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.color }} />
-            <span className="text-slate-400">{p.name}:</span>
-            <span className="text-slate-200 font-medium">{p.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
-
-/* ---------- 组件：带动画的统计卡片 ---------- */
-function AnimatedStatCard({
-  s, index
-}: {
-  s: StatItem;
-  index: number;
-}) {
-  const Icon = s.icon;
-  const c = colorMap[s.color];
-  const isUrgent = s.label === '今日火警' || s.label === '待确认告警';
-  const numericValue = typeof s.value === 'string' ? parseFloat(s.value) : s.value;
-  const animated = useAnimatedNumber(numericValue);
-  const displayValue = typeof s.value === 'string' && s.value.includes('%')
-    ? `${animated.toFixed(1)}%`
-    : animated.toLocaleString();
-  const sparkData = sparkDataMap[s.label] || [0, 0, 0, 0, 0, 0, 0];
-  const sparkColor =
-    s.color === 'red' ? '#f87171' :
-    s.color === 'yellow' ? '#fbbf24' :
-    s.color === 'emerald' ? '#34d399' :
-    s.color === 'orange' ? '#fb923c' :
-    s.color === 'cyan' ? '#22d3ee' :
-    '#60a5fa';
-
-  return (
-    <div
-      className={`animate-fade-in-up relative group ${isUrgent ? 'animate-pulse-glow' : ''}`}
-      style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
-    >
-      <div className={`stat-card-v2 ${c.border} ${c.bg} card-shine relative overflow-hidden`}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] text-slate-400 font-medium">{s.label}</span>
-          <div className={`${c.iconColor}`}><Icon className="w-3.5 h-3.5" /></div>
-        </div>
-        <div className="flex items-baseline gap-1 relative z-10">
-          <span className={`text-lg font-bold ${c.text} tabular-nums`}>{displayValue}</span>
-          {s.trend !== '0' && (
-            <span className={`text-[8px] flex items-center ${s.up ? 'text-emerald-400' : 'text-red-400'}`}>
-              {s.up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-              {s.trend}
-            </span>
-          )}
-        </div>
-        {/* Mini sparkline */}
-        <div className="absolute bottom-1 right-1 opacity-20 group-hover:opacity-50 transition-opacity pointer-events-none">
-          <div className="w-14 h-5">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkData.map((v, idx) => ({ idx, v }))}>
-                <defs>
-                  <linearGradient id={`spark-${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={sparkColor} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Area
-                  type="monotone"
-                  dataKey="v"
-                  stroke={sparkColor}
-                  strokeWidth={1.2}
-                  fill={`url(#spark-${index})`}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- 主组件 ---------- */
 export default function WorkbenchPage() {
   const navigate = useNavigate();
   const [alarmTrend, setAlarmTrend] = useState(DEFAULT_ALARM_TREND);
@@ -212,7 +62,10 @@ export default function WorkbenchPage() {
     setLoading(true);
     setError(null);
     try {
-      const raw = (await dashboardService.workbench()) as Record<string, unknown>;
+      const [raw, pendingRes] = await Promise.all([
+        dashboardService.workbench() as Promise<Record<string, unknown>>,
+        workbenchService.todoPendingCount().catch(() => ({ count: 0 })),
+      ]);
       const hasTrend =
         Array.isArray(raw.alarmTrend as unknown[]) ||
         (raw.alarm && typeof raw.alarm === 'object' && Array.isArray((raw.alarm as { trend?: unknown }).trend));
@@ -258,7 +111,7 @@ export default function WorkbenchPage() {
         setStatRows(
           STAT_ITEMS.map((item) => {
             if (item.label === '今日火警') return { ...item, value: Number(st.todayFire ?? 0) };
-            if (item.label === '今日故障') return { ...item, value: Number(st.todayFault ?? 0) };
+            if (item.label === '我的待办') return { ...item, value: Number(pendingRes.count ?? 0) };
             if (item.label === '待确认告警') return { ...item, value: Number(st.alarmPending ?? 0) };
             if (item.label === '维保工单') return { ...item, value: Number(st.workOrderPending ?? 0) };
             if (item.label === '巡检任务') return { ...item, value: Number(st.patrolToday ?? 0) };
@@ -330,9 +183,8 @@ export default function WorkbenchPage() {
     <DataContainer loading={loading} error={error} data={statRows} onRetry={loadData} emptyText="暂无数据">
       <div className="p-4 space-y-4 h-full overflow-y-auto scrollbar-thin">
 
-        {/* ====== Header ====== */}
+        {/* Header */}
         <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up relative overflow-hidden scan-line gradient-border">
-          {/* Decorative lines */}
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
 
@@ -349,7 +201,6 @@ export default function WorkbenchPage() {
 
           {/* Duty + Weather */}
           <div className="hidden md:flex items-center gap-4 relative z-10">
-            {/* Duty info */}
             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 hover-lift">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
                 <User className="w-3.5 h-3.5 text-blue-400" />
@@ -366,7 +217,6 @@ export default function WorkbenchPage() {
                 </div>
               </div>
             </div>
-            {/* Weather placeholder */}
             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30 hover-lift">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 flex items-center justify-center">
                 <Sun className="w-3.5 h-3.5 text-amber-400" />
@@ -400,14 +250,14 @@ export default function WorkbenchPage() {
           </div>
         </div>
 
-        {/* ====== Stats Row ====== */}
+        {/* Stats Row */}
         <div className="grid grid-cols-4 xl:grid-cols-8 gap-3">
           {statRows.map((s, i) => (
             <AnimatedStatCard key={i} s={s} index={i} />
           ))}
         </div>
 
-        {/* ====== Charts Row ====== */}
+        {/* Charts Row */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
           {/* Alarm Trend */}
           <div className="fire-card-v2 p-3 transition-all hover:border-slate-600/40 relative group animate-fade-in-up" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
@@ -562,7 +412,7 @@ export default function WorkbenchPage() {
           </div>
         </div>
 
-        {/* ====== Bottom Row ====== */}
+        {/* Bottom Row */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
           {/* Shortcuts */}
           <div className="fire-card-v2 flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.35s', animationFillMode: 'both' }}>

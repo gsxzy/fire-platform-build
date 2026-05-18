@@ -7,17 +7,12 @@ import EmptyState from '@/components/EmptyState';
 
 // const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-const fallbackUnitStats = {
-  unit: { total: 0, general: 0, keyUnit: 0, nineSmall: 0 },
-  device: { total: 0, normal: 0, fault: 0, offline: 0 },
-  alarm: { total30d: 0, unresolved: 0 },
-};
-
 export default function UnitStatsPage() {
   const { error: showError } = useToast();
-  const [overview, setOverview] = useState(fallbackUnitStats);
+  const [overview, setOverview] = useState<any>(null);
   const [categoryStats, setCategoryStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     loadData();
@@ -25,6 +20,7 @@ export default function UnitStatsPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [unitRes, deviceRes] = await Promise.all([
         unitService.getOverviewStats().catch(() => null),
@@ -33,11 +29,19 @@ export default function UnitStatsPage() {
 
       if (unitRes?.code === 200 && unitRes.data) {
         setOverview(unitRes.data);
+      } else {
+        setOverview(null);
       }
       if (deviceRes?.code === 200 && deviceRes.data) {
         setCategoryStats(deviceRes.data.category || []);
+      } else {
+        setCategoryStats([]);
       }
-    } catch (e) { showError('加载失败', '统计数据加载出错'); console.error(e); }
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error(String(e)));
+      showError('加载失败', '统计数据加载出错');
+      console.error(e);
+    }
     setLoading(false);
   };
 
@@ -57,6 +61,29 @@ export default function UnitStatsPage() {
     { label: '本月告警', value: `${a.total30d}条`, icon: Bell, color: 'text-red-400' },
     { label: '平均在线率', value: d.total > 0 ? `${Math.round((d.normal / d.total) * 100)}%` : '0%', icon: Activity, color: 'text-cyan-400' },
   ];
+
+  if (!loading && (error || !overview)) {
+    return (
+      <div className="space-y-4 h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
+        <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-100 leading-tight">单位统计</h2>
+              <p className="text-[10px] text-slate-500">联网单位数据统计与消防健康度分析</p>
+            </div>
+          </div>
+        </div>
+        <EmptyState
+          title="暂无统计数据"
+          description={error ? '数据加载失败，请检查网络或稍后重试' : '尚未录入单位或设备数据'}
+          action={<button onClick={loadData} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded">刷新</button>}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">

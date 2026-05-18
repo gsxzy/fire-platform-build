@@ -15,6 +15,11 @@ const learn = (name: keyof typeof AILearningController) =>
   handleController(`AILearning.${String(name)}`, AILearningController[name]);
 
 const view = requirePermission('ai:view');
+const operate = requirePermission('ai:operate');
+
+// ── AI 决策中心概览（P0 修复：供雷达图 + 决策卡片 + 统计）──
+router.get('/decisions/overview', view, ai('overview'));
+router.post('/decisions/:id/execute', operate, ai('executeDecision'));
 
 router.get('/decisions', view, ai('decisionList'));
 router.post('/decisions', view, ai('decisionCreate'));

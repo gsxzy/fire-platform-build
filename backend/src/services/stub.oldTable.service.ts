@@ -15,10 +15,6 @@ export function ok(data: unknown, msg = 'success') {
   return success(data, msg);
 }
 
-export function emptyPage(pageSize = 20) {
-  return pageEnvelope([], 0, 1, pageSize);
-}
-
 /* ───── 安全：只允许合法表名 ───── */
 export const ALLOWED_TABLES = new Set([
   'cameras', 'work_orders', 'maint_records', 'maint_contracts',
@@ -26,8 +22,8 @@ export const ALLOWED_TABLES = new Set([
   'inspections', 'documents', 'notifications', 'duty_schedules',
   'duty_shifts', 'duty_handovers', 'system_logs', 'floor_plans',
   'floor_devices', 'reports', 'alarm_snapshots', 'control_room_configs',
-  'training_courses', 'training_exams', 'ai_decisions', 'smart_alerts',
-  'iot_protocols', 'iot_pipelines', 'todos', 'unit_personnel',
+  'ai_decisions', 'smart_alerts',
+  'iot_protocols', 'iot_pipelines', 'todos',
   'departments', 'sys_role', 'sys_permission',
   'gb28181_devices', 'fscn8001_device', 'fscn8001_alarm', 'fscn8001_raw_log',
   'gb26875_device', 'gb26875_alarm', 'gb26875_raw_log',
@@ -315,15 +311,6 @@ export const drillUpdateOld = makeUpdate('drills');
 export const drillDeleteOld = makeDelete('drills');
 
 /* ═══════════════════════════════════════════════════════════
-   9. 检查旧兼容 /inspections/*
-   ═══════════════════════════════════════════════════════════ */
-export const inspectionListOld = makeList('inspections');
-export const inspectionByIdOld = makeById('inspections');
-export const inspectionCreateOld = makeCreate('inspections');
-export const inspectionUpdateOld = makeUpdate('inspections');
-export const inspectionDeleteOld = makeDelete('inspections');
-
-/* ═══════════════════════════════════════════════════════════
    10. 知识库旧兼容 /documents/*
    ═══════════════════════════════════════════════════════════ */
 export const documentListOld = makeList('documents');
@@ -424,15 +411,6 @@ export const alarmSnapshotList = makeList('alarm_snapshots');
 export const controlRoomConfigList = makeList('control_room_configs');
 
 /* ═══════════════════════════════════════════════════════════
-   18. 人员管理 /personnel/*
-   ═══════════════════════════════════════════════════════════ */
-export const personnelList = makeList('unit_personnel');
-export const personnelById = makeById('unit_personnel');
-export const personnelCreate = makeCreate('unit_personnel');
-export const personnelUpdate = makeUpdate('unit_personnel');
-export const personnelDelete = makeDelete('unit_personnel');
-
-/* ═══════════════════════════════════════════════════════════
    19. SIP 服务器状态（虚拟）
    ═══════════════════════════════════════════════════════════ */
 export let sipServerVirtualRunning = false;
@@ -489,95 +467,6 @@ export const iotProtocolByIdOld = makeById('iot_protocols');
 export const iotProtocolCreateOld = makeCreate('iot_protocols');
 export const iotProtocolUpdateOld = makeUpdate('iot_protocols');
 export const iotProtocolDeleteOld = makeDelete('iot_protocols');
-
-/* ═══════════════════════════════════════════════════════════
-   26. 角色旧兼容 /roles/* (字段映射)
-   ═══════════════════════════════════════════════════════════ */
-export async function roleListOld(req: Request, res: Response) {
-  try {
-    const [rows] = await sequelize.query(
-      'SELECT id, role_code as code, role_name as name, description, status, created_at FROM sys_role'
-    );
-    res.json(ok(rows));
-  } catch (err: any) {
-    logger.warn('[Stub] catch error:', err?.message || err);
-    res.json(ok([]));
-  }
-}
-
-export async function roleByIdOld(req: Request, res: Response) {
-  try {
-    const [rows] = await sequelize.query(
-      'SELECT id, role_code as code, role_name as name, description, status, created_at FROM sys_role WHERE id = ?',
-      { replacements: [req.params.id] }
-    );
-    res.json(ok((rows as any[])[0] || null));
-  } catch (err: any) {
-    logger.warn('[Stub] catch error:', err?.message || err);
-    res.json(ok(null));
-  }
-}
-
-export async function roleCreateOld(req: Request, res: Response) {
-  try {
-    const { name, code, description, status } = req.body;
-    const [result] = await sequelize.query(
-      `INSERT INTO sys_role (role_name, role_code, description, status) VALUES (?, ?, ?, ?)`,
-      { replacements: [name, code, description, status === undefined ? 1 : status] }
-    );
-    res.json(ok({ id: (result as any).insertId }));
-  } catch (err) { res.json(ok(null, (err as Error).message)); }
-}
-
-export async function roleUpdateOld(req: Request, res: Response) {
-  try {
-    const { name, code, description, status } = req.body;
-    await sequelize.query(
-      `UPDATE sys_role SET role_name=?, role_code=?, description=?, status=? WHERE id=?`,
-      { replacements: [name, code, description, status, req.params.id] }
-    );
-    res.json(ok(null));
-  } catch (err) { res.json(ok(null, (err as Error).message)); }
-}
-
-export async function roleDeleteOld(req: Request, res: Response) {
-  try {
-    await sequelize.query(`DELETE FROM sys_role WHERE id = ?`, { replacements: [req.params.id] });
-    res.json(ok(null));
-  } catch (err) { res.json(ok(null, (err as Error).message)); }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   27. 权限旧兼容 /permissions (字段映射)
-   ═══════════════════════════════════════════════════════════ */
-export async function permissionListOld(req: Request, res: Response) {
-  try {
-    const [rows] = await sequelize.query(
-      'SELECT id, permission_code as code, permission_name as name, description, status FROM sys_permission'
-    );
-    res.json(ok(rows));
-  } catch (err: any) {
-    logger.warn('[Stub] catch error:', err?.message || err);
-    res.json(ok([]));
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════
-   28. 组织架构旧兼容 /departments/*
-   ═══════════════════════════════════════════════════════════ */
-export async function departmentListOld(req: Request, res: Response) {
-  try {
-    const [rows] = await sequelize.query('SELECT * FROM departments');
-    res.json(ok(rows));
-  } catch (err: any) {
-    logger.warn('[Stub] catch error:', err?.message || err);
-    res.json(ok([]));
-  }
-}
-export const departmentByIdOld = makeById('departments');
-export const departmentCreateOld = makeCreate('departments');
-export const departmentUpdateOld = makeUpdate('departments');
-export const departmentDeleteOld = makeDelete('departments');
 
 /* ═══════════════════════════════════════════════════════════
    29. 维保单位旧兼容 /maintenance/companies → departments
@@ -780,47 +669,4 @@ export async function analysisPatrolOld(req: Request, res: Response) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   GB28181 设备兼容 /gb28181-devices/*
-   ═══════════════════════════════════════════════════════════ */
-export const gb28181DeviceList = makeList('gb28181_devices');
-export const gb28181DeviceById = makeById('gb28181_devices');
-export const gb28181DeviceCreate = makeCreate('gb28181_devices');
-export async function gb28181DeviceUpdate(req: Request, res: Response) {
-  try {
-    const id = req.params.id;
-    const body = req.body;
-    const validFields = await getTableColumns('gb28181_devices');
-    if (!validFields) {
-      throw new Error('无法获取表 gb28181_devices 的列信息，拒绝更新');
-    }
-    const mappedBody: Record<string, any> = {};
-    Object.keys(body).forEach(k => {
-      const sk = toSnakeCase(k);
-      if (validFields.includes(sk)) mappedBody[sk] = body[k];
-    });
-    const cols = Object.keys(mappedBody).filter(k => k !== 'id');
-    const vals = cols.map(k => mappedBody[k]);
-    if (!cols.length) {
-      return res.json(ok(null));
-    }
 
-    const [result1] = await sequelize.query(
-      `UPDATE \`gb28181_devices\` SET ${cols.map(c => `\`${c}\`=?`).join(',')} WHERE id=?`,
-      { replacements: [...vals, id] }
-    );
-
-    if ((result1 as any).affectedRows === 0) {
-      await sequelize.query(
-        `UPDATE \`gb28181_devices\` SET ${cols.map(c => `\`${c}\`=?`).join(',')} WHERE device_id=?`,
-        { replacements: [...vals, id] }
-      );
-    }
-
-    return res.json(ok(null));
-  } catch (err: any) {
-    logger.error('[Stub] gb28181DeviceUpdate', err);
-    res.status(500).json(fail(`更新失败: ${err?.message || '未知错误'}`, 500));
-  }
-}
-export const gb28181DeviceDelete = makeDelete('gb28181_devices');

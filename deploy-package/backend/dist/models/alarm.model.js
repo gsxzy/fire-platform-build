@@ -41,6 +41,12 @@ exports.Alarm = database_1.default.define('alarm', {
         { name: 'idx_alarm_type', fields: ['alarm_type'] },
         { name: 'idx_alarm_level', fields: ['alarm_level'] },
         { name: 'idx_created_at', fields: ['created_at'] },
+        /* 复合索引：告警中心列表高频筛选（类型+状态+时间倒序） */
+        { name: 'idx_alarm_type_status_time', fields: ['alarm_type', 'status', 'created_at'] },
+        /* 复合索引：按设备查询告警历史 */
+        { name: 'idx_device_created', fields: ['device_id', 'created_at'] },
+        /* 复合索引：单位告警统计 */
+        { name: 'idx_unit_created', fields: ['unit_id', 'created_at'] },
     ],
 });
 //# sourceMappingURL=alarm.model.js.map

@@ -23,6 +23,10 @@ export declare class DashboardService {
                 total: number;
                 online: number;
             }[];
+            activeTotal: number;
+            activeOnline: number;
+            activeOffline: number;
+            activeRate: string;
         };
         workOrder: {
             pending: number;
@@ -54,6 +58,9 @@ export declare class DashboardService {
             deviceOnline: number;
             unitOnlineRate: string;
             deviceOnlineRate: string;
+            deviceActiveTotal: number;
+            deviceActiveOnline: number;
+            deviceActiveRate: string;
         };
         alarmTrend: {
             day: string;

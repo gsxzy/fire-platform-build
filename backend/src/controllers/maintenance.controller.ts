@@ -1,8 +1,9 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { sendSuccess, sendPage } from '@/utils/respond';
-import { MaintenanceCompany, MaintenanceContract, MaintenanceWorkOrder } from '@/models';
+import { MaintenanceCompany, MaintenanceContract, MaintenanceWorkOrder, MaintenanceRecord } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
+import logger from '@/config/logger';
 
 function parsePage(req: Request) {
   const pageNum = Math.max(1, parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1);
@@ -119,6 +120,7 @@ export const MaintenanceController = {
 
   async workOrderComplete(req: Request, res: Response) {
     const { handleResult, materialCost, laborCost } = req.body;
+    const orderId = parseIdStrict(req.params.id);
     await MaintenanceWorkOrder.update(
       {
         handle_result: handleResult,
@@ -127,9 +129,74 @@ export const MaintenanceController = {
         actual_end: new Date(),
         status: 2,
       },
-      { where: { id: parseIdStrict(req.params.id) } }
+      { where: { id: orderId } }
     );
+
+    // 工单完工自动写维保记录（P1）
+    try {
+      const wo = await MaintenanceWorkOrder.findByPk(orderId, { raw: true }) as any;
+      if (wo) {
+        const typeMap: Record<number, string> = { 1: 'inspection', 2: 'repair', 3: 'maintenance', 4: 'replacement' };
+        await MaintenanceRecord.create({
+          record_no: `MR${Date.now()}${Math.floor(Math.random() * 100)}`,
+          work_order_id: orderId,
+          device_id: wo.device_id,
+          device_name: wo.device_name,
+          unit_id: wo.unit_id,
+          unit_name: wo.unit_name,
+          record_type: typeMap[wo.order_type] || 'maintenance',
+          content: wo.fault_desc,
+          result: handleResult,
+          staff_name: wo.assignee_name,
+          record_date: new Date().toISOString().slice(0, 10),
+          status: 1,
+          material_cost: materialCost,
+          labor_cost: laborCost,
+        } as any);
+      }
+    } catch (e: any) {
+      // 自动写记录失败不影响工单完成主流程
+      logger.warn(`[Maintenance] 工单 ${orderId} 完工后自动写维保记录失败: ${e.message}`);
+    }
+
     sendSuccess(res, req, null, '工单已完成');
+  },
+
+  async recordList(req: Request, res: Response) {
+    const { pageNum, pageSize } = parsePage(req);
+    const { keyword, recordType, status } = req.query;
+    const where: Record<string, unknown> = {};
+    if (recordType) where.record_type = recordType;
+    if (status !== undefined) where.status = status;
+    if (keyword) {
+      (where as { [Op.or]?: unknown })[Op.or] = [
+        { record_no: { [Op.like]: `%${keyword}%` } },
+        { device_name: { [Op.like]: `%${keyword}%` } },
+      ];
+    }
+    const { count, rows } = await MaintenanceRecord.findAndCountAll({
+      where,
+      limit: pageSize,
+      offset: (pageNum - 1) * pageSize,
+      order: [['record_date', 'DESC']],
+    });
+    sendPage(res, req, rows, count, pageNum, pageSize);
+  },
+
+  async recordCreate(req: Request, res: Response) {
+    const recordNo = `MR${Date.now()}${Math.floor(Math.random() * 100)}`;
+    const r = await MaintenanceRecord.create({ ...sanitizeBody(req.body), record_no: recordNo } as any);
+    sendSuccess(res, req, { id: (r as any).id }, '创建成功');
+  },
+
+  async recordUpdate(req: Request, res: Response) {
+    await MaintenanceRecord.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
+    sendSuccess(res, req, null, '更新成功');
+  },
+
+  async recordDelete(req: Request, res: Response) {
+    await MaintenanceRecord.destroy({ where: { id: parseIdStrict(req.params.id) } });
+    sendSuccess(res, req, null, '删除成功');
   },
 
   async stats(req: Request, res: Response) {

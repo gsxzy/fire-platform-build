@@ -153,8 +153,15 @@ function mapLegacyDeviceBody(body: Record<string, unknown>, isCreate = false) {
     if (v !== '' && v !== null && v !== undefined) payload.point_id = Number(v);
   }
 
+  // gateway_id：关联网关/传输装置ID（赋安FSCN8001等场景，主机档案关联传输装置）
+  if (b.gateway_id !== undefined || b.gatewayId !== undefined) {
+    const v = b.gateway_id ?? b.gatewayId;
+    if (v !== '' && v !== null && v !== undefined) payload.gateway_id = String(v);
+    else if (v === null) payload.gateway_id = null;
+  }
+
   // 前端额外字段：映射到扩展 JSON 字段 config 中
-  const extraFields = ['remark', 'calibrationCycle', 'calibration_cycle', 'scrapYear', 'scrap_year', 'gatewayId', 'gateway_id'];
+  const extraFields = ['remark', 'calibrationCycle', 'calibration_cycle', 'scrapYear', 'scrap_year'];
   const configExtra: Record<string, unknown> = {};
   for (const key of extraFields) {
     if (b[key] !== undefined && b[key] !== '' && b[key] !== null) {
@@ -183,6 +190,7 @@ export const DeviceController = {
           { device_name: { [Op.like]: `%${keyword}%` } },
           { device_no: { [Op.like]: `%${keyword}%` } },
           { device_sn: { [Op.like]: `%${keyword}%` } },
+          { gateway_id: { [Op.like]: `%${keyword}%` } },
         ];
       }
       if (deviceType) where.device_type = deviceType;

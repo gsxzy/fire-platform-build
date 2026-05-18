@@ -1,0 +1,20 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const plan_controller_1 = require("@/controllers/plan.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Plan.${String(name)}`, plan_controller_1.PlanController[name]);
+const view = (0, permission_1.requirePermission)('plan:view');
+const manage = (0, permission_1.requirePermission)('plan:manage');
+router.get('/', view, h('planList'));
+router.post('/', manage, h('planCreate'));
+router.put('/:id', manage, h('planUpdate'));
+router.delete('/:id', manage, h('planDelete'));
+router.get('/drills', view, h('drillList'));
+router.post('/drills', manage, h('drillCreate'));
+router.put('/drills/:id', manage, h('drillUpdate'));
+router.delete('/drills/:id', manage, h('drillDelete'));
+exports.default = router;
+//# sourceMappingURL=plan.routes.js.map

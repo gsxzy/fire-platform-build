@@ -20,9 +20,41 @@ export interface AlarmPopupData {
   dutyOfficerPhone?: string;
   safetyOfficerName?: string;
   safetyOfficerPhone?: string;
+  unitContactName?: string;
+  unitContactPhone?: string;
   snapshots: { imageUrl?: string; cameraName?: string }[];
   relatedCameras: { id: string; name: string; streamUrl?: string }[];
   floorPlan?: { image_url?: string; x?: number; y?: number };
+  controlRoom?: {
+    roomName?: string;
+    dutyPerson?: string;
+    duty_phone?: string;
+    dutyPhone?: string;
+    managerName?: string;
+    managerPhone?: string;
+    dutyOfficerName?: string;
+    dutyOfficerPhone?: string;
+    safetyOfficerName?: string;
+    safetyOfficerPhone?: string;
+    videoUrl?: string;
+  };
+  dispatchRecords?: DispatchRecord[];
+}
+
+export interface DispatchRecord {
+  id: string;
+  alarm_id: string;
+  alarm_no?: string;
+  phase: string;
+  status: string;
+  handler_name?: string;
+  created_at?: string;
+  dispatch_time?: string;
+  verify_time?: string;
+  resolve_time?: string;
+  dispatch_note?: string;
+  verify_note?: string;
+  resolve_note?: string;
 }
 
 interface AlarmPopupContextValue {
@@ -126,9 +158,12 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
           dutyOfficerPhone: detail.controlRoom?.dutyOfficerPhone || detail.controlRoom?.dutyPhone || detail.controlRoom?.duty_phone,
           safetyOfficerName: detail.controlRoom?.safetyOfficerName || detail.controlRoom?.dutyPerson || detail.controlRoom?.duty_person,
           safetyOfficerPhone: detail.controlRoom?.safetyOfficerPhone || detail.controlRoom?.dutyPhone || detail.controlRoom?.duty_phone,
+          unitContactName: detail.unit?.contact_name || detail.unit?.contactName,
+          unitContactPhone: detail.unit?.contact_phone || detail.unit?.contactPhone,
           snapshots: detail.snapshots || [],
           relatedCameras: detail.relatedCameras || [],
           floorPlan: detail.floorPlan,
+          dispatchRecords: detail.dispatchRecords || [],
         });
       } catch (e: any) {
         logger.error('[AlarmPopupContext] 轮询触发失败:', e?.message || e);

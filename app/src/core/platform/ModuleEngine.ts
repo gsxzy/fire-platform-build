@@ -135,6 +135,17 @@ class ModuleEngineCore {
     };
   }
 
+  /* ── 从后端批量同步状态 ── */
+  bulkUpdateFromBackend(backendModules: { id: string; status: ModuleStatus }[]): void {
+    backendModules.forEach(m => {
+      if (this.moduleStatus.get(m.id) !== m.status) {
+        this.moduleStatus.set(m.id, m.status);
+      }
+    });
+    this.saveToStorage();
+    this.listeners.forEach(fn => fn('', 'enabled'));
+  }
+
   /* ── 私有方法 ── */
   private notifyListeners(id: string, status: ModuleStatus): void {
     this.listeners.forEach(fn => fn(id, status));

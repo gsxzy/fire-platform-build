@@ -1,0 +1,22 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const duty_controller_1 = require("@/controllers/duty.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Duty.${String(name)}`, duty_controller_1.DutyController[name]);
+const view = (0, permission_1.requirePermission)('duty:view');
+const manage = (0, permission_1.requirePermission)('duty:manage');
+router.get('/schedules', view, h('scheduleList'));
+router.get('/schedules/:id', view, h('scheduleById'));
+router.post('/schedules', manage, h('scheduleCreate'));
+router.put('/schedules/:id', manage, h('scheduleUpdate'));
+router.delete('/schedules/:id', manage, h('scheduleDelete'));
+router.post('/check-in', manage, h('checkIn'));
+router.post('/check-out', manage, h('checkOut'));
+router.get('/logs', view, h('logList'));
+router.get('/current', view, h('currentDuty'));
+router.get('/absence-alert', view, h('absenceAlert'));
+exports.default = router;
+//# sourceMappingURL=duty.routes.js.map

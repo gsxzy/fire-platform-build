@@ -68,6 +68,7 @@ export const MODULES: PlatformModule[] = [
       label: '告警中心', icon: Bell, path: '/alarm',
       children: [
         { id: 'alm-center', label: '告警总览', path: '/alarm/center', icon: Bell },
+        { id: 'alm-config', label: '告警配置', path: '/alarm/config', icon: Sliders },
       ],
     },
     dbTables: ['alarms', 'alarm_configs', 'alarm_history'],
@@ -139,7 +140,9 @@ export const MODULES: PlatformModule[] = [
     dbTables: ['units', 'unit_types', 'unit_contacts'],
     permissions: [
       { code: 'unit:view', name: '单位查看', actions: ['view'] },
-      { code: 'unit:manage', name: '单位管理', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'unit:create', name: '单位新增', actions: ['create'] },
+      { code: 'unit:edit', name: '单位编辑', actions: ['edit'] },
+      { code: 'unit:delete', name: '单位删除', actions: ['delete'] },
     ],
   },
 
@@ -163,10 +166,9 @@ export const MODULES: PlatformModule[] = [
     dbTables: ['devices', 'device_configs', 'device_types', 'device_logs', 'iot_devices', 'device_allocation_logs'],
     permissions: [
       { code: 'device:view', name: '设备查看', actions: ['view'] },
-      { code: 'device:archive', name: '入库与设备档案', actions: ['view', 'create', 'edit', 'delete'] },
-      { code: 'device:access', name: '设备接入', actions: ['view', 'create', 'edit', 'delete'] },
-      { code: 'device:allocate', name: '设备分配', actions: ['view', 'create', 'edit', 'delete'] },
-      { code: 'device:config', name: '设备配置', actions: ['view', 'create', 'edit', 'delete'] },
+      { code: 'device:create', name: '设备新增', actions: ['create'] },
+      { code: 'device:edit', name: '设备编辑', actions: ['edit'] },
+      { code: 'device:delete', name: '设备删除', actions: ['delete'] },
     ],
   },
 

@@ -979,4 +979,426 @@ echo -e "\n[mysqld]\nevent_scheduler = ON" >> /etc/my.cnf
 
 ---
 
+## 十七、监控中心整改（2026-05-17）
+
+### 1. 删除 dashboard.routes 错误子系统映射 🔴 P0
+
+**问题**：`/subsystem/water|elec|vent` 三条路由错误指向 `deviceAnalysis`，语义完全不符，且与子系统模块重复。
+
+**修复**：删除 `backend/src/routes/modules/dashboard.routes.ts` 中的三条错误路由。
+
+### 2. 视频监控 API 统一 🟡 P1
+
+**问题**：WVP 关闭时 `VideoMonitorPage` 同时调用 `cameraService`（`/cameras` Stub）、`gb28181Service`（`/gb28181-devices` Stub）和 `videoApi`（`/video/devices` 正式），数据源混乱。
+
+**修复**：
+1. `VideoMonitorPage` WVP 关闭分支只保留 `videoApi.getVideoDevices()` 单一数据源
+2. `cameraService` 标记为 `@deprecated`
+3. `stub.routes.ts` 中 `/cameras` 保留但注释更新
+
+### 3. 实时监控 WebSocket 推送 🟡 P1
+
+**问题**：`FireMonitorPage` 仅依赖初始 HTTP 加载，无实时推送能力。
+
+**修复**：
+1. `websocket.service.ts` 增加 `addAlarmListener` / `removeAlarmListener` 多监听器机制
+2. `FireMonitorPage` 注册 WebSocket 告警监听器，新告警实时插入列表头部（已存在则更新）
+3. 复用全局 `App.tsx` 中已初始化的 WebSocket 连接，无需额外建连
+
+### 4. WVP/ZLM 部署检查清单 🟡 P1
+
+首次部署或排查视频故障时，按以下顺序检查：
+
+| 步骤 | 检查项 | 期望结果 | 排查命令 |
+|------|--------|---------|---------|
+| 1 | ZLM 容器运行状态 | `zlmediakit` 容器 Running | `docker ps \| grep zlmediakit` |
+| 2 | ZLM HTTP 端口可达 | 返回 JSON 配置 | `curl http://<SERVER_IP>:8081/index/api/getServerConfig` |
+| 3 | WVP 进程运行状态 | `wvp-pro.jar` 在运行 | `ps aux \| grep wvp-pro.jar \| grep -v grep` |
+| 4 | WVP HTTP 端口可达 | 返回登录页或 API | `curl -s http://127.0.0.1:18080/api/device/list` |
+| 5 | WVP→ZLM 连通性 | `secret` 校验通过 | 查看 `/opt/wvp/logs/wvp.log` 无 "mediaServer offline" |
+| 6 | WVP `sdp-ip` | 公网 IP `<SERVER_IP>` | `grep sdp-ip /opt/wvp/application.yml` |
+| 7 | WVP Redis 缓存格式 | `stream_mode` 为 `UDP` / `TCP_ACTIVE`（连字符） | `redis-cli HGET VMP_DEVICE_INFO <deviceId>` |
+| 8 | 摄像头 SIP 配置 | `domain:3402000000`，指向服务器公网 IP | 登录摄像头 Web 管理页检查 |
+| 9 | 后端 `.env` 视频配置 | `ZLM_PLAY_HOST=<SERVER_IP>` | `grep ZLM /opt/my-fire-api-new/.env` |
+| 10 | 后端 `replaceLocalhost()` | `video.service.ts` 中已启用 | `grep replaceLocalhost backend/src/services/video.service.ts` |
+| 11 | nginx 代理 | `/wvp/` 转发到 `127.0.0.1:18080` | `grep /wvp /www/server/nginx/conf/vhost/*.conf` |
+| 12 | 防火墙端口 | TCP/UDP 5060、TCP/UDP 8081 放行 | `iptables -L -n \| grep -E '5060\|8081'` |
+
+**常见故障速查**：
+- **收流超时** → 检查步骤 6（`sdp-ip` 必须是公网 IP）
+- **415 Unsupported Media Type** → 检查步骤 7（Redis 缓存格式错误）+ 检查 `DEVICE_ID_MAP` 是否仅映射 `channelId`
+- **画面黑屏/无流** → 检查步骤 1-3 + ZLM 日志 `docker logs zlmediakit`
+- **前端无法播放** → 检查步骤 9-10（后端替换 `127.0.0.1` 为公网 IP）
+
+---
+
+## 十八、设备管理整改（2026-05-17）
+
+### 1. 权限码统一 🔴 P0
+
+**问题**：注册表使用生命周期阶段权限（`device:archive/access/allocate/config`），后端路由和种子数据使用 CRUD 权限（`device:view/create/edit/delete`），三套并存。
+
+**修复**：
+- 前端 `ModuleRegistry.ts` 去掉阶段权限，统一为细粒度 CRUD：`device:view` / `device:create` / `device:edit` / `device:delete`
+- 后端路由和种子数据保持不变（已一致）
+
+### 2. IoT 安全加固 🔴 P0
+
+**问题**：CTWing / 海康4G 公开推送接口无 IP 白名单时放行所有来源，存在被伪造推送风险。
+
+**修复**：
+- `.env.example` 强化 `IOT_IP_WHITELIST` 注释，明确生产环境必须配置
+- 后端 `ctwing.controller.ts` / `hikvision4g.controller.ts` 已有 `checkIotWhitelist()`，未配置时放行（兼容开发环境）
+
+**生产环境必做**：
+```bash
+# 1. 获取 CTWing 平台推送 IP（天翼物联网平台 → 应用管理 → 推送设置）
+# 2. 配置白名单
+echo "IOT_IP_WHITELIST=124.223.x.x,117.x.x.x" >> /opt/my-fire-api-new/.env
+pm2 restart fire-platform
+```
+
+### 3. 设备生命周期状态机单测 🟡 P1
+
+**新增** `backend/src/__tests__/deviceLifecycle.test.ts`（14 个用例）：
+- 状态常量定义校验（6 个状态 + 标签映射）
+- 6 个操作规则矩阵测试：`canConnect` / `canAllocate` / `canConfigure` / `canDeleteArchive` / `canScrap` / `canMaintain`
+- 核心流程闭环：草稿 → 入库 → 接入 → 分配 → 维护 → 报废
+
+全部 32 个后端测试通过（含原有 18 个）。
+
+---
+
+## 十七、消防维保管理整改（2026-05-17）
+
+### 1. 维保记录正式 API
+
+新增 `MaintenanceRecord` 模型（`fire_maint_record`）及 `/maintenance/records` 标准 CRUD：
+- `GET /maintenance/records` — 分页查询（支持 record_type/staff_name/record_date 筛选）
+- `GET /maintenance/records/:id` — 单条详情
+- `POST /maintenance/records` — 新增记录
+- `PUT /maintenance/records/:id` — 更新
+- `DELETE /maintenance/records/:id` — 删除
+- 前端 `maintRecordService` 统一指向 `/maintenance/records`
+
+### 2. Stub 迁移
+- `/maint-records`（Stub）→ `/old/maint-records`
+- `stub.routes.ts` 保留旧兼容入口
+
+### 3. 工单完工自动同步
+- `workOrderComplete` 完工后自动 `MaintenanceRecord.create`
+- `record_type=2`（维修），`record_no=MR${Date.now()}` 自动生成
+- 失败仅 warn 不阻断工单完成
+
+### 4. 权限现状
+- 读操作：`maintenance:view`
+- 写操作（create/update/delete）：`maintenance:view`（当前）
+- **P2**：建议后续将写操作拆分为 `maintenance:manage`（记录增删改）和 `maintenance:dispatch`（工单派工/完工），与菜单注册表 `fire_menu` 对齐。
+
+### 生产环境检查
+- `fire_maint_record` 表由 Sequelize `sync({ alter: true })` 自动创建（已确认启动不报错）
+- 前端 `MaintenanceRecordPage.tsx` 已调用 `/maintenance/records`，无需额外修改
+
+---
+
+## 十八、巡检管理整改（2026-05-17）
+
+### 1. 权限拆分
+
+后端路由写操作统一改用 `patrol:manage`：
+- **读操作**（`GET`）：`patrol:view`（计划列表/详情、记录列表/详情、隐患列表）
+- **写操作**（`POST/PUT/DELETE`）：`patrol:manage`（计划增删改、记录增删改、隐患增删改/整改）
+- 新增接口：`POST /patrol/records/:id/checkin`（签到，需 `patrol:manage`）
+
+前端 `PatrolPlanPage`/`PatrolRecordPage`/`HazardPage` 统一传入 `permission={{ create: 'patrol:manage', update: 'patrol:manage', delete: 'patrol:manage' }}`，无管理权限用户仅可查看。
+
+### 2. 移动端扫码签到 API
+
+`POST /patrol/records/:id/checkin`
+- Body：`{ result?, abnormalDesc?, photos?, signature?, checkItems? }`
+- 功能：更新巡检结果、异常描述、照片、签名、巡检项
+- 联动：若 `result=2`（异常），自动创建隐患单（`hazard_type=4` 其他）
+
+前端 `patrolRecordService.checkIn(id, data)` 已封装。
+
+### 3. 隐患整改与告警联动
+
+`PUT /patrol/hazards/:id/rectify` 整改完成后：
+- 若隐患等级 `level >= 2`（重大/特大），自动创建告警记录
+- `alarm_type=3`（预警），`alarm_level` 与隐患等级对齐
+- 失败仅 warn 不阻断整改流程
+
+### 4. 前端 service 补全
+
+`hazardService.rectify(id, data)` 新增，支持整改措施、整改后照片、整改人姓名提交。
+
+---
+
+## 十九、应急预案整改（2026-05-17）
+
+### 1. Stub 重复路径下线
+
+- `/plans`（Stub）→ `/old/plans`
+- `/drills`（Stub）→ `/old/drills`
+- 前端 `drillService` 统一改为调用 `/plans/drills`（原调用 `/drills` 实际命中 Stub）
+
+### 2. 预案模型字段补齐
+
+`EmergencyPlan`（`fire_emergency_plan`）新增字段：
+- `plan_level` — 预案级别（1一级 2二级 3三级）
+- `version_no` — 版本号
+- `update_date` — 修订日期
+
+`EmergencyDrill`（`fire_emergency_drill`）新增字段：
+- `drill_name` — 演练名称
+- `location` — 演练地点
+- `duration` — 耗时
+
+控制器新增 `mapPlanBody` / `mapDrillBody` 字段映射（camelCase → snake_case）。
+
+### 3. 演练参与人 drill_participants 对接
+
+- **模型**：新增 `DrillParticipant`（`drill_id`/`name`/`role`）
+- **路由**：
+  - `GET /plans/drills/:id/participants` — 列表
+  - `POST /plans/drills/:id/participants` — 新增（`plan:manage`）
+  - `DELETE /plans/drills/:id/participants/:participantId` — 删除（`plan:manage`）
+- **前端 service**：`drillParticipantService.list/create/delete`
+
+### 生产环境
+- `fire_emergency_plan` / `fire_emergency_drill` 新增字段由 Sequelize `sync({ alter: true })` 自动创建
+- `drill_participants` 表已由 V011 迁移创建，新增模型与现有表结构兼容
+
+---
+
+## 二十、GIS 地图整改（2026-05-17）
+
+### 1. GIS 路由权限加固
+
+`dashboard.routes.ts` 中 `/gis/*` 路由统一添加 `map:view` 权限中间件：
+- `GET /gis/points` — 地图点位
+- `GET /gis/situation` — 区域态势
+- `GET /gis/alarm-points` — 告警点位
+- `GET /gis/alarm-heatmap` — 告警热力图（新增）
+
+其他 dashboard 路由（workbench、monitor、analysis、reports、bigscreen）不受影响。
+
+### 2. 单位档案经纬度校验
+
+`UnitController.mapLegacyUnitBody` 增加范围校验：
+- 经度 `lng` 必须在 `-180 ~ 180` 之间
+- 纬度 `lat` 必须在 `-90 ~ 90` 之间
+- 无效值返回 `400` 错误，阻断保存
+
+### 3. 区域态势查询优化
+
+`GISService.getRegionSituation` 重构：
+- 原 N+1 查询（每个单位单独 `Device.count` + `Alarm.count`）→ 单次聚合查询
+- 通过 `GROUP BY unit_id` 批量统计设备数/在线数/告警数
+
+### 4. 告警热力图层
+
+后端：
+- 新增 `GET /gis/alarm-heatmap` — 返回 `{lng, lat, weight}` 数组
+- `weight` 按告警级别加权（紧急 1.0 / 严重 0.7 / 一般 0.4）
+
+前端：
+- `GISMapPage` 新增热力图数据加载与 `AMap.HeatMap` 图层控制
+- 工具栏新增「热力图」切换按钮（`Layers` 图标）
+- 动态加载高德 HeatMap 插件，支持显示/隐藏切换
+
+---
+
+## 二十一、数据分析整改（2026-05-17）
+
+### 1. 分析路由权限加固
+
+`dashboard.routes.ts` 中 `/analysis/*` 路由统一添加 `analysis:view` 权限中间件：
+- `GET /analysis/device` — 设备分析
+- `GET /analysis/alarm` — 告警分析
+- `GET /analysis/maintenance` — 维保分析
+- `GET /analysis/hazard` — 隐患分析
+- `GET /analysis/patrol` — 巡检完成率
+
+其他 dashboard 路由（workbench、monitor、reports 列表查询、bigscreen）不受影响。
+
+### 2. 报表导出接口
+
+新增 `GET /reports/export`（需 `analysis:export`）：
+- 支持 `type=daily|weekly|monthly|device|maintenance|patrol`
+- 支持 `date/endDate/year/month/unitId/startDate` 等参数
+- 返回 UTF-8 BOM CSV 文件流，Excel 可直接打开
+- 文件名自动生成（如 `日报_2026-05-17_20260517.csv`）
+
+`ReportService.exportReport` 通用 CSV 生成器：
+- 日报 → 告警明细
+- 周报/月报 → 告警趋势
+- 设备 → 设备台账
+- 维保 → 工单列表
+- 巡检 → 巡检记录
+
+### 3. 前端导出按钮
+
+`AnalysisReportPage` 工具栏新增 6 个导出按钮：日报 / 周报 / 月报 / 设备 / 维保 / 巡检，使用 `fetch` 直接下载 blob。
+
+---
+
+## 二十二、报表管理整改（2026-05-17）
+
+### 1. Stub 清理
+
+- `/reports/list`（Stub）→ `/old/reports/list`
+- 删除 `/old/reports/daily|weekly|monthly|device|maintenance|patrol` 6 个 `notImplemented` 空路由
+- 正式路由统一由 `dashboard.routes.ts` 的 `/reports/*` 接管
+
+### 2. Excel 导出支持
+
+`ReportService.exportReport` 扩展支持 `xlsx` 格式：
+- 使用已有 `xlsx@0.18.5` 依赖生成 `.xlsx` 文件
+- 所有报表类型（日报/周报/月报/设备/维保/巡检）均支持 CSV + Excel 双格式
+- `dashboard.controller.ts` 根据 format 自动设置 `Content-Type` 和响应体
+
+前端 `ReportExportPage` 重构：
+- 每个报表提供「CSV」和「Excel」两个下载按钮
+- 放弃 JSON 下载，改为直接调用 `/reports/export?format=xlsx|csv`
+
+### 3. 定时报表任务 + 邮件推送
+
+新增 `ReportSchedule` 模型（`report_schedule`）：
+- `report_name` / `report_type` / `unit_id`
+- `cron_expr` — Cron 表达式（默认 `0 8 * * *`）
+- `recipients` — 收件人邮箱（支持多邮箱逗号/分号分隔）
+- `format` — `csv` / `xlsx`
+- `last_run_at` / `last_run_status` — 执行记录
+
+`cron/index.ts` 新增每分钟定时报表检查：
+- 查询所有 `status=1` 的 schedule
+- 使用简化 cron 匹配函数判断当前时间是否满足表达式
+- 生成报表后通过 `NotificationService.sendEmail` 推送邮件
+- 更新 `last_run_at` 和 `last_run_status`（成功/失败）
+
+**注意**：定时报表邮件需配置 SMTP 环境变量（`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM`），未配置时邮件发送返回失败但 cron 继续执行其他任务。
+
+---
+
+## 二十三、消防知识库整改（2026-05-17）
+
+### 1. 附件上传
+
+后端：
+- 新增 `POST /knowledge/upload`（需 `knowledge:manage`）
+- 使用已有 `multer` 中间件，支持 `.jpg/.png/.pdf/.doc/.docx/.xls/.xlsx`，单文件 10MB
+- 返回 `{ url, originalName, size }`
+
+前端 `knowledgeService.upload(file)` 已封装。
+
+### 2. 全文检索
+
+`KnowledgeDoc` 模型新增 MySQL FULLTEXT 索引 `ft_title_content`（`title` + `content`）：
+- `list` 方法优先使用 `MATCH AGAINST` 布尔模式检索
+- 若 FULLTEXT 不可用（如 MySQL 5.5 或引擎不支持），自动降级为 `LIKE '%keyword%'`
+- 支持 `*` 前缀匹配（如 `消防*` 匹配「消防法」「消防设施」等）
+
+### 3. 分类树与注册表对齐
+
+新增 `DocCategory` 模型（`doc_categories` 表）：
+- `name` / `parent_id` / `sort_order`
+- **独立分类管理 API**：
+  - `GET /knowledge/categories` — 优先返回 `doc_categories` 数据，无数据时降级到文档记录动态提取
+  - `GET /knowledge/categories/list` — 分页列表
+  - `POST /knowledge/categories` — 新增（`knowledge:manage`）
+  - `PUT /knowledge/categories/:id` — 更新（`knowledge:manage`）
+  - `DELETE /knowledge/categories/:id` — 删除（`knowledge:manage`）
+
+### 4. Stub 清理
+
+- `/documents/*`（Stub）→ `/old/documents/*`
+- 删除 `/old/knowledge` 和 `/old/knowledge/categories`
+
+### 生产环境
+- `fire_knowledge_doc` FULLTEXT 索引由 Sequelize `sync({ alter: true })` 自动创建
+- `doc_categories` 表由 `DocCategory` 模型 `sync` 自动创建
+- 若 MySQL 版本低于 5.6 或表引擎为 MyISAM，FULLTEXT 可能创建失败，系统会自动降级到 LIKE
+
+---
+
+## 二十四、大屏模式整改（2026-05-17）
+
+### 1. 权限加固
+
+`dashboard.routes.ts` 中 `/bigscreen/data` 和 `/bigscreen/config` 统一添加 `bigscreen:view` 权限中间件。
+
+### 2. 前后端数据对齐
+
+`DashboardService.getBigScreenData` 全面增强，补充前端期望字段：
+- `hourlyData` — 24 小时火警/故障分时统计
+- `unitAlarmData` — 本月单位告警排行 Top10
+- `deviceTypeDist` — 设备类型分布（带颜色）
+- `systems` — 子系统状态（从 `subsystems` 表读取）
+- `recentAlarms` — 最近告警（格式适配前端：device/unit/time/type/level）
+- `summary` — 顶部统计卡片真实数据（联网单位/在线设备/设备总数/今日告警）
+
+### 3. 大屏配置 API
+
+- 新增 `ScreenWidget` 模型（`fire_screen_widget`）
+- 新增 `GET /bigscreen/config` — 读取当前启用的大屏配置和组件列表
+- 前端 `ScreenDashboardPage` 同时拉取数据 + 配置，配置可用于后续动态布局驱动
+
+### 生产环境
+- `fire_screen_widget` 表由 Sequelize `sync({ alter: true })` 自动创建
+- `fire_screen_config` 表已有模型，确认正常使用
+- `AGENTS.md` 已追加第二十四节记录
+
+---
+
+## 二十五、系统管理模块标准化（2026-05-17）
+
+### 1. 模块配置中心同步后端
+
+**问题**：`ModuleConfigPage` 仅通过 `ModuleEngine`（localStorage）管理模块状态，与后端 Redis 中的 `platform_modules` 不同步，多用户/多设备场景下状态不一致。
+
+**修复**：
+- 前端 `ModuleConfigPage` mount 时调用 `GET /system/modules` 同步后端状态到 `ModuleEngine`
+- 切换模块时先调用 `PUT /system/modules/toggle`，成功后再更新 `ModuleEngine`
+- `ModuleEngine` 新增 `bulkUpdateFromBackend()` 方法
+- 前端新增 `moduleService`（`system.service.ts`）
+
+### 2. 人员管理正式化
+
+**问题**：`PersonnelPage` 调用 `/personnel` stub（`unit_personnel` 表），无权限控制；Modal 中单位选择硬编码。
+
+**修复**：
+- 后端新增 `Personnel` 模型（`sys_personnel` 表）
+- 后端 `SystemController` 新增 `personnelList/Create/Update/Delete` 方法
+- 后端路由 `GET|POST|PUT|DELETE /system/personnel` 添加 `system:admin` 权限守卫
+- 前端 `personnelService` 迁移到 `/system/personnel`
+- `PersonnelModal` 单位选择改为从 `unitService.list()` 动态加载
+- 前后端字段映射：前端 camelCase ↔ 后端 snake_case（`unitId`/`unit_id`、`certType`/`cert_type` 等）
+
+### 3. 系统监控真实指标
+
+**问题**：`SystemMonitorPage` 依赖 `/system-monitor/*` stubs：`metrics` 返回随机数，`services`/`logs` 返回 404。
+
+**修复**：
+- 后端新增 `GET /system/monitor`，使用 Node.js `os`/`process` 模块返回真实指标：
+  - CPU 使用率（基于 `os.loadavg()` / `os.cpus()`）
+  - 内存使用率（`os.freemem()` / `os.totalmem()`）
+  - 系统运行时间（`process.uptime()`）
+  - 设备在线率（数据库查询）
+- 前端 `SystemMonitorPage` 改为调用 `/system/monitor`
+- 日志从 `/system/logs` 获取（`SystemLog` 表）
+- 服务状态只展示当前 Node.js 进程
+
+### 4. Stub 清理
+
+- 删除 `stub.routes.ts` 中的 `/personnel` 和 `/system-monitor/*`
+- 删除 `stub.oldTable.service.ts` 中的 `personnelList/ById/Create/Update/Delete` 和 `unit_personnel` 表允许
+- 删除 `stub.fakeData.service.ts` 中的 `systemMonitorMetrics/Services/Logs`
+
+### 生产环境
+- `sys_personnel` 表由 Sequelize `sync({ alter: true })` 自动创建
+- 权限码 `system:admin` 需已在角色权限表中注册
+
+---
+
 *最后更新：2026-05-17*
