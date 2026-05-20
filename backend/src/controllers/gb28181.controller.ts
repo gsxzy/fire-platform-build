@@ -6,7 +6,7 @@
  */
 import type { Request, Response } from 'express';
 import sequelize from '@/config/database';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/respond';
 import { page } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { sanitizePagination } from '@/utils/validator';
@@ -115,6 +115,6 @@ export const GB28181Controller = {
       `DELETE FROM \`gb28181_devices\` WHERE id = ?`,
       { replacements: [req.params.id] }
     );
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 };

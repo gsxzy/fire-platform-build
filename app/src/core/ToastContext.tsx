@@ -5,7 +5,7 @@
  * 自动消失 + 手动关闭 + 最多显示5条
  * ═══════════════════════════════════════════════════════════════
  */
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -72,8 +72,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const value = useMemo(() => ({ show, success, error, warning, info, remove }), [show, success, error, warning, info, remove]);
+
   return (
-    <ToastContext.Provider value={{ show, success, error, warning, info, remove }}>
+    <ToastContext.Provider value={value}>
       {children}
       {/* Toast Container */}
       <div className="fixed top-16 right-4 z-[300] flex flex-col gap-2 pointer-events-none">

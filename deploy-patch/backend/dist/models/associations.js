@@ -23,5 +23,5 @@ iot_model_1.IoTDevice.belongsTo(device_model_1.Device, { foreignKey: 'archive_de
 device_model_1.Device.hasOne(iot_model_1.IoTDevice, { foreignKey: 'archive_device_id', as: 'iotDevice' });
 iot_model_1.IoTDevice.belongsTo(unit_model_1.Unit, { foreignKey: 'unit_id', as: 'unit' });
 unit_model_1.Unit.hasMany(iot_model_1.IoTDevice, { foreignKey: 'unit_id', as: 'iotDevices' });
-console.log('[Model] All associations loaded');
+// associations loaded
 //# sourceMappingURL=associations.js.map

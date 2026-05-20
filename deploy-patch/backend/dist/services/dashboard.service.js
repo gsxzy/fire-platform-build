@@ -5,16 +5,25 @@ const sequelize_1 = require("sequelize");
 const models_1 = require("@/models");
 const alarm_service_1 = require("./alarm.service");
 const duty_service_1 = require("./duty.service");
+const cache_1 = require("@/utils/cache");
 class DashboardService {
     static async getWorkbenchData(userId) {
+        // 工作台数据缓存15秒，避免高频刷新导致数据库压力
+        return (0, cache_1.withCache)(cache_1.CacheTags.DASHBOARD, `workbench:${userId}`, async () => {
+            return DashboardService._fetchWorkbenchData(userId);
+        }, { ttl: 15 });
+    }
+    static async _fetchWorkbenchData(userId) {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const [alarmPending, alarmToday, deviceTotal, deviceOnlineCount, workOrderPending, patrolToday, hazardPending, unitTotal, inspectionMonth, userCount, todayFire, todayFault, alarmMonth, alarmMonthHandled,] = await Promise.all([
+        const [alarmPending, alarmToday, deviceTotal, deviceOnlineCount, deviceActiveTotal, deviceActiveOnline, workOrderPending, patrolToday, hazardPending, unitTotal, inspectionMonth, userCount, todayFire, todayFault, alarmMonth, alarmMonthHandled,] = await Promise.all([
             models_1.Alarm.count({ where: { status: 0 } }),
             models_1.Alarm.count({ where: { created_at: { [sequelize_1.Op.gte]: todayStart } } }),
             models_1.Device.count(),
             models_1.Device.count({ where: { status: 1 } }),
+            models_1.Device.count({ where: { unit_id: { [sequelize_1.Op.ne]: null } } }),
+            models_1.Device.count({ where: { unit_id: { [sequelize_1.Op.ne]: null }, status: 1 } }),
             models_1.MaintenanceWorkOrder.count({ where: { status: { [sequelize_1.Op.in]: [0, 1] } } }),
             models_1.PatrolRecord.count({ where: { created_at: { [sequelize_1.Op.gte]: todayStart } } }),
             models_1.Hazard.count({ where: { status: { [sequelize_1.Op.in]: [0, 1] } } }),
@@ -30,6 +39,7 @@ class DashboardService {
             alarm_service_1.AlarmService.getTrend(7),
             models_1.Device.findAll({
                 attributes: ['device_type', 'status', [sequelize_1.Sequelize.fn('COUNT', sequelize_1.Sequelize.col('id')), 'cnt']],
+                where: { unit_id: { [sequelize_1.Op.ne]: null } },
                 group: ['device_type', 'status'],
                 raw: true,
             }),
@@ -89,8 +99,8 @@ class DashboardService {
             deviceOnlineMap.set(name, agg);
         }
         let deviceOnline = Array.from(deviceOnlineMap.entries()).map(([name, v]) => ({ name, total: v.total, online: v.online }));
-        if (deviceOnline.length === 0 && deviceTotal > 0) {
-            deviceOnline = [{ name: '全部设备', total: deviceTotal, online: deviceOnlineCount }];
+        if (deviceOnline.length === 0 && deviceActiveTotal > 0) {
+            deviceOnline = [{ name: '全部设备', total: deviceActiveTotal, online: deviceActiveOnline }];
         }
         const unitTypeLabels = {
             1: { name: '一般单位', color: '#3b82f6' },
@@ -170,6 +180,10 @@ class DashboardService {
                 offline: deviceTotal - deviceOnlineCount,
                 rate: deviceRateStr,
                 byType: deviceOnline,
+                activeTotal: deviceActiveTotal,
+                activeOnline: deviceActiveOnline,
+                activeOffline: deviceActiveTotal - deviceActiveOnline,
+                activeRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
             },
             workOrder: { pending: workOrderPending },
             patrol: { today: patrolToday },
@@ -188,6 +202,9 @@ class DashboardService {
                 deviceOnline: deviceOnlineCount,
                 unitOnlineRate,
                 deviceOnlineRate: deviceRateStr,
+                deviceActiveTotal,
+                deviceActiveOnline,
+                deviceActiveRate: deviceActiveTotal ? ((deviceActiveOnline / deviceActiveTotal) * 100).toFixed(1) : '0',
             },
             alarmTrend,
             deviceOnline,
@@ -200,58 +217,172 @@ class DashboardService {
         };
     }
     static async buildWeeklyAlarmStats(now) {
+        // 使用单条 SQL 替代 8 次 sequential count，按周分组统计
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        end.setHours(23, 59, 59, 999);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 27); // 4周前
+        start.setHours(0, 0, 0, 0);
+        const rows = await models_1.Alarm.sequelize.query(`SELECT
+         FLOOR(DATEDIFF(created_at, ?) / 7) AS week_idx,
+         COUNT(*) AS alarms,
+         SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS handled
+       FROM fire_alarm
+       WHERE created_at BETWEEN ? AND ?
+       GROUP BY week_idx
+       ORDER BY week_idx`, { replacements: [start, start, end], type: 'SELECT' });
         const weeklyStats = [];
         for (let w = 3; w >= 0; w -= 1) {
-            const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            end.setDate(end.getDate() - w * 7);
-            end.setHours(23, 59, 59, 999);
-            const start = new Date(end);
-            start.setDate(start.getDate() - 6);
-            start.setHours(0, 0, 0, 0);
-            const [alarms, handled] = await Promise.all([
-                models_1.Alarm.count({ where: { created_at: { [sequelize_1.Op.between]: [start, end] } } }),
-                models_1.Alarm.count({ where: { created_at: { [sequelize_1.Op.between]: [start, end] }, status: 2 } }),
-            ]);
+            const weekEnd = new Date(end);
+            weekEnd.setDate(weekEnd.getDate() - w * 7);
+            const weekStart = new Date(weekEnd);
+            weekStart.setDate(weekStart.getDate() - 6);
+            const row = rows.find(r => r.week_idx === 3 - w);
             weeklyStats.push({
-                week: `${start.getMonth() + 1}/${start.getDate()}-${end.getMonth() + 1}/${end.getDate()}`,
-                alarms,
-                handled,
+                week: `${weekStart.getMonth() + 1}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`,
+                alarms: row ? Number(row.alarms) : 0,
+                handled: row ? Number(row.handled) : 0,
             });
         }
         return weeklyStats;
     }
     static async getMonitorOverview() {
-        const [deviceStats, alarmStats, unitStats] = await Promise.all([
-            models_1.Device.findAll({
-                attributes: ['status', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
-                group: ['status'], raw: true,
-            }),
-            models_1.Alarm.findAll({
-                attributes: ['alarm_type', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
-                where: { status: 0 }, group: ['alarm_type'], raw: true,
-            }),
-            models_1.Unit.findAll({ attributes: ['unit_type', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']], group: ['unit_type'], raw: true }),
-        ]);
-        return { deviceStats, alarmStats, unitStats };
+        // 监控概览缓存10秒
+        return (0, cache_1.withCache)(cache_1.CacheTags.DASHBOARD, 'monitor:overview', async () => {
+            const [deviceStats, alarmStats, unitStats] = await Promise.all([
+                models_1.Device.findAll({
+                    attributes: ['status', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
+                    group: ['status'], raw: true,
+                }),
+                models_1.Alarm.findAll({
+                    attributes: ['alarm_type', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
+                    where: { status: 0 }, group: ['alarm_type'], raw: true,
+                }),
+                models_1.Unit.findAll({ attributes: ['unit_type', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']], group: ['unit_type'], raw: true }),
+            ]);
+            return { deviceStats, alarmStats, unitStats };
+        }, { ttl: 10 });
     }
     static async getBigScreenData() {
+        // 大屏数据缓存10秒，减少高频轮询压力
+        return (0, cache_1.withCache)(cache_1.CacheTags.DASHBOARD, 'bigscreen', async () => {
+            return DashboardService._fetchBigScreenData();
+        }, { ttl: 10 });
+    }
+    static async _fetchBigScreenData() {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const [unitCount, deviceCount, onlineCount, alarmTotal, alarmToday, workOrderTotal, workOrderDone, patrolMonth, hazardTotal, inspectionMonth] = await Promise.all([
             models_1.Unit.count(), models_1.Device.count(), models_1.Device.count({ where: { status: 1 } }),
             models_1.Alarm.count(), models_1.Alarm.count({ where: { created_at: { [sequelize_1.Op.gte]: todayStart } } }),
             models_1.MaintenanceWorkOrder.count(), models_1.MaintenanceWorkOrder.count({ where: { status: 2 } }),
-            models_1.PatrolRecord.count({ where: { created_at: { [sequelize_1.Op.gte]: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
-            models_1.Hazard.count(), models_1.FireInspection.count({ where: { created_at: { [sequelize_1.Op.gte]: new Date(now.getFullYear(), now.getMonth(), 1) } } }),
+            models_1.PatrolRecord.count({ where: { created_at: { [sequelize_1.Op.gte]: monthStart } } }),
+            models_1.Hazard.count(), models_1.FireInspection.count({ where: { created_at: { [sequelize_1.Op.gte]: monthStart } } }),
         ]);
-        const recentAlarms = await models_1.Alarm.findAll({ limit: 20, order: [['created_at', 'DESC']], raw: true });
-        const alarmTrend = await alarm_service_1.AlarmService.getTrend(7);
+        const [recentAlarmsRaw, alarmTrend, hourlyDataRaw, unitAlarmRaw, deviceTypeRaw, subsystemsRaw] = await Promise.all([
+            models_1.Alarm.findAll({ limit: 20, order: [['created_at', 'DESC']], raw: true }),
+            alarm_service_1.AlarmService.getTrend(7),
+            this.buildHourlyAlarmStats(now),
+            models_1.Alarm.findAll({
+                attributes: ['unit_name', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
+                where: { created_at: { [sequelize_1.Op.gte]: monthStart } },
+                group: ['unit_name'],
+                order: [[sequelize_1.Sequelize.fn('COUNT', '*'), 'DESC']],
+                limit: 10,
+                raw: true,
+            }),
+            models_1.Device.findAll({
+                attributes: ['device_type', [sequelize_1.Sequelize.fn('COUNT', '*'), 'count']],
+                group: ['device_type'],
+                raw: true,
+            }),
+            models_1.Subsystem.findAll({ where: { status: 1 }, order: [['sort_order', 'ASC']], raw: true }),
+        ]);
+        const recentAlarms = recentAlarmsRaw.map(a => ({
+            device: a.device_name || '未知设备',
+            unit: a.unit_name || '未知单位',
+            time: a.created_at ? new Date(a.created_at).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--',
+            type: a.alarm_type === 1 ? '火警' : a.alarm_type === 2 ? '故障' : '监管',
+            level: a.alarm_level === 3 ? '紧急' : a.alarm_level === 2 ? '重要' : '一般',
+        }));
+        const unitAlarmData = unitAlarmRaw.map((r) => ({
+            name: r.unit_name || '未命名单位',
+            value: Number(r.count),
+        }));
+        const deviceColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+        const deviceTypeDist = deviceTypeRaw.map((r, i) => ({
+            name: r.device_type || '未分类',
+            value: Number(r.count),
+            color: deviceColors[i % deviceColors.length],
+        }));
+        const subsystemStatusMap = {
+            water: '消防给水', elec: '电气火灾', vent: '防排烟',
+            light: '应急照明', audio: '消防广播', door: '防火门', gas: '气体灭火',
+        };
+        const systems = subsystemsRaw.map((s) => ({
+            name: s.name || subsystemStatusMap[s.type] || s.type,
+            status: '正常',
+            color: s.type === 'water' ? '#3b82f6' : s.type === 'elec' ? '#f59e0b' : s.type === 'vent' ? '#10b981' : '#64748b',
+        }));
         return {
             summary: { unitCount, deviceCount, onlineCount, onlineRate: deviceCount ? ((onlineCount / deviceCount) * 100).toFixed(1) : 0, alarmTotal, alarmToday },
             workOrder: { total: workOrderTotal, done: workOrderDone },
             patrol: { month: patrolMonth }, hazard: { total: hazardTotal },
             inspection: { month: inspectionMonth },
             recentAlarms, alarmTrend,
+            hourlyData: hourlyDataRaw,
+            unitAlarmData,
+            deviceTypeDist,
+            systems: systems.length > 0 ? systems : [
+                { name: '消防给水', status: '正常', color: '#3b82f6' },
+                { name: '电气火灾', status: '正常', color: '#f59e0b' },
+                { name: '防排烟', status: '正常', color: '#10b981' },
+                { name: '应急照明', status: '正常', color: '#8b5cf6' },
+                { name: '消防广播', status: '正常', color: '#06b6d4' },
+                { name: '防火门', status: '正常', color: '#ec4899' },
+            ],
+        };
+    }
+    static async buildHourlyAlarmStats(now) {
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+        const rows = await models_1.Alarm.sequelize.query(`SELECT
+         HOUR(created_at) AS hr,
+         SUM(CASE WHEN alarm_type = 1 THEN 1 ELSE 0 END) AS alarm,
+         SUM(CASE WHEN alarm_type = 2 THEN 1 ELSE 0 END) AS fault
+       FROM fire_alarm
+       WHERE created_at >= ? AND created_at < ?
+       GROUP BY hr
+       ORDER BY hr`, { replacements: [todayStart, tomorrowStart], type: 'SELECT' });
+        const map = new Map();
+        for (const r of rows)
+            map.set(r.hr, { alarm: Number(r.alarm), fault: Number(r.fault) });
+        const hours = [];
+        for (let h = 0; h < 24; h++) {
+            const data = map.get(h);
+            hours.push({ hour: `${String(h).padStart(2, '0')}:00`, alarm: data?.alarm || 0, fault: data?.fault || 0 });
+        }
+        return hours;
+    }
+    static async getBigScreenConfig() {
+        const config = await models_1.ScreenConfig.findOne({ where: { status: 1 }, order: [['id', 'ASC']] });
+        if (!config)
+            return null;
+        const widgets = await models_1.ScreenWidget.findAll({ where: { screen_id: config.id, status: 1 }, order: [['position_y', 'ASC'], ['position_x', 'ASC']], raw: true });
+        return {
+            screenName: config.screen_name,
+            layout: config.layout_config ? JSON.parse(config.layout_config) : { layout: 'grid', cols: 3, rows: 2 },
+            widgets: widgets.map(w => ({
+                type: w.widget_type,
+                name: w.widget_name,
+                config: w.config ? JSON.parse(w.config) : {},
+                x: w.position_x,
+                y: w.position_y,
+                width: w.width,
+                height: w.height,
+            })),
         };
     }
 }

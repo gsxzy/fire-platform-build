@@ -6,8 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.IoTController = void 0;
 const sequelize_1 = require("sequelize");
 const database_1 = __importDefault(require("@/config/database"));
+const respond_1 = require("@/utils/respond");
 const response_1 = require("@/utils/response");
+const httpError_1 = require("@/utils/httpError");
 const logger_1 = __importDefault(require("@/config/logger"));
+const redis_1 = __importDefault(require("@/config/redis"));
 const models_1 = require("@/models");
 const deviceLifecycle_1 = require("@/constants/deviceLifecycle");
 const validator_1 = require("@/utils/validator");
@@ -67,6 +70,8 @@ function mergeAccessMetaIntoProtocolConfig(body, existingConfig) {
     pick('ctwingPassword', 'ctwing_password');
     pick('broker', 'broker');
     pick('keepalive', 'keepalive');
+    pick('broker', 'broker');
+    pick('keepalive', 'keepalive');
     pick('thresholds', 'thresholds');
     if (body.protocol_config !== undefined && typeof body.protocol_config === 'object' && body.protocol_config !== null) {
         const ext = body.protocol_config;
@@ -124,6 +129,10 @@ function mapIotDevicePayload(body, idFallback) {
     };
     if (status !== undefined)
         payload.status = status;
+    // CTWing 平台设备ID必须写入独立字段（用于推送匹配）
+    const ctwingDevId = String(b.ctwingDeviceId ?? b.ctwing_device_id ?? '').trim();
+    if (ctwingDevId)
+        payload.ctwing_device_id = ctwingDevId;
     if (b.protocol_config !== undefined && typeof b.protocol_config !== 'object') {
         payload.protocol_config = b.protocol_config;
     }
@@ -154,6 +163,11 @@ function mapIotDeviceUpdatePayload(body) {
         const s = String(b.status);
         const sm = { normal: 1, online: 1, fault: 2, offline: 0, disabled: 0, maintenance: 1 };
         payload.status = sm[s] !== undefined ? sm[s] : parseInt(s, 10);
+    }
+    // CTWing 平台设备ID更新
+    if (b.ctwingDeviceId !== undefined || b.ctwing_device_id !== undefined) {
+        const v = String(b.ctwingDeviceId ?? b.ctwing_device_id ?? '').trim();
+        payload.ctwing_device_id = v || null;
     }
     if (b.protocol_config !== undefined && typeof b.protocol_config !== 'object') {
         payload.protocol_config = b.protocol_config;
@@ -194,11 +208,11 @@ exports.IoTController = {
                 ],
                 order: [['id', 'DESC']],
             });
-            return res.json((0, response_1.page)(rows, count, pageNum, pageSize));
+            (0, respond_1.sendPage)(res, req, rows, count, pageNum, pageSize);
         }
         catch (err) {
             logger_1.default.error(`[IoTController] deviceList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async deviceCreate(req, res) {
@@ -212,17 +226,17 @@ exports.IoTController = {
         }
         const devRow = await models_1.Device.findByPk(archiveId);
         if (!devRow)
-            return res.status(404).json((0, response_1.fail)('档案中不存在该设备', 404));
+            throw new httpError_1.HttpError('档案中不存在该设备', 404, 404);
         const dev = devRow;
         if (!deviceLifecycle_1.DeviceLifecycleRules.canConnect(dev.lifecycle_status)) {
             const msg = dev.lifecycle_status === deviceLifecycle_1.DeviceLifecycleStatus.SCRAPPED
                 ? '设备已报废，不可接入'
                 : deviceLifecycle_1.DeviceLifecycleRules.messages.connect;
-            return res.status(400).json((0, response_1.fail)(msg, 400));
+            throw new httpError_1.HttpError(msg, 400, 400);
         }
         const archiveSn = String(dev.device_sn || dev.device_no || '').trim();
         if (!archiveSn)
-            return res.status(400).json((0, response_1.fail)('档案缺少设备SN/编号，请先完善档案', 400));
+            throw new httpError_1.HttpError('档案缺少设备SN/编号，请先完善档案', 400, 400);
         /* CTWing/第三方平台接入时，device_sn 可用平台设备ID（可能与档案SN不同）
            但创建时若显传 device_sn，优先使用传入值；否则回退到档案SN */
         const incomingSn = String(body.device_sn ?? body.deviceSn ?? '').trim();
@@ -255,19 +269,19 @@ exports.IoTController = {
                 await devRow.update(archiveUpdate, { transaction: t });
             }
             await t.commit();
-            return res.json((0, response_1.success)({
+            (0, respond_1.sendSuccess)(res, req, {
                 id: String(row.id),
                 archive_device_id: String(archiveId),
                 device_sn: row.device_sn,
                 device_name: row.device_name,
                 protocol_type: row.protocol_type,
                 device_type: row.device_type,
-            }, existing ? '接入配置已更新' : '接入成功'));
+            }, existing ? '接入配置已更新' : '接入成功');
         }
         catch (err) {
             await t.rollback().catch(() => { });
             logger_1.default.error(`[IoTController] deviceCreate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async deviceUpdate(req, res) {
@@ -278,29 +292,33 @@ exports.IoTController = {
             if (hasAccessMetaInBody(body) || (body.protocol_config !== undefined && typeof body.protocol_config === 'object')) {
                 const row = await models_1.IoTDevice.findOne({ where: whereClause });
                 if (!row)
-                    return res.status(404).json((0, response_1.fail)('设备不存在', 404));
+                    throw new httpError_1.HttpError('设备不存在', 404, 404);
                 payload.protocol_config = mergeAccessMetaIntoProtocolConfig(body, row.protocol_config);
             }
+            // 先查询获取 archive_id，避免 update 后再 findOne 的 N+1 问题
+            const preRow = await models_1.IoTDevice.findOne({ where: whereClause, raw: true });
+            if (!preRow)
+                throw new httpError_1.HttpError('设备不存在', 404, 404);
+            const archiveId = preRow ? preRow.archive_device_id : null;
             if (Object.keys(payload).length === 0) {
-                return res.json((0, response_1.success)(null, '暂无更新内容'));
+                (0, respond_1.sendSuccess)(res, req, null, '暂无更新内容');
+                return;
             }
             const [n] = await models_1.IoTDevice.update(payload, { where: whereClause });
             if (!n)
-                return res.status(404).json((0, response_1.fail)('设备不存在', 404));
+                throw new httpError_1.HttpError('设备不存在', 404, 404);
             // 同步档案扩展字段
-            const row = await models_1.IoTDevice.findOne({ where: whereClause });
-            const archiveId = row ? row.archive_device_id : null;
             if (archiveId) {
                 const archiveUpdate = buildArchiveUpdate(body);
                 if (Object.keys(archiveUpdate).length > 0) {
                     await models_1.Device.update(archiveUpdate, { where: { id: archiveId } });
                 }
             }
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] deviceUpdate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async deviceDelete(req, res) {
@@ -308,7 +326,7 @@ exports.IoTController = {
             const whereClause = resolveIotWhereClause(req.params.id);
             const row = await models_1.IoTDevice.findOne({ where: whereClause });
             if (!row)
-                return res.status(404).json((0, response_1.fail)('设备不存在', 404));
+                throw new httpError_1.HttpError('设备不存在', 404, 404);
             const r = row;
             const archiveId = r.archive_device_id;
             await row.destroy();
@@ -326,81 +344,158 @@ exports.IoTController = {
                     }
                 }
             }
-            return res.json((0, response_1.success)(null, '已移除接入'));
+            (0, respond_1.sendSuccess)(res, req, null, '已移除接入');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] deviceDelete 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async protocolList(req, res) {
         try {
             const list = await models_1.ProtocolConfig.findAll({ limit: 1000 });
-            return res.json((0, response_1.success)(list));
+            (0, respond_1.sendSuccess)(res, req, list);
         }
         catch (err) {
             logger_1.default.error(`[IoTController] protocolList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async protocolCreate(req, res) {
         try {
             const p = await models_1.ProtocolConfig.create(req.body);
-            return res.json((0, response_1.success)({ id: p.id }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: p.id }, '创建成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] protocolCreate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async protocolUpdate(req, res) {
         try {
             await models_1.ProtocolConfig.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] protocolUpdate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async protocolDelete(req, res) {
         try {
             await models_1.ProtocolConfig.destroy({ where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '删除成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '删除成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] protocolDelete 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async pipelineList(req, res) {
         try {
-            const list = await models_1.DataPipeline.findAll({ limit: 1000 });
-            return res.json((0, response_1.success)(list));
+            const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
+            const { count, rows: list } = await models_1.DataPipeline.findAndCountAll({
+                limit: +pageSize,
+                offset: (+pageNum - 1) * +pageSize,
+                order: [['created_at', 'DESC']],
+            });
+            // ── 从 Redis 获取真实吞吐统计（替代 random）──
+            const globalStats = await redis_1.default.hgetall('iot:stats:global');
+            const rawPackets = parseInt(globalStats.rawPackets || '0', 10);
+            const parsed = parseInt(globalStats.parsed || '0', 10);
+            const dropped = parseInt(globalStats.dropped || '0', 10);
+            // 并行获取所有管道的 Redis 统计，消除 N+1
+            const pipeStatsList = await Promise.all(list.map(p => redis_1.default.hgetall(`iot:stats:pipeline:${p.id}`)));
+            // 按管道类型聚合统计
+            const kafkaTopics = [];
+            const influxMetrics = [];
+            const pgTables = [];
+            list.forEach((p, idx) => {
+                const pipeStats = pipeStatsList[idx];
+                const msgCount = parseInt(pipeStats.msgCount || '0', 10);
+                const lastMsgTime = parseInt(pipeStats.lastMsgTime || '0', 10);
+                const destType = String(p.dest_type || '').toLowerCase();
+                const sourceType = String(p.source_type || '').toLowerCase();
+                const cfg = typeof p.dest_config === 'string' && p.dest_config.trim()
+                    ? JSON.parse(p.dest_config)
+                    : (p.dest_config || {});
+                if (destType.includes('kafka') || sourceType.includes('kafka')) {
+                    const elapsedSec = Math.max(1, Math.floor((Date.now() - (lastMsgTime || Date.now())) / 1000) + 1);
+                    kafkaTopics.push({
+                        name: p.pipeline_name || '未命名',
+                        partitions: cfg.partitions || 1,
+                        messagesPerSec: Math.round(msgCount / elapsedSec),
+                        lag: 0,
+                        consumers: cfg.consumers || 1,
+                        status: p.status === 1 ? 'healthy' : 'warning',
+                    });
+                }
+                else if (destType.includes('influx') || sourceType.includes('influx')) {
+                    influxMetrics.push({
+                        measurement: p.pipeline_name || '未命名',
+                        points: msgCount * 10,
+                        retention: cfg.retention || '30d',
+                        lastWrite: lastMsgTime ? new Date(lastMsgTime).toISOString() : new Date().toISOString(),
+                        writeRate: msgCount > 0 ? Math.round(msgCount / 60) : 0,
+                    });
+                }
+                else if (destType.includes('pg') || destType.includes('postgre') || sourceType.includes('pg')) {
+                    pgTables.push({
+                        table: p.pipeline_name || '未命名',
+                        desc: p.description || `${sourceType} → ${destType}`,
+                        records: msgCount,
+                        lastSync: lastMsgTime ? new Date(lastMsgTime).toLocaleString('zh-CN') : '--',
+                    });
+                }
+            });
+            // 联动模块统计（占位：接入真实联动表后替换）
+            const linkageModules = [];
+            const stats = {
+                rawPackets,
+                parsed,
+                dropped,
+                kafkaPublished: kafkaTopics.reduce((s, t) => s + t.messagesPerSec, 0),
+                influxWritten: influxMetrics.reduce((s, m) => s + (m.points || 0), 0),
+                pgUpdated: pgTables.reduce((s, t) => s + (t.records || 0), 0),
+                avgLatency: '< 50ms',
+                throughput: rawPackets > 0 ? `${Math.round(rawPackets / 60)}/s` : '0/s',
+            };
+            (0, respond_1.sendSuccess)(res, req, {
+                list,
+                total: count,
+                page: +pageNum,
+                pageSize: +pageSize,
+                totalPages: Math.ceil(count / +pageSize),
+                stats,
+                kafkaTopics,
+                influxMetrics,
+                pgTables,
+                linkageModules,
+            });
         }
         catch (err) {
             logger_1.default.error(`[IoTController] pipelineList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async pipelineCreate(req, res) {
         try {
             const p = await models_1.DataPipeline.create(req.body);
-            return res.json((0, response_1.success)({ id: p.id }, '创建成功'));
+            (0, respond_1.sendSuccess)(res, req, { id: p.id }, '创建成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] pipelineCreate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
     async pipelineUpdate(req, res) {
         try {
             await models_1.DataPipeline.update(req.body, { where: { id: req.params.id } });
-            return res.json((0, response_1.success)(null, '更新成功'));
+            (0, respond_1.sendSuccess)(res, req, null, '更新成功');
         }
         catch (err) {
             logger_1.default.error(`[IoTController] pipelineUpdate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            throw new httpError_1.HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);
         }
     },
 };

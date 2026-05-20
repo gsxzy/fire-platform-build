@@ -13,6 +13,7 @@ require("dotenv/config");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const database_1 = __importDefault(require("@/config/database"));
 const models_1 = require("@/models");
+const permissions_1 = require("@/constants/permissions");
 async function seed() {
     try {
         await database_1.default.authenticate();
@@ -26,38 +27,14 @@ async function seed() {
             { dept_name: '安全管理部', parent_id: 1, sort: 4, status: 1 },
         ], { ignoreDuplicates: true });
         console.log('[Seed] Departments created');
-        /* ── 2. 权限 ── */
-        const perms = [
-            { perm_name: '工作台', perm_code: 'workbench:view', type: 1 },
-            { perm_name: '监控中心', perm_code: 'monitor:view', type: 1 },
-            { perm_name: '告警中心', perm_code: 'alarm:view', type: 1 },
-            { perm_name: '告警处理', perm_code: 'alarm:handle', type: 2 },
-            { perm_name: '单位管理', perm_code: 'unit:view', type: 1 },
-            { perm_name: '单位新增', perm_code: 'unit:create', type: 2 },
-            { perm_name: '单位编辑', perm_code: 'unit:edit', type: 2 },
-            { perm_name: '单位删除', perm_code: 'unit:delete', type: 2 },
-            { perm_name: '设备管理', perm_code: 'device:view', type: 1 },
-            { perm_name: '设备新增', perm_code: 'device:create', type: 2 },
-            { perm_name: '设备编辑', perm_code: 'device:edit', type: 2 },
-            { perm_name: '设备删除', perm_code: 'device:delete', type: 2 },
-            { perm_name: '维保管理', perm_code: 'maintenance:view', type: 1 },
-            { perm_name: '工单派单', perm_code: 'maintenance:dispatch', type: 2 },
-            { perm_name: '巡检管理', perm_code: 'patrol:view', type: 1 },
-            { perm_name: '系统管理', perm_code: 'system:view', type: 1 },
-            { perm_name: '用户管理', perm_code: 'system:user:view', type: 1 },
-            { perm_name: '用户新增', perm_code: 'system:user:create', type: 2 },
-            { perm_name: '用户编辑', perm_code: 'system:user:edit', type: 2 },
-            { perm_name: '用户删除', perm_code: 'system:user:delete', type: 2 },
-            { perm_name: '角色管理', perm_code: 'system:role:view', type: 1 },
-            { perm_name: '角色新增', perm_code: 'system:role:create', type: 2 },
-            { perm_name: '角色编辑', perm_code: 'system:role:edit', type: 2 },
-            { perm_name: '角色删除', perm_code: 'system:role:delete', type: 2 },
-            { perm_name: '大屏模式', perm_code: 'bigscreen:view', type: 1 },
-            { perm_name: 'AI决策', perm_code: 'ai:view', type: 1 },
-            { perm_name: 'IoT管理', perm_code: 'iot:view', type: 1 },
-            { perm_name: '知识库', perm_code: 'knowledge:view', type: 1 },
-            { perm_name: '报表导出', perm_code: 'report:export', type: 2 },
-        ];
+        /* ── 2. 权限 ──
+           统一来源：backend/src/constants/permissions.ts
+           此处从常量文件自动生成，确保前后端权限定义一致 */
+        const perms = permissions_1.PERMISSION_CODES.map((code) => ({
+            perm_name: permissions_1.PERMISSION_NAMES[code],
+            perm_code: code,
+            type: permissions_1.PERMISSION_TYPES[code],
+        }));
         await models_1.Permission.bulkCreate(perms, { ignoreDuplicates: true });
         console.log('[Seed] Permissions created');
         /* ── 3. 角色 ── */
@@ -69,15 +46,19 @@ async function seed() {
             where: { role_code: 'operator' },
             defaults: { role_name: '运维人员', role_code: 'operator', description: '日常运维操作', status: 1, sort: 1 }
         });
-        const viewerRole = await models_1.Role.findOrCreate({
+        await models_1.Role.findOrCreate({
             where: { role_code: 'viewer' },
             defaults: { role_name: '监控查看员', role_code: 'viewer', description: '只读查看权限', status: 1, sort: 2 }
         });
         // 分配所有权限给admin
         const allPerms = await models_1.Permission.findAll();
         await adminRole[0].setPermissions(allPerms.map((p) => p.id));
-        await opsRole[0].setPermissions(allPerms.filter((p) => ['workbench:view', 'monitor:view', 'alarm:view', 'alarm:handle', 'device:view',
-            'unit:view', 'maintenance:view', 'patrol:view', 'bigscreen:view', 'knowledge:view'].includes(p.perm_code)).map((p) => p.id));
+        // 运维人员角色：保留基础操作权限
+        const opsPermCodes = [
+            'workbench:view', 'monitor:view', 'alarm:view', 'alarm:handle', 'device:view',
+            'unit:view', 'maintenance:view', 'patrol:view', 'bigscreen:view', 'knowledge:view',
+        ];
+        await opsRole[0].setPermissions(allPerms.filter((p) => opsPermCodes.includes(p.perm_code)).map((p) => p.id));
         console.log('[Seed] Roles created');
         /* ── 4. 超级管理员 ── */
         const adminPassword = process.env.ADMIN_PASSWORD;

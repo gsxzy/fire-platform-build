@@ -30,6 +30,7 @@ import { SciFiGaugePanel } from './fireControlRoom/components/SciFiGauge';
 import MultilineCard from './fireControlRoom/components/MultilineCard';
 import BusCard from './fireControlRoom/components/BusCard';
 import SimulatedMonitor from './fireControlRoom/components/SimulatedMonitor';
+import AlarmDetailModal from './AlarmDetailModal';
 
 /* ═══════════════════════════════════════════════════════════════
    数智消控室 - 消防报警主机(FAS)集中控制界面
@@ -60,6 +61,15 @@ interface BusPoint {
   id: number; host_id: number; loop_no: number; point_no: number;
   point_name: string; device_type: string; install_location: string; status: number;
 }
+interface IotDeviceRealtime {
+  id: number | string;
+  name: string;
+  deviceType: string;
+  value: number;
+  unit: string;
+  max: number;
+  status: number;
+}
 interface RealtimeData {
   pressure_1: number; pressure_2: number;
   liquid_level_1: number; liquid_level_2: number;
@@ -67,6 +77,7 @@ interface RealtimeData {
   current_mode: number; silenced: number;
   fire_count: number; fault_count: number;
   shield_count: number; feedback_count: number;
+  iotDevices?: IotDeviceRealtime[];
 }
 interface CommandLog {
   id: number; command_type: string; command_value: string;
@@ -75,6 +86,7 @@ interface CommandLog {
 interface VideoCamera {
   id: string | number; cameraName: string; cameraNo: string;
   streamUrl: string; status: number; position: string;
+  deviceId?: string; deviceType?: string;
 }
 
 const SECONDARY_PWD = import.meta.env.VITE_SECONDARY_VERIFY_PWD || ''; // 二次验证密码，生产环境必须在 .env 中设置
@@ -120,6 +132,8 @@ export default function FireControlRoomPage() {
   const [shieldReason, setShieldReason] = useState('');
   const [currentMode, setCurrentMode] = useState({ currentMode: 2, modeName: '自动' });
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedAlarm, setSelectedAlarm] = useState<any>(null);
 
   const [roomName, setRoomName] = useState('未知消控室');
   const [projectName, setProjectName] = useState('');
@@ -153,6 +167,7 @@ export default function FireControlRoomPage() {
   const [linkedCameraId, setLinkedCameraId] = useState<string | number | null>(null);
   const [cameraSettingsOpen, setCameraSettingsOpen] = useState(false);
   const [cameraSelectOpen, setCameraSelectOpen] = useState(false);
+  const [videoCandidates, setVideoCandidates] = useState<VideoCamera[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [alarmTab, setAlarmTab] = useState<'all'|'fire'|'fault'|'shield'|'feedback'>('all');
@@ -300,7 +315,24 @@ export default function FireControlRoomPage() {
       const fbList = Array.isArray(fbRes) ? fbRes : (fbRes?.list || []);
       setFeedbackAlarms(fbList.slice(0, 4));
       setCommandLogs(Array.isArray(logRes) ? logRes : (logRes?.list || []));
-      setCameras(Array.isArray(vidRes) ? vidRes : (vidRes?.list || []));
+      const camList = Array.isArray(vidRes) ? vidRes : (vidRes?.list || []);
+      setCameras(camList);
+
+      // 自动选中第一个在线摄像头（若当前未选中）
+      if (!linkedCameraId && camList.length > 0) {
+        const onlineCam = camList.find((c: any) => c.status === 1);
+        if (onlineCam) {
+          setLinkedCameraId(onlineCam.id);
+          setVideoUrl(onlineCam.streamUrl || '');
+          setVideoTitle(onlineCam.cameraName || '视频监控');
+        }
+      }
+
+      // 加载可关联的视频设备候选
+      try {
+        const candRes = await api.videoCandidates(roomId);
+        setVideoCandidates(Array.isArray(candRes) ? candRes : (candRes?.list || []));
+      } catch { setVideoCandidates([]); }
     } catch (e) {
       logger.error('消控室数据加载失败', e);
       setError(e instanceof Error ? e : new Error(String(e)));
@@ -543,6 +575,7 @@ export default function FireControlRoomPage() {
               cell={cell}
               confirmingId={confirmingId}
               handleConfirm={handleConfirm}
+              onView={(alarm: any) => { setSelectedAlarm(alarm); setDetailOpen(true); }}
             />
           </div>
 
@@ -676,64 +709,69 @@ export default function FireControlRoomPage() {
                   flashes={{ p1: p1Flash, p2: p2Flash, l1: l1Flash, l2: l2Flash }}
                 />
               ) : (
-                <div className="flex-1 tech-card-v2 flex flex-col gap-2 min-h-0 p-2 corner-accent-v2 relative">
+                <div className="flex-1 tech-card-v2 flex flex-col min-h-0 p-2 corner-accent-v2 relative">
                   <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
-                  <div className="flex items-center justify-between flex-shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <Video className="w-3.5 h-3.5 text-blue-400" />
-                      <span className="text-[10px] text-slate-300 font-semibold">视频监控</span>
-                      <div className="flex items-center gap-1 ml-1">
-                        <div className="w-1.5 h-1.5 rounded-full led-red-v2 led-blink" />
-                        <span className="text-[9px] text-red-400 font-medium">REC</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => setCameraSettingsOpen(true)} className="text-[9px] px-2 py-1 rounded-md bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-all border border-slate-700/50 flex items-center gap-1">
-                        <Settings2 className="w-3 h-3" />设置
-                      </button>
-                      <button onClick={() => setRightPanelMode('gauges')} className="text-[9px] px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20">物联监测</button>
-                    </div>
-                  </div>
-                  {/* Video Display Area */}
+                  {/* Video Display Area — 16:9 自适应，header 悬浮不占用空间 */}
                   {linkedCameraId && cameras.find(c => c.id === linkedCameraId)?.status === 1 ? (
-                    <div className="flex-1 rounded-lg border border-blue-500/30 bg-slate-900/60 relative overflow-hidden flex items-center justify-center min-h-[180px]">
-                      {videoUrl ? (
-                        <video
-                          ref={videoRef}
-                          src={videoUrl}
-                          className="w-full h-full object-contain rounded-lg"
-                          controls
-                          muted
-                          autoPlay
-                          playsInline
-                        />
-                      ) : (
-                        <SimulatedMonitor label={cameras.find(c => c.id === linkedCameraId)?.cameraName || '监控画面'} />
-                      )}
-                      <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 bg-slate-900/80 rounded border border-slate-700/50">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse-green" />
-                        <span className="text-[9px] text-slate-300">{cameras.find(c => c.id === linkedCameraId)?.cameraName}</span>
+                    <div className="flex-1 flex items-center justify-center min-h-0">
+                      <div className="w-full aspect-video rounded-lg border border-blue-500/30 bg-slate-900/60 relative overflow-hidden">
+                        {videoUrl ? (
+                          <video
+                            ref={videoRef}
+                            src={videoUrl}
+                            className="w-full h-full object-contain rounded-lg"
+                            controls
+                            muted
+                            autoPlay
+                            playsInline
+                          />
+                        ) : (
+                          <SimulatedMonitor label={cameras.find(c => c.id === linkedCameraId)?.cameraName || '监控画面'} />
+                        )}
+                        {/* 悬浮标题栏 */}
+                        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-2 py-1 bg-gradient-to-b from-slate-900/80 to-transparent z-10">
+                          <div className="flex items-center gap-1.5">
+                            <Video className="w-3 h-3 text-blue-400" />
+                            <span className="text-[10px] text-slate-300 font-semibold">视频监控</span>
+                            <div className="flex items-center gap-1 ml-1">
+                              <div className="w-1.5 h-1.5 rounded-full led-red-v2 led-blink" />
+                              <span className="text-[9px] text-red-400 font-medium">REC</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setCameraSettingsOpen(true)} className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-all border border-slate-700/50 flex items-center gap-1">
+                              <Settings2 className="w-3 h-3" />设置
+                            </button>
+                            <button onClick={() => setRightPanelMode('gauges')} className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20">物联监测</button>
+                          </div>
+                        </div>
+                        <div className="absolute top-7 left-2 flex items-center gap-1.5 px-2 py-0.5 bg-slate-900/80 rounded border border-slate-700/50">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 led-pulse-green" />
+                          <span className="text-[9px] text-slate-300">{cameras.find(c => c.id === linkedCameraId)?.cameraName}</span>
+                        </div>
+                        {/* Camera watermark */}
+                        <div className="absolute bottom-2 right-2 text-[10px] text-slate-500/60 font-mono select-none pointer-events-none">
+                          CAM-{String(linkedCameraId).padStart(3,'0')} | {new Date().toLocaleDateString('zh-CN')}
+                        </div>
+                        <button
+                          onClick={() => { setLinkedCameraId(null); if (videoRef.current) { videoRef.current.pause(); videoRef.current.removeAttribute('src'); videoRef.current.load(); } }}
+                          className="absolute top-7 right-2 w-5 h-5 rounded bg-slate-900/80 border border-slate-700/50 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/30 transition-all z-10"
+                        >
+                          <XCircle className="w-3 h-3 text-slate-400" />
+                        </button>
                       </div>
-                      {/* Camera watermark */}
-                      <div className="absolute bottom-2 right-2 text-[10px] text-slate-500/60 font-mono select-none pointer-events-none">
-                        CAM-{String(linkedCameraId).padStart(3,'0')} | {new Date().toLocaleDateString('zh-CN')}
-                      </div>
-                      <button
-                        onClick={() => { setLinkedCameraId(null); if (videoRef.current) { videoRef.current.pause(); videoRef.current.removeAttribute('src'); videoRef.current.load(); } }}
-                        className="absolute top-2 right-2 w-5 h-5 rounded bg-slate-900/80 border border-slate-700/50 flex items-center justify-center hover:bg-red-500/20 hover:border-red-500/30 transition-all"
-                      >
-                        <XCircle className="w-3 h-3 text-slate-400" />
-                      </button>
                     </div>
                   ) : (
-                    <div className="flex-1 rounded-lg border border-slate-700/30 bg-slate-800/40 flex flex-col items-center justify-center gap-2">
-                      <Monitor className="w-8 h-8 text-slate-600" />
-                      <span className="text-xs text-slate-500">
-                        {linkedCameraId ? '关联摄像头离线' : '未设置关联摄像头'}
-                      </span>
-                      <button onClick={() => setCameraSettingsOpen(true)} className="text-[10px] px-3 py-1 bg-blue-500/15 text-blue-400 rounded-md hover:bg-blue-500/25 transition-all border border-blue-500/20">
-                        {linkedCameraId ? '重新设置' : '点击设置'}
-                      </button>
+                    <div className="flex-1 flex items-center justify-center min-h-0">
+                      <div className="w-full aspect-video rounded-lg border border-slate-700/30 bg-slate-800/40 flex flex-col items-center justify-center gap-2">
+                        <Monitor className="w-8 h-8 text-slate-600" />
+                        <span className="text-xs text-slate-500">
+                          {linkedCameraId ? '关联摄像头离线' : '未设置关联摄像头'}
+                        </span>
+                        <button onClick={() => setCameraSettingsOpen(true)} className="text-[10px] px-3 py-1 bg-blue-500/15 text-blue-400 rounded-md hover:bg-blue-500/25 transition-all border border-blue-500/20">
+                          {linkedCameraId ? '重新设置' : '点击设置'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -913,43 +951,55 @@ export default function FireControlRoomPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Camera Settings Dialog - view all cameras */}
+      {/* Camera Settings Dialog - view all linked cameras + unlink */}
       <Dialog open={cameraSettingsOpen} onOpenChange={setCameraSettingsOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-100 max-w-md backdrop-blur-sm">
-          <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Cog className="w-5 h-5 text-blue-400" /> 摄像头状态</DialogTitle></DialogHeader>
-          <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin">
-            {cameras.length === 0 && <p className="text-sm text-slate-500 text-center py-4">暂无摄像头数据</p>}
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Cog className="w-5 h-5 text-blue-400" /> 摄像头管理</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
+            {cameras.length === 0 && <p className="text-sm text-slate-500 text-center py-4">暂无已关联摄像头</p>}
             {cameras.map(cam => (
               <div key={cam.id}
-                className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all ${cam.status === 1 ? 'bg-slate-900/40 border-slate-700/30' : 'bg-slate-900/20 border-slate-700/20 opacity-50'}`}>
+                className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${cam.status === 1 ? 'bg-slate-900/40 border-slate-700/30' : 'bg-slate-900/20 border-slate-700/20 opacity-50'}`}>
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cam.status === 1 ? 'bg-emerald-400 led-pulse-green' : 'bg-slate-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-slate-200 font-medium truncate">{cam.cameraName}</div>
                   <div className="text-[10px] text-slate-500 truncate">{cam.cameraNo} · {cam.position || '未指定位置'} · {cam.status === 1 ? '在线' : '离线'}</div>
                 </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.videoUnlink({ roomId, cameraNo: cam.cameraNo });
+                      showToast(`已解除关联：${cam.cameraName}`, 'success');
+                      setCameras(prev => prev.filter(c => c.id !== cam.id));
+                      if (linkedCameraId === cam.id) setLinkedCameraId(null);
+                    } catch { showToast('解关联失败', 'error'); }
+                  }}
+                  className="text-[9px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all"
+                >解关联</button>
               </div>
             ))}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCameraSettingsOpen(false)} className="border-slate-600 text-slate-300 h-8 text-xs">关闭</Button>
-            <Button onClick={() => { setCameraSettingsOpen(false); const onlineCams = cameras.filter(c => c.status === 1); if (onlineCams.length === 0) { showToast('暂无在线摄像头', 'error'); return; } setCameraSelectOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs">确认关联</Button>
+            <Button onClick={() => { setCameraSettingsOpen(false); setCameraSelectOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-white h-8 text-xs flex items-center gap-1"><Video className="w-3 h-3" />关联新设备</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Online Camera Select Dialog */}
+      {/* Camera Candidate Select Dialog */}
       <Dialog open={cameraSelectOpen} onOpenChange={setCameraSelectOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-100 max-w-md backdrop-blur-sm">
-          <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Video className="w-5 h-5 text-emerald-400" /> 选择在线摄像头</DialogTitle></DialogHeader>
-          <p className="text-xs text-slate-500 mb-2">请选择要关联显示的在线摄像头：</p>
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Video className="w-5 h-5 text-emerald-400" /> 关联视频设备</DialogTitle></DialogHeader>
+          <p className="text-xs text-slate-500 mb-2">从设备档案中选择要关联到消控室的摄像头：</p>
           <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
-            {cameras.filter(c => c.status === 1).map(cam => (
+            {videoCandidates.length === 0 && <p className="text-sm text-slate-500 text-center py-4">无可关联的视频设备</p>}
+            {videoCandidates.map((cam: any) => (
               <div key={cam.id} onClick={() => setLinkedCameraId(cam.id)}
                 className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${linkedCameraId === cam.id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900/40 border-slate-700/30 hover:border-slate-600/50'}`}>
                 <div className="w-2 h-2 rounded-full flex-shrink-0 bg-emerald-400 led-pulse-green" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-slate-200 font-medium truncate">{cam.cameraName}</div>
-                  <div className="text-[10px] text-slate-500 truncate">{cam.cameraNo} · {cam.position || '未指定位置'}</div>
+                  <div className="text-[10px] text-slate-500 truncate">{cam.cameraNo} · {cam.position || '未指定位置'} · {cam.deviceType || '摄像头'}</div>
                 </div>
                 <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${linkedCameraId === cam.id ? 'border-emerald-400 bg-emerald-400' : 'border-slate-600'}`}>
                   {linkedCameraId === cam.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -959,15 +1009,25 @@ export default function FireControlRoomPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCameraSelectOpen(false)} className="border-slate-600 text-slate-300 h-8 text-xs">取消</Button>
-            <Button onClick={() => {
-              if (!linkedCameraId) { showToast('请选择一个摄像头', 'error'); return; }
-              const cam = cameras.find(c => c.id === linkedCameraId);
-              if (!cam || cam.status !== 1) { showToast('请选择一个在线摄像头', 'error'); return; }
-              setVideoUrl(cam.streamUrl || '');
-              setVideoTitle(cam.cameraName || '视频监控');
-              setCameraSelectOpen(false);
-              showToast(`已关联摄像头：${cam.cameraName}`, 'success');
-            }} className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 text-xs">确认选择</Button>
+            <Button onClick={async () => {
+              if (!linkedCameraId) { showToast('请选择一个设备', 'error'); return; }
+              const cam = videoCandidates.find((c: any) => c.id === linkedCameraId);
+              if (!cam) { showToast('设备不存在', 'error'); return; }
+              try {
+                await api.videoLink({
+                  roomId: Number(roomId),
+                  cameraNo: cam.cameraNo,
+                  cameraName: cam.cameraName,
+                  deviceId: cam.deviceId || cam.cameraNo,
+                  position: cam.position || '',
+                });
+                showToast(`已关联设备：${cam.cameraName}`, 'success');
+                setVideoUrl(cam.streamUrl || '');
+                setVideoTitle(cam.cameraName || '视频监控');
+                setCameraSelectOpen(false);
+                loadData();
+              } catch { showToast('关联失败', 'error'); }
+            }} className="bg-emerald-500 hover:bg-emerald-600 text-white h-8 text-xs">确认关联</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -983,6 +1043,11 @@ export default function FireControlRoomPage() {
       {/* Video Player Modal */}
       {videoOpen && (
         <SimpleVideoPlayer streamUrl={videoUrl} title={videoTitle} onClose={() => setVideoOpen(false)} />
+      )}
+
+      {/* Alarm Detail Modal */}
+      {detailOpen && selectedAlarm && (
+        <AlarmDetailModal alarm={selectedAlarm} onClose={() => setDetailOpen(false)} controlRoomId={roomId} />
       )}
     </DataContainer>
   );

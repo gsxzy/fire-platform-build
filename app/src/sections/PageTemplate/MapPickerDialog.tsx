@@ -11,7 +11,7 @@ interface MapPickerDialogProps {
 }
 
 export function MapPickerDialog({ open, onClose, onConfirm, initialLng, initialLat }: MapPickerDialogProps) {
-  const { loading: mapLoading, loaded, AMap } = useAMap();
+  const { loading: mapLoading, loaded, AMap, error: mapError } = useAMap();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -160,11 +160,19 @@ export function MapPickerDialog({ open, onClose, onConfirm, initialLng, initialL
 
           {/* 地图容器 */}
           <div className="relative w-full h-80 rounded-lg border border-slate-700/30 bg-slate-900 overflow-hidden">
-            {mapLoading && (
+            {mapLoading && !mapError && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
                 <div className="flex items-center gap-2 text-xs text-slate-400">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
                   地图加载中…
+                </div>
+              </div>
+            )}
+            {mapError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
+                <div className="text-xs text-red-400 text-center px-4">
+                  <p className="font-medium mb-1">地图加载失败</p>
+                  <p className="text-slate-500">{mapError}</p>
                 </div>
               </div>
             )}

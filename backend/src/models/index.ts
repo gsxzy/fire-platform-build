@@ -6,6 +6,8 @@ export * from './alarm.model';
 export * from './maintenance.model';
 export * from './patrol.model';
 export * from './duty.model';
+export * from './dutyHandover.model';
+export * from './dutyShift.model';
 export * from './controlRoom.model';
 export * from './plan.model';
 export * from './knowledge.model';

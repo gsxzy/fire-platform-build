@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { HttpError } from '@/utils/httpError';
 import { DeviceMaintenance, Device, Unit } from '@/models';
 
@@ -121,6 +121,6 @@ export const DeviceMaintenanceController = {
   async delete(req: Request, res: Response) {
     const n = await DeviceMaintenance.destroy({ where: { id: req.params.id } });
     if (!n) throw new HttpError('记录不存在', 404);
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 };

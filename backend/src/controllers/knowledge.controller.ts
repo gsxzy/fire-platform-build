@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { KnowledgeDoc, DocCategory } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 import logger from '@/config/logger';
@@ -66,7 +66,7 @@ export const KnowledgeController = {
 
   async delete(req: Request, res: Response) {
     await KnowledgeDoc.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async categories(req: Request, res: Response) {
@@ -108,7 +108,7 @@ export const KnowledgeController = {
 
   async categoryDelete(req: Request, res: Response) {
     await DocCategory.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async upload(req: Request, res: Response) {

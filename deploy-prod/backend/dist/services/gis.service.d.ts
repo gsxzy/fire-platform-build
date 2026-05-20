@@ -6,6 +6,11 @@ export declare class GISService {
     }>;
     static getRegionSituation(): Promise<any[]>;
     static getAlarmPoints(): Promise<import("sequelize").Model<any, any>[]>;
+    static getAlarmHeatmap(): Promise<{
+        lng: number;
+        lat: number;
+        weight: number;
+    }[]>;
     static updateDeviceLocation(deviceId: number, lng: number, lat: number): Promise<{
         success: boolean;
     }>;

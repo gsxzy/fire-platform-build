@@ -1,11 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 
 export type StatColor = 'blue' | 'red' | 'yellow' | 'emerald' | 'cyan' | 'purple' | 'orange' | 'slate' | 'indigo';
+export type ChangeColor = 'red' | 'emerald' | 'default';
 
 interface StatCardProps {
   label: string;
-  value: string | number;
+  value?: string | number;
   unit?: string;
   icon?: React.ReactNode;
   Icon?: LucideIcon;
@@ -13,20 +14,30 @@ interface StatCardProps {
   sub?: string;
   change?: string;
   up?: boolean;
+  /** 显式指定变化指示器颜色，覆盖默认的 up/red 逻辑 */
+  changeColor?: ChangeColor;
   layout?: 'vertical' | 'horizontal';
   className?: string;
+  /** 加载状态 */
+  loading?: boolean;
 }
 
 const colorMap: Record<StatColor, { text: string; bg: string; border: string; iconColor: string; glow: string; gradient: string }> = {
   blue:    { text: 'text-blue-400',    bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    iconColor: 'text-blue-400',    glow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',    gradient: 'from-blue-500/20 to-cyan-500/20' },
   red:     { text: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/20',     iconColor: 'text-red-400',     glow: 'hover:shadow-[0_0_20px_rgba(239,68,68,0.15)]',     gradient: 'from-red-500/20 to-orange-500/20' },
-  yellow:  { text: 'text-yellow-400',  bg: 'bg-yellow-500/10',  border: 'border-yellow-500/20',  iconColor: 'text-yellow-400',  glow: 'hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]',  gradient: 'from-yellow-500/20 to-amber-500/20' },
+  yellow:  { text: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   iconColor: 'text-amber-400',   glow: 'hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]',   gradient: 'from-amber-500/20 to-yellow-500/20' },
   emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', iconColor: 'text-emerald-400', glow: 'hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]', gradient: 'from-emerald-500/20 to-green-500/20' },
   cyan:    { text: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20',    iconColor: 'text-cyan-400',    glow: 'hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]',    gradient: 'from-cyan-500/20 to-blue-500/20' },
   purple:  { text: 'text-purple-400',  bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  iconColor: 'text-purple-400',  glow: 'hover:shadow-[0_0_20px_rgba(139,92,246,0.15)]',  gradient: 'from-purple-500/20 to-pink-500/20' },
   orange:  { text: 'text-orange-400',  bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  iconColor: 'text-orange-400',  glow: 'hover:shadow-[0_0_20px_rgba(249,115,22,0.15)]',  gradient: 'from-orange-500/20 to-red-500/20' },
   slate:   { text: 'text-slate-400',   bg: 'bg-slate-500/10',   border: 'border-slate-500/20',   iconColor: 'text-slate-400',   glow: 'hover:shadow-[0_0_20px_rgba(100,116,139,0.15)]', gradient: 'from-slate-500/20 to-gray-500/20' },
-  indigo:  { text: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20',  iconColor: 'text-indigo-400',  glow: 'hover:shadow-[0_0_20px_rgba(99,102,241,0.15)]', gradient: 'from-indigo-500/20 to-purple-500/20' },
+  indigo:  { text: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20',  iconColor: 'text-indigo-400',  glow: 'hover:shadow-[0_0_20px_rgba(99,102,241,0.15)]',  gradient: 'from-indigo-500/20 to-purple-500/20' },
+};
+
+const changeColorMap: Record<ChangeColor, { bg: string; text: string }> = {
+  red: { bg: 'bg-red-500/10', text: 'text-red-400' },
+  emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  default: { bg: 'bg-slate-500/10', text: 'text-slate-400' },
 };
 
 export default function StatCard({
@@ -39,11 +50,37 @@ export default function StatCard({
   sub,
   change,
   up,
+  changeColor,
   layout = 'vertical',
   className = '',
+  loading = false,
 }: StatCardProps) {
   const c = colorMap[color];
   const displayValue = typeof value === 'number' ? value.toLocaleString() : value;
+
+  // 计算变化指示器样式
+  const getChangeStyle = () => {
+    if (changeColor) return changeColorMap[changeColor];
+    if (up === undefined) return changeColorMap.default;
+    return up ? changeColorMap.red : changeColorMap.emerald;
+  };
+  const chStyle = getChangeStyle();
+
+  // Loading 骨架屏
+  if (loading) {
+    return (
+      <div className={`fire-card p-3.5 ${c.glow} transition-all duration-300 ${className}`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-caption text-slate-500 font-medium">{label}</span>
+          <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${c.gradient} border ${c.border} flex items-center justify-center opacity-50`}>
+            <Loader2 className={`w-4 h-4 ${c.iconColor} animate-spin`} />
+          </div>
+        </div>
+        <div className="h-7 bg-slate-800/50 rounded animate-pulse mb-1" style={{ width: '60%' }} />
+        <div className="h-3 bg-slate-800/30 rounded animate-pulse" style={{ width: '40%' }} />
+      </div>
+    );
+  }
 
   if (layout === 'horizontal') {
     return (
@@ -55,6 +92,12 @@ export default function StatCard({
           <div className="text-[10px] text-slate-400">{label}</div>
           <div className="text-sm font-bold text-slate-100">{displayValue}</div>
           {sub && <div className="text-[9px] text-slate-500">{sub}</div>}
+          {change && (
+            <span className={`text-label flex items-center gap-0.5 font-medium px-1 py-0.5 rounded mt-0.5 ${chStyle.bg} ${chStyle.text}`}>
+              {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+              {change}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -72,7 +115,7 @@ export default function StatCard({
         <span className="text-xl font-bold text-slate-100 tabular-nums tracking-tight">{displayValue}</span>
         {unit && <span className="text-[10px] text-slate-500">{unit}</span>}
         {change && (
-          <span className={`text-label flex items-center gap-0.5 font-medium px-1 py-0.5 rounded ${up ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+          <span className={`text-label flex items-center gap-0.5 font-medium px-1 py-0.5 rounded ${chStyle.bg} ${chStyle.text}`}>
             {up ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
             {change}
           </span>

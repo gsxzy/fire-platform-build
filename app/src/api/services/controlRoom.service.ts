@@ -36,6 +36,9 @@ export const controlRoomService = {
   shields: (roomId?: number | string, hostId?: number) =>
     raw.get<unknown>(`${BASE}/shields`, { roomId, hostId }),
   videos: (roomId?: number | string) => raw.get<unknown>(`${BASE}/videos`, { roomId }),
+  videoCandidates: (roomId?: number | string) => raw.get<unknown>(`${BASE}/video-candidates`, { roomId }),
+  videoLink: (data: unknown) => raw.post<unknown>(`${BASE}/video-link`, data),
+  videoUnlink: (data: unknown) => raw.post<unknown>(`${BASE}/video-unlink`, data),
 
   addShield: (data: unknown) => raw.post<unknown>(`${BASE}/shield`, data),
 

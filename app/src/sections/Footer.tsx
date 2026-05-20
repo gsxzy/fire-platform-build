@@ -1,5 +1,5 @@
 import { Clock, Activity, Wifi, HardDrive, Database, Shield, Server } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 
 /* ═══════ Animated stat counter ═══════ */
 function useAnimatedValue(target: number, duration = 2000) {
@@ -17,7 +17,7 @@ function useAnimatedValue(target: number, duration = 2000) {
   return value;
 }
 
-export default function Footer() {
+function FooterComponent() {
   const [time, setTime] = useState(new Date());
   const [latency, setLatency] = useState(12);
   const [dbStatus, setDbStatus] = useState<'connected' | 'syncing'>('connected');
@@ -108,3 +108,6 @@ export default function Footer() {
     </footer>
   );
 }
+
+const Footer = memo(FooterComponent);
+export default Footer;

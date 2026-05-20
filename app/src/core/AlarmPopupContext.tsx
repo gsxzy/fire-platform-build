@@ -3,7 +3,7 @@
  * 全局报警弹窗上下文 - 系统级火警弹窗覆盖层
  * ═══════════════════════════════════════════════════════════════════
  */
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { alarmService } from '@/api/services';
 import { useToast } from '@/core/ToastContext';
 import type { Alarm } from '@/types/db';
@@ -179,8 +179,10 @@ export function AlarmPopupProvider({ children }: { children: React.ReactNode }) 
     };
   }, [openAlarm, confirmedIds]);
 
+  const value = useMemo(() => ({ currentAlarm, isOpen, openAlarm, closeAlarm, confirmAlarm, confirmedIds }), [currentAlarm, isOpen, openAlarm, closeAlarm, confirmAlarm, confirmedIds]);
+
   return (
-    <AlarmPopupContext.Provider value={{ currentAlarm, isOpen, openAlarm, closeAlarm, confirmAlarm, confirmedIds }}>
+    <AlarmPopupContext.Provider value={value}>
       {children}
     </AlarmPopupContext.Provider>
   );

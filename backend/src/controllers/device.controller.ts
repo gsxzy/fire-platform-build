@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { HttpError } from '@/utils/httpError';
 import logger from '@/config/logger';
 import { Device, Unit, IoTDevice } from '@/models';
@@ -320,7 +320,7 @@ export const DeviceController = {
       await Device.destroy({ where: { id }, transaction: t });
       await t.commit();
       logger.info(`[Device] 删除成功 id=${id}`);
-      sendSuccess(res, req, null, '删除成功');
+      sendDeleted(res, req);
     } catch (err) {
       await t.rollback();
       throw err;

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MaintenanceWorkOrder = exports.MaintenanceContract = exports.MaintenanceCompany = void 0;
+exports.MaintenanceRecord = exports.MaintenanceWorkOrder = exports.MaintenanceContract = exports.MaintenanceCompany = void 0;
 const sequelize_1 = require("sequelize");
 const database_1 = __importDefault(require("@/config/database"));
 /* ── 5. 维保管理 ── */
@@ -50,4 +50,29 @@ exports.MaintenanceWorkOrder = database_1.default.define('maintenance_work_order
     labor_cost: sequelize_1.DataTypes.DECIMAL(10, 2),
     satisfaction: { type: sequelize_1.DataTypes.TINYINT, comment: '1-5星' },
 }, { tableName: 'fire_maint_work_order', comment: '维保工单表' });
+exports.MaintenanceRecord = database_1.default.define('maintenance_record', {
+    id: { type: sequelize_1.DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+    record_no: { type: sequelize_1.DataTypes.STRING(50), allowNull: false, unique: true },
+    work_order_id: sequelize_1.DataTypes.BIGINT.UNSIGNED,
+    device_id: sequelize_1.DataTypes.BIGINT.UNSIGNED,
+    device_name: sequelize_1.DataTypes.STRING(100),
+    unit_id: sequelize_1.DataTypes.BIGINT.UNSIGNED,
+    unit_name: sequelize_1.DataTypes.STRING(200),
+    record_type: { type: sequelize_1.DataTypes.STRING(32), comment: 'inspection/repair/maintenance/replacement' },
+    content: sequelize_1.DataTypes.TEXT,
+    result: sequelize_1.DataTypes.TEXT,
+    staff_name: sequelize_1.DataTypes.STRING(50),
+    record_date: sequelize_1.DataTypes.DATEONLY,
+    status: { type: sequelize_1.DataTypes.TINYINT, defaultValue: 0, comment: '0待完成 1已完成' },
+    material_cost: sequelize_1.DataTypes.DECIMAL(10, 2),
+    labor_cost: sequelize_1.DataTypes.DECIMAL(10, 2),
+}, {
+    tableName: 'fire_maint_record',
+    comment: '维保记录表',
+    indexes: [
+        { name: 'idx_work_order', fields: ['work_order_id'] },
+        { name: 'idx_device', fields: ['device_id'] },
+        { name: 'idx_record_date', fields: ['record_date'] },
+    ],
+});
 //# sourceMappingURL=maintenance.model.js.map

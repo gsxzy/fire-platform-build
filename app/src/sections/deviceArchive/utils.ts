@@ -54,6 +54,17 @@ export const onlineStatusMap: Record<string, string> = {
   '1': '在线',
 };
 
+export const protocolTypeMap: Record<string, string> = {
+  standard: '标准协议',
+  gb26875: 'GB26875',
+  fscn8001: '赋安FSCN8001',
+  mqtt: 'MQTT',
+  modbus: 'Modbus',
+  gb28181: 'GB28181',
+  ctwing: 'CTWing',
+  '': '—',
+};
+
 export const typeColorMap: Record<string, string> = {
   detector: 'text-red-400 bg-red-500/10 border-red-500/20',
   button: 'text-red-400 bg-red-500/10 border-red-500/20',
@@ -135,6 +146,9 @@ export function mapBackendDeviceToDevice(raw: any): Device {
     archiveStatus: mapLifecycleToArchiveStatus(lifecycle),
     hasIotConfig: !!raw.has_iot_config,
     gatewayId: raw.gateway_id ?? raw.gatewayId ?? '',
+    protocolType: raw.protocol_type ?? raw.protocolType ?? '',
+    lastOnline: raw.last_online ?? raw.lastOnline ?? '',
+    alarmCount: Number(raw.alarm_count ?? raw.alarmCount ?? 0),
   } as Device;
 }
 
@@ -297,6 +311,14 @@ export const FILTER_FIELDS = [
       { label: '已分配', value: '3' },
       { label: '维护中', value: '4' },
       { label: '报废', value: '5' },
+    ],
+  },
+  {
+    key: 'onlineStatus',
+    label: '在线状态',
+    options: [
+      { label: '在线', value: 'online' },
+      { label: '离线', value: 'offline' },
     ],
   },
 ];

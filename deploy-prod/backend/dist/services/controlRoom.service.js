@@ -16,21 +16,26 @@ exports.ControlRoomService = void 0;
 const models_1 = require("@/models");
 const iot_1 = require("@/iot");
 const logger_1 = __importDefault(require("@/config/logger"));
+const cache_1 = require("@/utils/cache");
 class ControlRoomService {
     // 获取消控室下所有报警主机
     static async getHostsByRoom(roomId) {
-        return models_1.ControlRoomHost.findAll({ where: { room_id: roomId }, order: [['id', 'ASC']] });
+        return (0, cache_1.withCache)(cache_1.CacheTags.DEVICE_STATS, `controlroom:hosts:${roomId}`, async () => {
+            return models_1.ControlRoomHost.findAll({ where: { room_id: roomId }, order: [['id', 'ASC']] });
+        }, { ttl: 30 });
     }
     // 获取主机详情含多线盘和总线点位
     static async getHostDetail(hostId) {
-        const host = await models_1.ControlRoomHost.findByPk(hostId);
-        if (!host)
-            return null;
-        const [multilinePanels, busPoints] = await Promise.all([
-            models_1.MultilinePanel.findAll({ where: { host_id: hostId }, order: [['point_no', 'ASC']] }),
-            models_1.BusPoint.findAll({ where: { host_id: hostId }, order: [['loop_no', 'ASC'], ['point_no', 'ASC']] }),
-        ]);
-        return { host, multilinePanels, busPoints };
+        return (0, cache_1.withCache)(cache_1.CacheTags.DEVICE_STATS, `controlroom:host:${hostId}`, async () => {
+            const host = await models_1.ControlRoomHost.findByPk(hostId);
+            if (!host)
+                return null;
+            const [multilinePanels, busPoints] = await Promise.all([
+                models_1.MultilinePanel.findAll({ where: { host_id: hostId }, order: [['point_no', 'ASC']] }),
+                models_1.BusPoint.findAll({ where: { host_id: hostId }, order: [['loop_no', 'ASC'], ['point_no', 'ASC']] }),
+            ]);
+            return { host, multilinePanels, busPoints };
+        }, { ttl: 30 });
     }
     // 下发消音指令（通过报警主机）
     static async silenceHost(hostId, operatorId, operatorName) {

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { fail } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import logger from '@/config/logger';
@@ -375,7 +375,7 @@ export const IoTController = {
   async protocolDelete(req: Request, res: Response) {
     try {
       await ProtocolConfig.destroy({ where: { id: req.params.id } });
-      sendSuccess(res, req, null, '删除成功');
+      sendDeleted(res, req);
     } catch (err: any) {
       logger.error(`[IoTController] protocolDelete 失败: ${err?.message || err}`);
       throw new HttpError(`操作失败: ${err?.message || '未知错误'}`, 500);

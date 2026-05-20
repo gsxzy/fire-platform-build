@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.page = exports.fail = exports.success = void 0;
-exports.successForReq = successForReq;
-exports.failForReq = failForReq;
+exports.sendSuccess = sendSuccess;
+exports.sendFail = sendFail;
+exports.sendPage = sendPage;
 function buildEnvelope(p) {
     const env = {
         code: p.code,
@@ -26,11 +27,16 @@ const page = (list, total, pageNum, pageSize, requestId) => buildEnvelope({
     requestId,
 });
 exports.page = page;
-/** 从当前请求携带 requestId（推荐在控制器中使用） */
-function successForReq(req, data, msg = '操作成功') {
-    return (0, exports.success)(data, msg, req.reqId);
+/* ═══════════════════════════════════════════════════════════
+   控制器统一响应 — 自动携带 requestId
+   ═══════════════════════════════════════════════════════════ */
+function sendSuccess(res, req, data, msg = '操作成功') {
+    return res.json((0, exports.success)(data, msg, req.reqId));
 }
-function failForReq(req, msg = '操作失败', code = 400) {
-    return (0, exports.fail)(msg, code, req.reqId);
+function sendFail(res, req, msg, code = 400) {
+    return res.status(code >= 400 ? code : 400).json((0, exports.fail)(msg, code, req.reqId));
+}
+function sendPage(res, req, list, total, pageNum, pageSize, msg = '查询成功') {
+    return res.json((0, exports.page)(list, total, pageNum, pageSize, req.reqId));
 }
 //# sourceMappingURL=response.js.map

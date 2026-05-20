@@ -22,6 +22,8 @@ const typeMap: Record<string, string> = {
 const protocolMap: Record<string, string> = {
   gb26875: 'GB26875', modbus: 'Modbus', modbustcp: 'ModbusTCP',
   mqtt: 'MQTT', nbiot: 'NB-IoT', gb28181: 'GB28181', tcp: 'TCP',
+  standard: '标准协议', 'fscn8001': 'FSCN8001', 'FSCN8001': 'FSCN8001',
+  'CANET-FECbus': 'CANET-FECbus',
 };
 
 function parseCfg(raw: unknown): Record<string, unknown> {
@@ -100,6 +102,7 @@ const FIELDS = [
     { label: 'NB-IoT', value: 'nbiot' },
     { label: 'GB28181', value: 'gb28181' },
     { label: 'TCP', value: 'tcp' },
+    { label: 'CANET-FECbus', value: 'CANET-FECbus' },
   ]},
   { key: 'heartbeat_interval', label: '心跳间隔(秒)', type: 'number' as const },
   { key: 'data_collection_interval', label: '数据采集间隔(秒)', type: 'number' as const },
@@ -193,7 +196,7 @@ export default function DeviceConfigPage() {
         fields={FIELDS}
         filterFields={FILTER_FIELDS}
         addable={false}
-        actions={false}
+        actions={true}
         pageSize={20}
         renderExtraActions={(row) => (
           <button

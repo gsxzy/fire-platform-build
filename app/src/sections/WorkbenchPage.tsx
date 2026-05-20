@@ -258,9 +258,9 @@ export default function WorkbenchPage() {
         </div>
 
         {/* Charts Row */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
           {/* Alarm Trend */}
-          <div className="fire-card-v2 p-3 transition-all hover:border-slate-600/40 relative group animate-fade-in-up" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
+          <div className="fire-card p-3 transition-all hover:border-slate-600/40 relative group animate-fade-in-up" style={{ animationDelay: '0.12s', animationFillMode: 'both' }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-red-400" />
@@ -268,7 +268,7 @@ export default function WorkbenchPage() {
               </div>
               <span className="text-[9px] text-slate-500">近7天</span>
             </div>
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={alarmTrend}>
                 <defs>
                   <linearGradient id="gradFire" x1="0" y1="0" x2="0" y2="1">
@@ -299,7 +299,7 @@ export default function WorkbenchPage() {
           </div>
 
           {/* Device Online — Donut */}
-          <div className="fire-card-v2 p-3 transition-all hover:border-slate-600/40 animate-fade-in-up" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+          <div className="fire-card p-3 transition-all hover:border-slate-600/40 animate-fade-in-up" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Wifi className="w-4 h-4 text-blue-400" />
@@ -367,7 +367,7 @@ export default function WorkbenchPage() {
           </div>
 
           {/* Unit Distribution */}
-          <div className="fire-card-v2 p-3 transition-all hover:border-slate-600/40 animate-fade-in-up" style={{ animationDelay: '0.35s', animationFillMode: 'both' }}>
+          <div className="fire-card p-3 transition-all hover:border-slate-600/40 animate-fade-in-up" style={{ animationDelay: '0.18s', animationFillMode: 'both' }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-purple-400" />
@@ -375,7 +375,7 @@ export default function WorkbenchPage() {
               </div>
               <span className="text-[9px] text-slate-500">共{unitStatus.reduce((a, b) => a + b.value, 0)}家</span>
             </div>
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
                   data={unitStatus}
@@ -413,9 +413,9 @@ export default function WorkbenchPage() {
         </div>
 
         {/* Bottom Row */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 animate-fade-in-up" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
           {/* Shortcuts */}
-          <div className="fire-card-v2 flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.35s', animationFillMode: 'both' }}>
+          <div className="fire-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.18s', animationFillMode: 'both' }}>
             <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
               <h3 className="text-xs font-semibold text-slate-200 flex items-center gap-2">
                 <Zap className="w-4 h-4 text-yellow-400" />
@@ -430,23 +430,17 @@ export default function WorkbenchPage() {
                   <button
                     key={i}
                     onClick={() => navigate(s.path)}
-                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border ${s.border} ${s.bg} hover:bg-slate-700/40 transition-all duration-300 hover:-translate-y-1 active:scale-95 text-left group relative`}
-                    style={{ transitionProperty: 'transform, box-shadow, background-color' }}
-                    onMouseEnter={(e) => {
-                      const el = e.currentTarget;
-                      const glow = s.color === 'text-red-400' ? 'rgba(239,68,68,0.15)'
-                        : s.color === 'text-orange-400' ? 'rgba(249,115,22,0.15)'
-                        : s.color === 'text-emerald-400' ? 'rgba(16,185,129,0.15)'
-                        : s.color === 'text-cyan-400' ? 'rgba(6,182,212,0.15)'
-                        : s.color === 'text-yellow-400' ? 'rgba(245,158,11,0.15)'
-                        : s.color === 'text-purple-400' ? 'rgba(139,92,246,0.15)'
-                        : s.color === 'text-pink-400' ? 'rgba(236,72,153,0.15)'
-                        : 'rgba(59,130,246,0.15)';
-                      el.style.boxShadow = `0 8px 24px -4px rgba(0,0,0,0.4), 0 0 16px ${glow}`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = '0 0 0 transparent';
-                    }}
+                    className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border ${s.border} ${s.bg} hover:bg-slate-700/40 transition-all duration-300 hover:-translate-y-1 active:scale-95 text-left group relative shortcut-btn`}
+                    style={{
+                      '--shortcut-glow': s.color === 'text-red-400' ? 'rgba(239,68,68,0.12)'
+                        : s.color === 'text-orange-400' ? 'rgba(249,115,22,0.12)'
+                        : s.color === 'text-emerald-400' ? 'rgba(16,185,129,0.12)'
+                        : s.color === 'text-cyan-400' ? 'rgba(6,182,212,0.12)'
+                        : s.color === 'text-yellow-400' ? 'rgba(245,158,11,0.12)'
+                        : s.color === 'text-purple-400' ? 'rgba(139,92,246,0.12)'
+                        : s.color === 'text-pink-400' ? 'rgba(236,72,153,0.12)'
+                        : 'rgba(59,130,246,0.12)'
+                    } as React.CSSProperties}
                   >
                     <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.border} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
                       <Icon className={`w-5 h-5 ${s.color}`} />
@@ -464,7 +458,7 @@ export default function WorkbenchPage() {
           </div>
 
           {/* Todo List */}
-          <div className="fire-card-v2 flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+          <div className="fire-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
             <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
               <h3 className="text-xs font-semibold text-slate-200 flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-cyan-400" />
@@ -522,7 +516,7 @@ export default function WorkbenchPage() {
           </div>
 
           {/* Weekly Summary */}
-          <div className="fire-card-v2 flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.45s', animationFillMode: 'both' }}>
+          <div className="fire-card flex flex-col overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.22s', animationFillMode: 'both' }}>
             <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
               <h3 className="text-xs font-semibold text-slate-200 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-emerald-400" />

@@ -1,0 +1,24 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const knowledge_controller_1 = require("@/controllers/knowledge.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const upload_1 = require("@/middleware/upload");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Knowledge.${String(name)}`, knowledge_controller_1.KnowledgeController[name]);
+const view = (0, permission_1.requirePermission)('knowledge:view');
+const manage = (0, permission_1.requirePermission)('knowledge:manage');
+router.get('/', view, h('list'));
+router.get('/:id', view, h('byId'));
+router.post('/', manage, h('create'));
+router.put('/:id', manage, h('update'));
+router.delete('/:id', manage, h('delete'));
+router.get('/categories', view, h('categories'));
+router.get('/categories/list', view, h('categoryList'));
+router.post('/categories', manage, h('categoryCreate'));
+router.put('/categories/:id', manage, h('categoryUpdate'));
+router.delete('/categories/:id', manage, h('categoryDelete'));
+router.post('/upload', manage, upload_1.upload.single('file'), h('upload'));
+exports.default = router;
+//# sourceMappingURL=knowledge.routes.js.map

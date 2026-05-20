@@ -57,6 +57,26 @@ export declare class ReportService {
         records: import("sequelize").Model<any, any>[];
         byResult: import("sequelize").Model<any, any>[];
     }>;
+    static exportReport(type: string, params: {
+        date?: string;
+        endDate?: string;
+        year?: number;
+        month?: number;
+        unitId?: number;
+        startDate?: string;
+        days?: number;
+        format?: string;
+    }): Promise<{
+        buffer: Buffer<ArrayBufferLike>;
+        filename: string;
+        contentType: string;
+        content?: undefined;
+    } | {
+        content: string;
+        filename: string;
+        contentType: string;
+        buffer?: undefined;
+    }>;
     private static getDailyTrend;
 }
 //# sourceMappingURL=report.service.d.ts.map

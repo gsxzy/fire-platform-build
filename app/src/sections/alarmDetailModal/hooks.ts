@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { alarmService } from '@/api/services';
+import { alarmService, controlRoomService } from '@/api/services';
 import { getStream } from '@/api/videoService';
 import { useToast } from '@/core/ToastContext';
 import { generateProcess, generateDutyRecords, getStatusInfo, getAlarmTypeInfo } from './utils';
 
-export function useAlarmDetail(alarm: any) {
+export function useAlarmDetail(alarm: any, controlRoomId?: string | number) {
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'duty' | 'handle'>('duty');
@@ -28,12 +28,37 @@ export function useAlarmDetail(alarm: any) {
     try {
       const res = await alarmService.getDetail(String(alarm.id));
       if (res.code === 200 && res.data) {
-        setDetail(res.data);
         setConfirmType('');
         setRemark('');
-        const cameras = res.data.relatedCameras || [];
-        if (cameras.length > 0) {
-          const cam = cameras[0];
+
+        // 合并摄像头：消控室关联摄像头优先置顶
+        let mergedCameras = res.data.relatedCameras || [];
+        if (controlRoomId) {
+          try {
+            const roomRes: any = await controlRoomService.getVideos(controlRoomId);
+            const roomCams = Array.isArray(roomRes)
+              ? roomRes
+              : (roomRes?.list || roomRes?.data || []);
+            if (roomCams.length > 0) {
+              const seen = new Set<string | number>();
+              mergedCameras = [];
+              for (const cam of [...roomCams, ...(res.data.relatedCameras || [])]) {
+                const key = cam.deviceId || cam.id || cam.cameraNo;
+                if (key && !seen.has(key)) {
+                  seen.add(key);
+                  mergedCameras.push(cam);
+                }
+              }
+            }
+          } catch {
+            // 消控室摄像头获取失败不影响主流程
+          }
+        }
+
+        setDetail({ ...res.data, relatedCameras: mergedCameras });
+
+        if (mergedCameras.length > 0) {
+          const cam = mergedCameras[0];
           if (cam.deviceId && cam.channelId) {
             loadVideoStream(cam.deviceId, cam.channelId);
           }
@@ -46,7 +71,7 @@ export function useAlarmDetail(alarm: any) {
     } finally {
       setLoading(false);
     }
-  }, [alarm.id, showError]);
+  }, [alarm.id, controlRoomId, showError]);
 
   useEffect(() => {
     fetchDetail();

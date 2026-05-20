@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { fail } from '@/utils/response';
 import { ControlRoom, ControlRoomHost, Device } from '@/models';
 import logger from '@/config/logger';
@@ -114,7 +114,7 @@ export async function update(req: Request, res: Response) {
 export async function remove(req: Request, res: Response) {
   try {
     await ControlRoom.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   } catch (err: any) {
     logger.error(`[ControlRoom] delete 失败: ${err?.message || err}`);
     return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));

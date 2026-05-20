@@ -1,18 +1,19 @@
 import type { Request, Response } from 'express';
 export declare const PatrolController: {
-    planList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    planCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    planUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    planDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordById(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    recordDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    hazardList(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    hazardCreate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    hazardUpdate(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    hazardDelete(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    hazardRectify(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    planList(req: Request, res: Response): Promise<void>;
+    planCreate(req: Request, res: Response): Promise<void>;
+    planUpdate(req: Request, res: Response): Promise<void>;
+    planDelete(req: Request, res: Response): Promise<void>;
+    recordList(req: Request, res: Response): Promise<void>;
+    recordById(req: Request, res: Response): Promise<void>;
+    recordCreate(req: Request, res: Response): Promise<void>;
+    recordUpdate(req: Request, res: Response): Promise<void>;
+    recordDelete(req: Request, res: Response): Promise<void>;
+    hazardList(req: Request, res: Response): Promise<void>;
+    hazardCreate(req: Request, res: Response): Promise<void>;
+    hazardUpdate(req: Request, res: Response): Promise<void>;
+    hazardDelete(req: Request, res: Response): Promise<void>;
+    recordCheckIn(req: Request, res: Response): Promise<void>;
+    hazardRectify(req: Request, res: Response): Promise<void>;
 };
 //# sourceMappingURL=patrol.controller.d.ts.map

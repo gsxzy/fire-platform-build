@@ -11,11 +11,12 @@ interface AlarmTableProps {
   cell: string;
   confirmingId: string | null;
   handleConfirm: (id: string, result: number) => void;
+  onView?: (alarm: FireAlarm | FaultAlarm | FeedbackAlarm) => void;
 }
 
 export default function AlarmTable({
   alarmTab, fireAlarms, faultAlarms, shieldItems, feedbackAlarms,
-  fmtTime, cell, confirmingId, handleConfirm,
+  fmtTime, cell, confirmingId, handleConfirm, onView,
 }: AlarmTableProps) {
   const renderRows = () => {
     const rows: React.ReactNode[] = [];
@@ -35,7 +36,7 @@ export default function AlarmTable({
             {a.status === 0 ? (
               <button onClick={() => handleConfirm(String(a.id), 1)} disabled={confirmingId === String(a.id)} className="text-[10px] px-2 py-1 bg-blue-500/15 text-blue-400 rounded-md hover:bg-blue-500/25 transition-all border border-blue-500/20 font-medium disabled:opacity-40">{confirmingId === String(a.id) ? '中' : '确认'}</button>
             ) : (
-              <button className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button>
+              <button onClick={() => onView?.(a)} className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button>
             )}
           </div>
         </div>
@@ -51,7 +52,7 @@ export default function AlarmTable({
           <span className={`${cell} text-slate-500 font-mono`}>1</span>
           <span className={`${cell} text-slate-500 font-mono`}>{f.alarm_no}</span>
           <span className={`text-[10px] leading-none text-center font-semibold ${f.status === 0 ? 'text-yellow-400 glow-text-yellow-v2' : 'text-emerald-400'}`}>{f.status === 0 ? '未处理' : '已处理'}</span>
-          <div className="flex items-center justify-center"><button className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button></div>
+          <div className="flex items-center justify-center"><button onClick={() => onView?.(f)} className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button></div>
         </div>
       ));
     }
@@ -79,7 +80,7 @@ export default function AlarmTable({
           <span className={`${cell} text-slate-500 font-mono`}>1</span>
           <span className={`${cell} text-slate-500 font-mono`}>—</span>
           <span className="text-[10px] leading-none text-center font-semibold text-blue-400">正常</span>
-          <div className="flex items-center justify-center"><button className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button></div>
+          <div className="flex items-center justify-center"><button onClick={() => onView?.(fb)} className="text-[10px] px-2 py-1 bg-slate-700/40 text-slate-400 rounded-md hover:bg-slate-700/60 transition-all border border-slate-600/30 flex items-center gap-1"><Eye className="w-3 h-3" />查看</button></div>
         </div>
       ));
     }

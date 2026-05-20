@@ -18,12 +18,17 @@ const alarmNo_1 = require("@/utils/alarmNo");
 class IoTGateway {
     mqttClient = null;
     async start() {
-        // 启动MQTT Broker连接
-        const mqttPort = process.env.MQTT_PORT || 1883;
+        const mqttHost = process.env.MQTT_BROKER_HOST || 'localhost';
+        const mqttPort = process.env.MQTT_BROKER_PORT || '1883';
+        const brokerUrl = process.env.MQTT_BROKER_URL || `mqtt://${mqttHost}:${mqttPort}`;
         try {
-            this.mqttClient = mqtt_1.default.connect(`mqtt://localhost:${mqttPort}`);
+            this.mqttClient = mqtt_1.default.connect(brokerUrl, {
+                clientId: `fire-platform-${Date.now()}`,
+                reconnectPeriod: 5000,
+                connectTimeout: 30000,
+            });
             this.mqttClient.on('connect', () => {
-                logger_1.default.info('[IoT] MQTT connected');
+                logger_1.default.info(`[IoT] MQTT connected to ${brokerUrl}`);
                 this.mqttClient.subscribe('fire/+/+', (err) => {
                     if (err)
                         logger_1.default.error('[IoT] MQTT subscribe error:', err);
@@ -33,6 +38,7 @@ class IoTGateway {
             });
             this.mqttClient.on('message', (topic, payload) => this.handleMqttMessage(topic, payload));
             this.mqttClient.on('error', (err) => logger_1.default.error('[IoT] MQTT error:', err.message));
+            this.mqttClient.on('offline', () => logger_1.default.warn('[IoT] MQTT client offline'));
         }
         catch (err) {
             logger_1.default.error('[IoT] MQTT connection failed:', err.message);
@@ -45,6 +51,8 @@ class IoTGateway {
             const deviceSn = parts[2];
             const data = JSON.parse(payload.toString());
             logger_1.default.info(`[IoT] Message from ${deviceSn}:`, data);
+            // ── 全局 Redis 计数（真实吞吐，替代 random）──
+            await redis_1.default.hincrby('iot:stats:global', 'rawPackets', 1);
             // 更新设备在线状态
             await models_1.IoTDevice.update({ status: 1, last_online: new Date() }, { where: { device_sn: deviceSn } });
             // 处理告警数据
@@ -53,9 +61,13 @@ class IoTGateway {
             }
             // 缓存设备数据
             await redis_1.default.setex(`device:data:${deviceSn}`, 3600, JSON.stringify(data));
+            // 按管道维度计数
+            await this.incrementPipelineStats('mqtt');
+            await redis_1.default.hincrby('iot:stats:global', 'parsed', 1);
         }
         catch (err) {
             logger_1.default.error('[IoT] Message processing error:', err.message);
+            await redis_1.default.hincrby('iot:stats:global', 'dropped', 1);
         }
     }
     async processAlarm(data, unitId, deviceSn) {
@@ -77,6 +89,23 @@ class IoTGateway {
             type: 'new_alarm',
             data: { id: alarm.id, alarm_no: alarmNo, ...data }
         }));
+    }
+    /** 按协议/管道类型增加 Redis 计数 */
+    async incrementPipelineStats(sourceType) {
+        try {
+            const pipelines = await models_1.DataPipeline.findAll({
+                where: { source_type: sourceType },
+                attributes: ['id'],
+                raw: true,
+            });
+            for (const p of pipelines) {
+                await redis_1.default.hincrby(`iot:stats:pipeline:${p.id}`, 'msgCount', 1);
+                await redis_1.default.hset(`iot:stats:pipeline:${p.id}`, 'lastMsgTime', Date.now());
+            }
+        }
+        catch {
+            // 忽略管道统计错误，不影响主流程
+        }
     }
     // Modbus TCP读取（slaveId 默认 1）
     async readModbus(ip, port, address, quantity, slaveId = 1) {

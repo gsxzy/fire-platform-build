@@ -1,0 +1,407 @@
+/* ═══════════════════════════════════════════════════════════════
+   全局样式覆盖 — 统一 shadcn/ui 与常用 Tailwind 类为设计令牌
+   目的：在不修改84个页面的情况下，统一视觉风格
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 基础暗色主题覆盖 ── */
+.dark,
+[data-theme="dark"],
+.fire-dark {
+  --background: 222.2 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 215 28% 17%;
+  --card-foreground: 210 40% 98%;
+  --popover: 215 28% 17%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 33% 22%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 33% 22%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 217.2 33% 22%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 35%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 215 20% 35%;
+  --input: 215 20% 35%;
+  --ring: 212.7 26.8% 83.9%;
+  --radius: 0.5rem;
+}
+
+/* ── shadcn/ui Card 组件统一 ── */
+[data-slot="card"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+  border-radius: 0.75rem !important;
+  transition: all 0.2s ease !important;
+}
+[data-slot="card"]:hover {
+  border-color: var(--fp-border-focus) !important;
+  box-shadow: var(--fp-shadow-glow-blue) !important;
+}
+[data-slot="card-header"] {
+  border-bottom-color: var(--fp-border-default) !important;
+}
+[data-slot="card-title"] {
+  color: var(--fp-text-primary) !important;
+  font-weight: 600 !important;
+}
+[data-slot="card-description"] {
+  color: var(--fp-text-tertiary) !important;
+}
+[data-slot="card-content"] {
+  color: var(--fp-text-secondary) !important;
+}
+[data-slot="card-footer"] {
+  border-top-color: var(--fp-border-default) !important;
+}
+
+/* ── shadcn/ui Table 组件统一 ── */
+[data-slot="table"] {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+[data-slot="table-header"] {
+  background: var(--fp-bg-secondary) !important;
+}
+[data-slot="table-head"] {
+  color: var(--fp-text-secondary) !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  padding: 0.625rem 1rem !important;
+  text-align: left !important;
+  border-bottom: 1px solid var(--fp-border-default) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+[data-slot="table-body"] {
+  background: transparent !important;
+}
+[data-slot="table-row"] {
+  transition: background 0.15s ease, transform 0.15s ease !important;
+  position: relative !important;
+  border-bottom: 1px solid var(--fp-border-subtle) !important;
+}
+[data-slot="table-row"]:hover {
+  background: var(--fp-bg-hover) !important;
+}
+[data-slot="table-cell"] {
+  color: var(--fp-text-primary) !important;
+  padding: 0.625rem 1rem !important;
+  font-size: 0.8125rem !important;
+  transition: background 0.15s ease !important;
+}
+
+/* ── shadcn/ui Dialog / Modal 统一 ── */
+[data-slot="dialog-content"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+  box-shadow: var(--fp-shadow-lg) !important;
+}
+[data-slot="dialog-header"] {
+  border-bottom: 1px solid var(--fp-border-default) !important;
+}
+[data-slot="dialog-title"] {
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="dialog-description"] {
+  color: var(--fp-text-tertiary) !important;
+}
+[data-slot="dialog-footer"] {
+  border-top: 1px solid var(--fp-border-default) !important;
+}
+
+/* ── shadcn/ui Input 统一 ── */
+[data-slot="input"] {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: var(--fp-border-default) !important;
+  color: var(--fp-text-primary) !important;
+  transition: all 0.2s ease !important;
+}
+[data-slot="input"]:focus {
+  border-color: var(--fp-border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+[data-slot="input"]::placeholder {
+  color: var(--fp-text-disabled) !important;
+}
+
+/* ── shadcn/ui Select / Dropdown 统一 ── */
+[data-slot="select-trigger"] {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border-color: var(--fp-border-default) !important;
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="select-content"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+}
+[data-slot="select-item"] {
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="select-item"]:hover {
+  background: var(--fp-bg-hover) !important;
+}
+
+/* ── shadcn/ui Button 统一 ── */
+[data-slot="button"] {
+  transition: all 0.2s ease !important;
+}
+[data-slot="button"]:active {
+  transform: scale(0.97) !important;
+}
+
+/* ── shadcn/ui Badge 统一 ── */
+[data-slot="badge"] {
+  font-size: 0.625rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.375rem !important;
+}
+
+/* ── shadcn/ui Tabs 统一 ── */
+[data-slot="tabs-list"] {
+  background: var(--fp-bg-secondary) !important;
+}
+[data-slot="tabs-trigger"] {
+  color: var(--fp-text-tertiary) !important;
+}
+[data-slot="tabs-trigger"][data-state="active"] {
+  background: var(--fp-bg-card) !important;
+  color: var(--fp-text-primary) !important;
+  box-shadow: var(--fp-shadow-sm) !important;
+}
+
+/* ── shadcn/ui Pagination 统一 ── */
+[data-slot="pagination-content"] {
+  color: var(--fp-text-secondary) !important;
+}
+
+/* ── 常用背景色硬编码覆盖 ── */
+.bg-slate-800,
+.bg-slate-800\/40,
+.bg-slate-800\/50,
+.bg-slate-800\/60,
+.bg-slate-800\/95 {
+  background: var(--fp-bg-card) !important;
+}
+.bg-slate-900,
+.bg-slate-900\/60,
+.bg-slate-900\/70,
+.bg-slate-900\/80,
+.bg-slate-900\/90 {
+  background: var(--fp-bg-secondary) !important;
+}
+.bg-slate-950 {
+  background: var(--fp-bg-primary) !important;
+}
+.bg-slate-700\/20,
+.bg-slate-700\/30 {
+  background: var(--fp-bg-panel) !important;
+}
+
+/* ── 常用文字色硬编码覆盖 ── */
+.text-slate-100 {
+  color: var(--fp-text-primary) !important;
+}
+.text-slate-200 {
+  color: var(--fp-text-primary) !important;
+}
+.text-slate-300 {
+  color: var(--fp-text-secondary) !important;
+}
+.text-slate-400 {
+  color: var(--fp-text-tertiary) !important;
+}
+.text-slate-500 {
+  color: var(--fp-text-disabled) !important;
+}
+
+/* ── 常用边框色硬编码覆盖 ── */
+.border-slate-600\/20,
+.border-slate-600\/30,
+.border-slate-600\/40 {
+  border-color: var(--fp-border-default) !important;
+}
+.border-slate-700\/20 {
+  border-color: var(--fp-border-subtle) !important;
+}
+
+/* ── 状态色统一覆盖（使用设计令牌） ── */
+.text-red-400 {
+  color: #f87171 !important;
+}
+.text-emerald-400 {
+  color: #34d399 !important;
+}
+.text-yellow-400 {
+  color: #facc15 !important;
+}
+.text-blue-400 {
+  color: #60a5fa !important;
+}
+.text-cyan-400 {
+  color: #22d3ee !important;
+}
+.text-purple-400 {
+  color: #c084fc !important;
+}
+.text-orange-400 {
+  color: #fb923c !important;
+}
+
+/* ── 按钮样式强化 ── */
+button[class*="bg-blue-600"],
+button[class*="bg-primary"] {
+  transition: all 0.2s ease !important;
+}
+button[class*="bg-blue-600"]:hover,
+button[class*="bg-primary"]:hover {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3) !important;
+}
+button[class*="bg-red-600"]:hover {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3) !important;
+}
+
+/* ── 表单弹窗统一 ── */
+[class*="bg-slate-800\/95"][class*="rounded-xl"] {
+  background: var(--fp-bg-card) !important;
+  border: 1px solid var(--fp-border-default) !important;
+  border-radius: 0.875rem !important;
+  box-shadow: var(--fp-shadow-lg) !important;
+}
+
+/* ── DataContainer 组件统一 ── */
+[class*="bg-slate-800/50"][class*="border-slate-700/30"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+}
+
+/* ── 列表项悬停统一 ── */
+[class*="hover:bg-slate-700/30"]:hover {
+  background: var(--fp-bg-hover) !important;
+}
+
+/* ── ScrollArea 统一 ── */
+[data-slot="scroll-area"] {
+  scrollbar-width: thin !important;
+  scrollbar-color: #334155 transparent !important;
+}
+
+/* ── 下拉菜单统一 ── */
+[data-slot="dropdown-menu-content"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+  box-shadow: var(--fp-shadow-lg) !important;
+}
+[data-slot="dropdown-menu-item"] {
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="dropdown-menu-item"]:hover {
+  background: var(--fp-bg-hover) !important;
+}
+
+/* ── Tooltip 统一 ── */
+[data-slot="tooltip-content"] {
+  background: var(--fp-bg-panel) !important;
+  border-color: var(--fp-border-default) !important;
+  color: var(--fp-text-primary) !important;
+}
+
+/* ── Sheet / Drawer 统一 ── */
+[data-slot="sheet-content"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+}
+
+/* ── Command / Combobox 统一 ── */
+[data-slot="command"] {
+  background: var(--fp-bg-card) !important;
+}
+[data-slot="command-input"] {
+  background: transparent !important;
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="command-item"] {
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="command-item"][data-selected="true"] {
+  background: var(--fp-bg-hover) !important;
+}
+
+/* ── Calendar 统一 ── */
+[data-slot="calendar"] {
+  background: var(--fp-bg-card) !important;
+  border-color: var(--fp-border-default) !important;
+}
+[data-slot="calendar-day"] {
+  color: var(--fp-text-primary) !important;
+}
+[data-slot="calendar-day-selected"] {
+  background: var(--fp-accent-blue) !important;
+  color: white !important;
+}
+
+/* ── 全局焦点环统一 ── */
+*:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* ── 骨架屏统一 ── */
+[data-slot="skeleton"] {
+  background: linear-gradient(90deg, var(--fp-bg-secondary) 25%, var(--fp-bg-panel) 50%, var(--fp-bg-secondary) 75%) !important;
+  background-size: 200% 100% !important;
+  animation: shimmer 1.5s infinite !important;
+}
+
+/* ── 响应式表格适配 ── */
+@media (max-width: 768px) {
+  /* 所有表格容器自动水平滚动 */
+  .overflow-x-auto,
+  [class*="table"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* 表格单元格缩小内边距 */
+  table tbody td,
+  table thead th {
+    padding: 0.5rem 0.375rem !important;
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* 按钮组在移动端垂直排列或换行 */
+  .flex-wrap {
+    flex-wrap: wrap !important;
+  }
+
+  /* 分页器在移动端缩小 */
+  nav[role="navigation"] button,
+  nav[role="navigation"] a {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    min-width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+}
+
+/* ── 极小屏适配 (<480px) ── */
+@media (max-width: 480px) {
+  /* 搜索栏和按钮组垂直堆叠 */
+  .flex-col-xs {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* 隐藏非关键列（通过类名控制） */
+  .hide-xs {
+    display: none !important;
+  }
+
+  /* 无响应式断点的 grid 降级为 1 列（不与 sm:/md: 冲突） */
+  [class*="grid-cols-"]:not([class*="sm:"]):not([class*="md:"]):not([class*="lg:"]):not([class*="xl:"]) {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+}

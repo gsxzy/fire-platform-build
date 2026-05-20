@@ -6,10 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requestLogger = requestLogger;
 exports.errorLogger = errorLogger;
 const logger_1 = __importDefault(require("@/config/logger"));
+const metrics_1 = require("@/utils/metrics");
 function requestLogger(req, res, next) {
     const start = Date.now();
     res.on('finish', () => {
         const duration = Date.now() - start;
+        metrics_1.metrics.record(req.method, req.path, res.statusCode, duration);
         logger_1.default.info(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`, {
             method: req.method, path: req.path, status: res.statusCode, duration,
             ip: req.ip, userAgent: req.get('user-agent'), reqId: req.reqId,

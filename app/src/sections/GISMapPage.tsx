@@ -34,6 +34,7 @@ export default function GISMapPage() {
   const [gisDataError, setGisDataError] = useState<string | null>(null);
   const [heatmapVisible, setHeatmapVisible] = useState(false);
   const [heatmapData, setHeatmapData] = useState<Array<{ lng: number; lat: number; weight: number }>>([]);
+  const [mapReady, setMapReady] = useState(false);
 
   // 加载 GIS 点位（单位 + 设备 + 活跃告警聚合）
   useEffect(() => {
@@ -107,6 +108,7 @@ export default function GISMapPage() {
       bindGansuViewport(map, AMap);
 
       mapRef.current = map;
+      setMapReady(true);
       logger.info('[GIS] 地图初始化完成');
     }
 
@@ -186,10 +188,10 @@ export default function GISMapPage() {
 
   // 当 units 或地图就绪时渲染标记点
   useEffect(() => {
-    if (!mapRef.current || !AMap || units.length === 0) return;
+    if (!AMap || units.length === 0) return;
     const timer = setTimeout(() => {
       const map = mapRef.current;
-      if (!map) return;
+      if (!map || !mapReady) return;
 
       const existing = map.getAllOverlays('marker');
       if (existing?.length) map.remove(existing);
@@ -239,7 +241,7 @@ export default function GISMapPage() {
       logger.info('[GIS] 标记点渲染完成:', units.length);
     }, 300);
     return () => clearTimeout(timer);
-  }, [units, AMap]);
+  }, [units, AMap, mapReady]);
 
   // 过滤单位
   const filteredUnits = useMemo(() => {

@@ -74,6 +74,10 @@ export interface Device {
   remark?: string;          // 备注
   /** 是否已有IoT接入配置（后端子查询返回） */
   hasIotConfig?: boolean;
+  /** 最近上线时间 */
+  lastOnline?: string;
+  /** 未处理告警数 */
+  alarmCount?: number;
   /** 分配阶段字段 */
   projectCode?: string;     // 项目/工程编码
   buildingId?: number;      // 所属建筑ID

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { MaintenanceCompany, MaintenanceContract, MaintenanceWorkOrder, MaintenanceRecord } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 import logger from '@/config/logger';
@@ -37,7 +37,7 @@ export const MaintenanceController = {
 
   async companyDelete(req: Request, res: Response) {
     await MaintenanceCompany.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async contractList(req: Request, res: Response) {
@@ -61,7 +61,7 @@ export const MaintenanceController = {
 
   async contractDelete(req: Request, res: Response) {
     await MaintenanceContract.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async workOrderList(req: Request, res: Response) {
@@ -100,7 +100,7 @@ export const MaintenanceController = {
 
   async workOrderDelete(req: Request, res: Response) {
     await MaintenanceWorkOrder.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async workOrderAssign(req: Request, res: Response) {
@@ -196,7 +196,7 @@ export const MaintenanceController = {
 
   async recordDelete(req: Request, res: Response) {
     await MaintenanceRecord.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async stats(req: Request, res: Response) {

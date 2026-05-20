@@ -65,3 +65,22 @@ export function sendPage(
 ) {
   return res.json(page(list, total, pageNum, pageSize, req.reqId));
 }
+
+/** DRY：统一发送删除成功响应 */
+export function sendDeleted(res: Response, req: Request, msg = '删除成功') {
+  return res.json(success(null, msg, req.reqId));
+}
+
+/** 发送 422 校验错误 */
+export function sendValidationFail(res: Response, req: Request, errors: { field?: string; message: string }[], msg = '参数校验失败') {
+  return res.status(422).json({ code: 422, msg, message: msg, data: null, errors, timestamp: Date.now(), requestId: req.reqId });
+}
+
+/** 发送 500 服务器错误 */
+export function sendServerError(res: Response, req: Request, error: Error, msg = '服务器内部错误') {
+  const isDev = process.env.NODE_ENV === 'development';
+  return res.status(500).json({
+    code: 500, msg, message: msg, data: isDev ? { message: error.message, stack: error.stack } : null,
+    timestamp: Date.now(), requestId: req.reqId,
+  });
+}

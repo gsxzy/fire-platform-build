@@ -16,4 +16,6 @@ export interface ProcessStep {
 export interface AlarmDetailModalProps {
   alarm: any;
   onClose: () => void;
+  /** 消控室ID，传入后优先显示该消控室关联的摄像头 */
+  controlRoomId?: string | number;
 }

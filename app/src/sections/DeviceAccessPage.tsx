@@ -141,6 +141,7 @@ export default function DeviceAccessPage() {
             <option value="UDP">UDP</option>
             <option value="FSCN8001">FSCN8001</option>
             <option value="GB26875">GB26875</option>
+            <option value="CANET-FECbus">CANET-FECbus</option>
             <option value="HIKVISION">HIKVISION</option>
           </select>
         </div>

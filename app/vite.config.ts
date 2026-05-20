@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2020',
     reportCompressedSize: false,
-    chunkSizeWarningLimit: 1200,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks(id) {

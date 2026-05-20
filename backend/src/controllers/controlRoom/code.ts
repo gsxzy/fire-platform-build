@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { fail } from '@/utils/response';
 import { ControlRoomHost, HostDeviceCode } from '@/models';
 import logger from '@/config/logger';
@@ -67,7 +67,7 @@ export async function hostDeviceCodeUpdate(req: Request, res: Response) {
 export async function hostDeviceCodeDelete(req: Request, res: Response) {
   try {
     await HostDeviceCode.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   } catch (err: any) {
     logger.error(`[ControlRoom] hostDeviceCodeDelete 失败: ${err?.message || err}`);
     return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));

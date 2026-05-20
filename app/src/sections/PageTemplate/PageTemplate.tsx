@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,7 +99,7 @@ export default function PageTemplate({
   columns, initialData = [], service, fields = [], filterFields = [], initialFilters = {}, initialKeyword = '', formInitialDefaults = {},
   actions = true, searchable = true, addable = true, pageSize = 10,
   exportable = true, printable = true, refreshable = true, batchable = true, filterable = true,
-  onCustomAddSave, renderExtraActions, extraHeaderActions,
+  onCustomAddSave, renderExtraActions, extraHeaderActions, headerStats,
   emptyTitle, emptyDescription, showIndex = false, permission,
 }: PageTemplateProps) {
   const { can } = usePermission();
@@ -184,8 +184,8 @@ export default function PageTemplate({
     String(row.name ?? row.unitName ?? row.deviceName ?? row.code ?? row.title ?? '该记录');
 
   // Selection
-  const getRowId = (row: any): string => String(row?.id ?? row?.code ?? row?.deviceNo ?? '');
-  const toggleSelect = (row: any) => {
+  const getRowId = useCallback((row: any): string => String(row?.id ?? row?.code ?? row?.deviceNo ?? ''), []);
+  const toggleSelect = useCallback((row: any) => {
     const rid = getRowId(row);
     if (!rid) return;
     setSelectedIds(prev => {
@@ -194,8 +194,8 @@ export default function PageTemplate({
       return next;
     });
     setShowBatchBar(true);
-  };
-  const toggleSelectAll = () => {
+  }, [getRowId]);
+  const toggleSelectAll = useCallback(() => {
     const pageIds = paged.map(getRowId).filter(Boolean);
     const allSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
     setSelectedIds(prev => {
@@ -204,8 +204,8 @@ export default function PageTemplate({
       return next;
     });
     setShowBatchBar(pageIds.length > 0 && !allSelected);
-  };
-  const clearSelection = () => { setSelectedIds(new Set()); setShowBatchBar(false); };
+  }, [paged, selectedIds, getRowId]);
+  const clearSelection = useCallback(() => { setSelectedIds(new Set()); setShowBatchBar(false); }, []);
   const batchDelete = async () => {
     setShowBatchConfirm(true);
   };
@@ -373,6 +373,9 @@ export default function PageTemplate({
       </div>
       )}
 
+      {/* Header Stats */}
+      {headerStats}
+
       {/* Advanced Filter Bar */}
       {filterable && showFilter && (
         <div className="glass rounded-xl p-3 flex items-center gap-3 flex-wrap animate-fade-in-up">
@@ -458,43 +461,28 @@ export default function PageTemplate({
                 hasIndex={showIndex}
               />
             )}
-            {!loading && paged.map((row: any, i: number) => {
-              const rowId = getRowId(row);
-              const isSelected = rowId ? selectedIds.has(rowId) : false;
-              return (
-                <div key={rowId || i} className={`flex gap-1 p-2.5 rounded-lg border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press group ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.06)]' : 'border-slate-600/20 bg-slate-700/20 hover:border-blue-500/25 hover:bg-slate-600/15 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.04)]'}`} style={{ animationDelay: `${i * 0.02}s` }}>
-                  {showIndex && (
-                    <span style={{ width: '42px' }} className="text-caption text-slate-400 truncate text-center flex-shrink-0">
-                      {(page - 1) * pageSize + i + 1}
-                    </span>
-                  )}
-                  {batchable && (
-                    <span style={{ width: '28px' }} className="flex-shrink-0">
-                      <button onClick={() => toggleSelect(row)} className="text-slate-500 hover:text-blue-400 transition-colors">
-                        {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-400" /> : <Square className="w-3.5 h-3.5" />}
-                      </button>
-                    </span>
-                  )}
-                  {columns.map(col => (
-                    <span key={col.key} style={{ width: getWidth(col) }} className="text-caption text-slate-300 truncate">
-                      {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '-')}
-                    </span>
-                  ))}
-                  {showRowActions && (
-                    <div style={{ width: renderExtraActions ? '120px' : '80px' }} className="flex items-center justify-end gap-0.5">
-                      {renderExtraActions?.(row)}
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="查看" onClick={() => setViewingRow(row)}><Eye className="w-3 h-3" /></Button>
-                      {allowEdit && (
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="编辑" onClick={() => setEditingRow(row)}><Edit className="w-3 h-3" /></Button>
-                      )}
-                      {allowDelete && (
-                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="删除" onClick={() => setDeletingRow(row)}><Trash2 className="w-3 h-3" /></Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {!loading && paged.map((row: any, i: number) => (
+              <TableRow
+                key={getRowId(row) || i}
+                row={row}
+                index={i}
+                page={page}
+                pageSize={pageSize}
+                columns={columns}
+                getWidth={getWidth}
+                showIndex={showIndex}
+                batchable={batchable}
+                showRowActions={showRowActions}
+                allowEdit={allowEdit}
+                allowDelete={allowDelete}
+                isSelected={selectedIds.has(getRowId(row))}
+                renderExtraActions={renderExtraActions}
+                onToggleSelect={toggleSelect}
+                onView={setViewingRow}
+                onEdit={setEditingRow}
+                onDelete={setDeletingRow}
+              />
+            ))}
             {!loading && paged.length === 0 && (
               <EmptyState
                 type={keyword || Object.values(activeFilters).some(v => v) ? 'search' : 'data'}
@@ -581,3 +569,71 @@ export default function PageTemplate({
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   独立表格行组件 — React.memo 避免父级重渲染时整表刷新
+   ═══════════════════════════════════════════════════════════════════ */
+interface TableRowProps {
+  row: any;
+  index: number;
+  page: number;
+  pageSize: number;
+  columns: Column[];
+  getWidth: (col: Column) => string;
+  showIndex?: boolean;
+  batchable?: boolean;
+  showRowActions?: boolean;
+  allowEdit?: boolean;
+  allowDelete?: boolean;
+  isSelected: boolean;
+  renderExtraActions?: (row: Record<string, unknown>) => React.ReactNode;
+  onToggleSelect: (row: any) => void;
+  onView: (row: Record<string, unknown> | null) => void;
+  onEdit: (row: Record<string, unknown> | null) => void;
+  onDelete: (row: Record<string, unknown> | null) => void;
+}
+
+const TableRow = memo(function TableRow({
+  row, index, page, pageSize, columns, getWidth,
+  showIndex, batchable, showRowActions, allowEdit, allowDelete,
+  isSelected, renderExtraActions, onToggleSelect, onView, onEdit, onDelete,
+}: TableRowProps) {
+  const handleToggle = useCallback(() => onToggleSelect(row), [onToggleSelect, row]);
+  const handleView = useCallback(() => onView(row), [onView, row]);
+  const handleEdit = useCallback(() => onEdit(row), [onEdit, row]);
+  const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
+
+  return (
+    <div className={`flex gap-1 p-2.5 rounded-lg border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press group ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.06)]' : 'border-slate-600/20 bg-slate-700/20 hover:border-blue-500/25 hover:bg-slate-600/15 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.04)]'}`} style={{ animationDelay: `${index * 0.02}s` }}>
+      {showIndex && (
+        <span style={{ width: '42px' }} className="text-caption text-slate-400 truncate text-center flex-shrink-0">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      )}
+      {batchable && (
+        <span style={{ width: '28px' }} className="flex-shrink-0">
+          <button onClick={handleToggle} className="text-slate-500 hover:text-blue-400 transition-colors">
+            {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-400" /> : <Square className="w-3.5 h-3.5" />}
+          </button>
+        </span>
+      )}
+      {columns.map(col => (
+        <span key={col.key} style={{ width: getWidth(col) }} className="text-caption text-slate-300 truncate">
+          {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '-')}
+        </span>
+      ))}
+      {showRowActions && (
+        <div style={{ width: '80px' }} className="flex items-center justify-end gap-0.5">
+          {renderExtraActions?.(row)}
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="查看" onClick={handleView}><Eye className="w-3 h-3" /></Button>
+          {allowEdit && (
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="编辑" onClick={handleEdit}><Edit className="w-3 h-3" /></Button>
+          )}
+          {allowDelete && (
+            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="删除" onClick={handleDelete}><Trash2 className="w-3 h-3" /></Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});

@@ -270,6 +270,7 @@ export const PROTOCOL_OPTIONS: { value: string; label: string }[] = [
   { value: 'UDP', label: 'UDP（低时延 · 需网络可靠设计）' },
   { value: 'TCP透传', label: 'TCP 透传（私有帧 · 配解析模板）' },
   { value: 'GB26875.1-2011', label: 'GB 26875.1 / FSCN8001（用户信息传输装置 · TCP 5200）' },
+  { value: 'CANET-FECbus', label: 'CANET-FECbus（智嵌CAN网关 · 赋安FS5102 · TCP 1030）' },
   { value: 'RTSP', label: 'RTSP（视频辅助 · 常与国标平台联动）' },
   { value: 'private', label: '厂商私有协议（需《协议解析规格书》）' },
   { value: 'Hikvision4G', label: '海康4G直连（HTTP上报 · CAT1）' },

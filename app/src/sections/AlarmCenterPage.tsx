@@ -22,6 +22,7 @@ import AlarmDetailModal from './AlarmDetailModal';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { logger } from '@/lib/logger';
+import { alarmStatusMap, alarmTypeMap, severityMap, getStatusMeta, timeAgo } from '@/lib/ui-utils';
 
 const typeTabs = [
   { key: 'all', label: '全部', icon: Bell, activeClass: 'bg-blue-500 text-white shadow-sm shadow-blue-500/20' },
@@ -31,26 +32,7 @@ const typeTabs = [
   { key: 'supervisory', label: '监管', icon: CheckCircle, activeClass: 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20' },
 ];
 
-const statusMap: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  new: { label: '待处理', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  confirmed: { label: '已确认', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  handled: { label: '已处理', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-  ignored: { label: '已忽略', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
-};
-
-const typeBadgeMap: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  fire: { label: '火警', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', icon: Flame },
-  fault: { label: '故障', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: AlertTriangle },
-  warning: { label: '预警', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20', icon: Shield },
-  supervisory: { label: '监管', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: CheckCircle },
-};
-
-const severityMap: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  urgent: { label: '紧急', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
-  high: { label: '高', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-  normal: { label: '一般', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-  low: { label: '低', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
-};
+// 状态映射已统一移至 @/lib/ui-utils，减少各页面重复定义
 
 export default function AlarmCenterPage() {
   const { success, error: showError } = useToast();
@@ -156,10 +138,10 @@ export default function AlarmCenterPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3 flex-shrink-0">
-        <StatCard label="告警总数" value={total} icon={<Bell className="w-3.5 h-3.5" />} color="blue" unit="条" />
-        <StatCard label="待处理" value={pendingCount} icon={<AlertTriangle className="w-3.5 h-3.5" />} color="red" unit="条" />
-        <StatCard label="火警" value={fireCount} icon={<Flame className="w-3.5 h-3.5" />} color="yellow" unit="条" />
-        <StatCard label="故障" value={faultCount} icon={<XCircle className="w-3.5 h-3.5" />} color="emerald" unit="条" />
+        <StatCard label="告警总数" value={total} Icon={Bell} color="blue" unit="条" loading={loading && total === 0} />
+        <StatCard label="待处理" value={pendingCount} Icon={AlertTriangle} color="red" unit="条" />
+        <StatCard label="火警" value={fireCount} Icon={Flame} color="yellow" unit="条" />
+        <StatCard label="故障" value={faultCount} Icon={XCircle} color="emerald" unit="条" />
       </div>
 
       {/* Type Tabs */}
@@ -171,7 +153,7 @@ export default function AlarmCenterPage() {
             <button
               key={tab.key}
               onClick={() => { setActiveTab(tab.key); setPage(1); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200 text-[10px] font-medium ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200 text-[11px] font-medium ${
                 active ? tab.activeClass : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
               }`}
             >
@@ -187,7 +169,7 @@ export default function AlarmCenterPage() {
         <CardContent className="p-0 flex flex-col h-full">
           {/* Table Header */}
           <div className="px-3 py-2.5 border-b border-slate-700/30 flex-shrink-0 bg-slate-800/60">
-            <div className="grid grid-cols-12 gap-2 text-[10px] text-slate-500 font-medium">
+            <div className="grid grid-cols-12 gap-2 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
               <span className="col-span-2">告警编号/设备</span>
               <span className="col-span-1">类型</span>
               <span className="col-span-1">等级</span>
@@ -234,18 +216,18 @@ export default function AlarmCenterPage() {
             )}
             {alarms.map(a => {
               const isUrgent = a.status === 'new' || a.level === 'urgent';
-              const tc = typeBadgeMap[a.type] || typeBadgeMap.warning;
-              const sc = statusMap[a.status] || statusMap.new;
-              const lc = severityMap[a.level] || severityMap.normal;
-              const TypeIcon = tc.icon;
+              const tc = getStatusMeta(alarmTypeMap, a.type);
+              const sc = getStatusMeta(alarmStatusMap, a.status);
+              const lc = getStatusMeta(severityMap, a.level);
+              const TypeIcon = tc.icon || Bell;
 
               return (
                 <div
                   key={a.id}
-                  className={`grid grid-cols-12 gap-2 p-3 rounded-xl border transition-all duration-300 items-center ${
+                  className={`grid grid-cols-12 gap-2 p-3 rounded-xl border transition-all duration-200 items-center ${
                     isUrgent
-                      ? 'bg-red-500/5 border-red-500/20 shadow-sm shadow-red-500/5 hover:bg-red-500/10 hover:scale-[1.01]'
-                      : 'bg-slate-800/30 border-slate-700/20 hover:bg-slate-700/20 hover:scale-[1.01]'
+                      ? 'bg-red-500/[0.04] border-red-500/20 shadow-sm shadow-red-500/5 hover:bg-red-500/[0.07] hover:shadow-md hover:shadow-red-500/10'
+                      : 'bg-slate-800/30 border-slate-700/20 hover:bg-slate-700/20 hover:border-slate-600/30'
                   }`}
                 >
                   <div className="col-span-2 min-w-0">
@@ -256,59 +238,59 @@ export default function AlarmCenterPage() {
                           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-400" />
                         </span>
                       )}
-                      <span className="text-[9px] text-slate-500 font-mono truncate">{a.id}</span>
+                      <span className="text-[10px] text-slate-500 font-mono truncate">{a.id}</span>
                     </div>
-                    <span className="text-[10px] text-slate-200 truncate block font-medium mt-0.5">{a.deviceName}</span>
+                    <span className="text-[11px] text-slate-200 truncate block font-medium mt-0.5">{a.deviceName}</span>
                   </div>
 
                   <span className="col-span-1">
-                    <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md font-medium border ${tc.bg} ${tc.color} ${tc.border}`}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-medium border ${tc.bg} ${tc.color} ${tc.border}`}>
                       <TypeIcon className="w-3 h-3" />
                       {tc.label}
                     </span>
                   </span>
 
                   <span className="col-span-1">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-medium border ${lc.bg} ${lc.color} ${lc.border}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${lc.bg} ${lc.color} ${lc.border}`}>
                       {lc.label}
                     </span>
                   </span>
 
-                  <span className="col-span-1 text-[9px] text-slate-300 font-mono text-center">
+                  <span className="col-span-1 text-[10px] text-slate-300 font-mono text-center">
                     {a.loopNo !== undefined && a.loopNo !== null ? a.loopNo : '-'}
                   </span>
 
-                  <span className="col-span-1 text-[9px] text-slate-300 font-mono text-center">
+                  <span className="col-span-1 text-[10px] text-slate-300 font-mono text-center">
                     {a.pointNo !== undefined && a.pointNo !== null ? a.pointNo : '-'}
                   </span>
 
                   <div className="col-span-1 min-w-0">
-                    <span className="text-[10px] text-slate-300 truncate block">{a.unitName}</span>
-                    <span className="text-[8px] text-slate-500 truncate block flex items-center gap-0.5">
+                    <span className="text-[11px] text-slate-300 truncate block">{a.unitName}</span>
+                    <span className="text-[9px] text-slate-500 truncate block flex items-center gap-0.5">
                       <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
                       {a.location}
                     </span>
                   </div>
 
-                  <span className="col-span-1 text-[9px] text-slate-400 font-mono flex items-center gap-1">
+                  <span className="col-span-1 text-[10px] text-slate-400 font-mono flex items-center gap-1">
                     <Clock className="w-2.5 h-2.5 flex-shrink-0" />
-                    {a.createdAt}
+                    {timeAgo(a.createdAt)}
                   </span>
 
                   <span className="col-span-1">
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-medium border ${sc.bg} ${sc.color} ${sc.border}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${sc.bg} ${sc.color} ${sc.border}`}>
                       {sc.label}
                     </span>
                   </span>
 
-                  <span className="col-span-1 text-[9px] text-slate-400 truncate">{a.handler || '-'}</span>
+                  <span className="col-span-1 text-[10px] text-slate-400 truncate">{a.handler || '-'}</span>
 
                   <span className="col-span-2 flex gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => openDetail(a)}
-                      className="h-6 px-2 text-[9px] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all rounded-lg"
+                      className="h-7 px-2.5 text-[10px] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all rounded-lg"
                     >
                       <Eye className="w-3 h-3 mr-0.5" />
                       查看
@@ -318,7 +300,7 @@ export default function AlarmCenterPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => openConfirm(a)}
-                        className="h-6 px-2 text-[9px] text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all rounded-lg"
+                        className="h-7 px-2.5 text-[10px] text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all rounded-lg"
                       >
                         <Check className="w-3 h-3 mr-0.5" />
                         确认

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/respond';
 import { fail } from '@/utils/response';
 import { ControlRoomHost } from '@/models';
 import { ControlRoomService } from '@/services/controlRoom.service';
@@ -41,7 +41,7 @@ export async function hostUpdate(req: Request, res: Response) {
 export async function hostDelete(req: Request, res: Response) {
   try {
     await ControlRoomHost.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   } catch (err: any) {
     logger.error(`[ControlRoom] hostDelete 失败: ${err?.message || err}`);
     return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));

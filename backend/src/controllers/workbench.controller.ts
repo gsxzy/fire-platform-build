@@ -2,7 +2,7 @@
  * workbench.controller.ts — 工作台控制器（待办 + 公告）
  */
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { WorkbenchTodoService, WorkbenchNoticeService } from '@/services/workbench.service';
 
 /* ── 待办 ── */
@@ -32,7 +32,7 @@ export const WorkbenchTodoController = {
 
   async delete(req: Request, res: Response) {
     await WorkbenchTodoService.delete(Number(req.params.id));
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async byId(req: Request, res: Response) {
@@ -73,7 +73,7 @@ export const WorkbenchNoticeController = {
 
   async delete(req: Request, res: Response) {
     await WorkbenchNoticeService.delete(Number(req.params.id));
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async byId(req: Request, res: Response) {

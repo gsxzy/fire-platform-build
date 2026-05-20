@@ -2,34 +2,30 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const video_controller_1 = require("@/controllers/video.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
 const router = (0, express_1.Router)();
-// 设备列表
-router.get('/devices', video_controller_1.VideoController.list);
-router.get('/devices/:deviceId/channels', video_controller_1.VideoController.channels);
-// 流状态（ZLM）
-router.get('/streams', video_controller_1.VideoController.streams);
-router.get('/streams/:cameraId', video_controller_1.VideoController.streamStatus);
-router.post('/stream/start/:cameraId', video_controller_1.VideoController.startStream);
-router.post('/stream/stop/:cameraId', video_controller_1.VideoController.stopZLMStream);
-// 取流核心接口
-router.post('/stream', video_controller_1.VideoController.getPlayUrl);
-router.get('/stream/:deviceId', video_controller_1.VideoController.getStream);
-// 摄像头配置
-router.get('/cameras', video_controller_1.VideoController.cameraConfigs);
-// 停止播放
-router.post('/stop', video_controller_1.VideoController.stopPlay);
-// PTZ / 预设位
-router.post('/ptz', video_controller_1.VideoController.ptzControl);
-router.post('/ptz/:deviceId', video_controller_1.VideoController.ptzControl);
-router.post('/preset', video_controller_1.VideoController.presetControl);
-router.post('/preset/:deviceId', video_controller_1.VideoController.presetControl);
-// 回放
-router.post('/playback', video_controller_1.VideoController.getPlayback);
-router.get('/playback/:deviceId', video_controller_1.VideoController.getPlayback);
-// 截图
-router.get('/snapshot/:deviceId/:channelId', video_controller_1.VideoController.snapshot);
-router.get('/snapshot/:deviceId', video_controller_1.VideoController.snapshot);
-// 实时预览
-router.get('/live/:deviceId', video_controller_1.VideoController.livePreview);
+const h = (name) => (0, handleController_1.handleController)(`Video.${String(name)}`, video_controller_1.VideoController[name]);
+const view = (0, permission_1.requirePermission)('monitor:view');
+const control = (0, permission_1.requirePermission)('monitor:control');
+router.get('/devices', view, h('list'));
+router.get('/devices/:deviceId/channels', view, h('channels'));
+router.get('/streams', view, h('streams'));
+router.get('/streams/:cameraId', view, h('streamStatus'));
+router.post('/stream/start/:cameraId', control, h('startStream'));
+router.post('/stream/stop/:cameraId', control, h('stopZLMStream'));
+router.post('/stream', view, h('getPlayUrl'));
+router.get('/stream/:deviceId', view, h('getStream'));
+router.get('/cameras', view, h('cameraConfigs'));
+router.post('/stop', control, h('stopPlay'));
+router.post('/ptz', control, h('ptzControl'));
+router.post('/ptz/:deviceId', control, h('ptzControl'));
+router.post('/preset', control, h('presetControl'));
+router.post('/preset/:deviceId', control, h('presetControl'));
+router.post('/playback', view, h('getPlayback'));
+router.get('/playback/:deviceId', view, h('getPlayback'));
+router.get('/snapshot/:deviceId/:channelId', view, h('snapshot'));
+router.get('/snapshot/:deviceId', view, h('snapshot'));
+router.get('/live/:deviceId', view, h('livePreview'));
 exports.default = router;
 //# sourceMappingURL=video.routes.js.map

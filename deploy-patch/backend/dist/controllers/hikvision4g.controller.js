@@ -12,11 +12,10 @@ const logger_1 = __importDefault(require("@/config/logger"));
 const redis_1 = __importDefault(require("@/config/redis"));
 const alarmNo_1 = require("@/utils/alarmNo");
 const websocket_service_1 = require("@/websocket/websocket.service");
-if (!process.env.HIKVISION_4G_API_KEY) {
-    console.error('[Hik4G] 错误：未设置 HIKVISION_4G_API_KEY 环境变量');
-    process.exit(1);
-}
 const HIKVISION_API_KEY = process.env.HIKVISION_4G_API_KEY;
+if (!HIKVISION_API_KEY) {
+    logger_1.default.warn('[Hik4G] 警告：未设置 HIKVISION_4G_API_KEY 环境变量，海康4G设备接入接口将返回403');
+}
 const heartbeatService = deviceHeartbeat_service_1.DeviceHeartbeatService.getInstance(database_1.default);
 /** 统一响应设备（极简，省流量） */
 function deviceResponse(code, msg, data) {
@@ -307,7 +306,6 @@ async function syncUnifiedDevice(deviceSn, ip, deviceType, state) {
         const today = new Date();
         const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
         let deviceId = null;
-        let lastErr = null;
         for (let attempt = 0; attempt < 3; attempt++) {
             const seq = Math.floor(Math.random() * 900) + 100;
             const deviceNo = `EQ-${datePrefix}-${String(seq).padStart(3, '0')}`;
@@ -320,7 +318,6 @@ async function syncUnifiedDevice(deviceSn, ip, deviceType, state) {
                 break;
             }
             catch (e) {
-                lastErr = e;
                 if (e?.original?.code === 'ER_DUP_ENTRY' && attempt < 2)
                     continue;
                 throw e;
@@ -412,10 +409,9 @@ exports.Hikvision4GController = {
             }
             // ── 更新在线状态 ──
             await updateDeviceOnline(deviceSn, clientIp);
-            const syncedArchiveId = await syncUnifiedDevice(deviceSn, clientIp, String(parsed.deviceType), 'online');
             // 若首次注册未获取到archiveId（理论上不应发生），补更新关联
-            if (syncedArchiveId && iotDevice && !iotDevice.archive_device_id) {
-                await iotDevice.update({ archive_device_id: syncedArchiveId });
+            if (archiveId && iotDevice && !iotDevice.archive_device_id) {
+                await iotDevice.update({ archive_device_id: archiveId });
             }
             // ── 缓存最新数据 ──
             await cacheDeviceData(deviceSn, parsed);

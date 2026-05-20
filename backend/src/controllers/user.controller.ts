@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { HttpError } from '@/utils/httpError';
 import { User, Role } from '@/models';
 import logger from '@/config/logger';
@@ -75,7 +75,7 @@ export const UserController = {
 
   async delete(req: Request, res: Response) {
     await User.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async resetPassword(req: Request, res: Response) {

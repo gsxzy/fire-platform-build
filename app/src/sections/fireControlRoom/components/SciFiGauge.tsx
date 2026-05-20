@@ -1,4 +1,4 @@
-import type { RealtimeData } from '../types';
+import type { RealtimeData, IotDeviceRealtime } from '../types';
 
 export function SciFiGauge({ label, value, unit, max, color, flash }: {
   label: string; value: number; unit: string; max: number; color: string; flash?: boolean;
@@ -61,10 +61,27 @@ export function SciFiGauge({ label, value, unit, max, color, flash }: {
   );
 }
 
+function IotDeviceRow({ dev }: { dev: IotDeviceRealtime }) {
+  const color = dev.deviceType.includes('压') ? '#10b981' : dev.deviceType.includes('液') ? '#06b6d4' : '#3b82f6';
+  const isOffline = dev.status !== 1;
+  return (
+    <div className={`flex items-center gap-2 px-2 py-1 rounded-md border transition-all ${isOffline ? 'border-slate-700/20 opacity-50' : 'border-slate-700/30 hover:border-slate-600/50'}`}>
+      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOffline ? 'bg-slate-600' : 'bg-emerald-400 led-pulse-green'}`} />
+      <span className="text-[9px] text-slate-300 truncate flex-1 min-w-0">{dev.name}</span>
+      <span className={`text-[10px] font-bold font-mono ${isOffline ? 'text-slate-600' : 'text-slate-200'}`}>{typeof dev.value === 'number' ? dev.value.toFixed(2) : dev.value}</span>
+      <span className="text-[8px] text-slate-500 w-6 text-right">{dev.unit}</span>
+      <div className="w-16 h-1 rounded-full bg-slate-800 overflow-hidden flex-shrink-0">
+        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.max(0, (dev.value / dev.max) * 100))}%`, backgroundColor: isOffline ? '#475569' : color }} />
+      </div>
+    </div>
+  );
+}
+
 export function SciFiGaugePanel({ realtime, onSwitchVideo, flashes }: {
   realtime: RealtimeData; onSwitchVideo: () => void;
   flashes: { p1: boolean; p2: boolean; l1: boolean; l2: boolean };
 }) {
+  const iotDevices = realtime.iotDevices || [];
   return (
     <div className="flex-1 sci-fi-panel rounded-xl p-2 flex flex-col gap-2 min-h-0 relative corner-accent-v2">
       <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
@@ -83,12 +100,25 @@ export function SciFiGaugePanel({ realtime, onSwitchVideo, flashes }: {
       {/* Grid background */}
       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(6,182,212,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.5) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
       {/* Gauges */}
-      <div className="flex-1 grid grid-cols-2 gap-2 min-h-0 relative z-10">
+      <div className="grid grid-cols-2 gap-2 flex-shrink-0 relative z-10">
         <SciFiGauge label="管网压力" value={realtime.pressure_1} unit="MPa" max={1} color="#10b981" flash={flashes.p1} />
         <SciFiGauge label="喷淋压力" value={realtime.pressure_2} unit="MPa" max={1} color="#3b82f6" flash={flashes.p2} />
         <SciFiGauge label="水箱液位" value={realtime.liquid_level_1} unit="m" max={5} color="#06b6d4" flash={flashes.l1} />
         <SciFiGauge label="消防水池" value={realtime.liquid_level_2} unit="m" max={5} color="#8b5cf6" flash={flashes.l2} />
       </div>
+      {/* Dynamic IoT devices */}
+      {iotDevices.length > 0 && (
+        <div className="flex-1 min-h-0 flex flex-col gap-1 relative z-10 overflow-hidden">
+          <div className="flex items-center gap-1.5 px-1 flex-shrink-0">
+            <div className="w-0.5 h-2 bg-cyan-400/60 rounded-full" />
+            <span className="text-[9px] text-cyan-400/80 font-medium tracking-wide">物联设备</span>
+            <span className="text-[8px] text-slate-600">({iotDevices.length})</span>
+          </div>
+          <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1 pr-0.5">
+            {iotDevices.map(dev => <IotDeviceRow key={dev.id} dev={dev} />)}
+          </div>
+        </div>
+      )}
       {/* Bottom data strip */}
       <div className="flex items-center justify-between px-2 py-1 bg-slate-900/40 rounded border border-slate-700/20 flex-shrink-0 relative z-10">
         <span className="text-[8px] text-slate-500 sci-fi-text">HOST_ID: {realtime.host_status === 1 ? 'ONLINE' : 'OFFLINE'}</span>

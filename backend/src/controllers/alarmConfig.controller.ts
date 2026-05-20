@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { AlarmThreshold, AlarmNotifyPolicy } from '@/models';
 import { Op } from 'sequelize';
 
@@ -42,7 +42,7 @@ export const AlarmThresholdController = {
     const row = await AlarmThreshold.findByPk(req.params.id);
     if (!row) throw new Error('规则不存在');
     await row.destroy();
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async byId(req: Request, res: Response) {
@@ -88,7 +88,7 @@ export const AlarmNotifyPolicyController = {
     const row = await AlarmNotifyPolicy.findByPk(req.params.id);
     if (!row) throw new Error('策略不存在');
     await row.destroy();
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async byId(req: Request, res: Response) {

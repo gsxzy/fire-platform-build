@@ -4,7 +4,7 @@
  * 提供全局侧边栏展开/折叠状态，支持跨组件共享
  * ═══════════════════════════════════════════════════════════════════
  */
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 
 interface SidebarContextType {
   collapsed: boolean;
@@ -66,8 +66,10 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('sfp_sidebar_collapsed', String(v));
   }, []);
 
+  const value = useMemo(() => ({ collapsed, toggleSidebar, setCollapsed: setCollapsedWrapped, mobile }), [collapsed, toggleSidebar, setCollapsedWrapped, mobile]);
+
   return (
-    <SidebarContext.Provider value={{ collapsed, toggleSidebar, setCollapsed: setCollapsedWrapped, mobile } as any}>
+    <SidebarContext.Provider value={value as any}>
       {children}
     </SidebarContext.Provider>
   );

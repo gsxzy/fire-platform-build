@@ -33,5 +33,13 @@ __exportStar(require("./training.model"), exports);
 __exportStar(require("./inspection.model"), exports);
 __exportStar(require("./system.model"), exports);
 __exportStar(require("./issue.model"), exports);
+__exportStar(require("./todo.model"), exports);
+__exportStar(require("./notice.model"), exports);
+__exportStar(require("./alarmConfig.model"), exports);
+__exportStar(require("./dispatchRecord.model"), exports);
+__exportStar(require("./dutyShift.model"), exports);
+__exportStar(require("./dutyHandover.model"), exports);
+__exportStar(require("./subsystem.model"), exports);
+__exportStar(require("./report.model"), exports);
 __exportStar(require("./associations"), exports);
 //# sourceMappingURL=index.js.map

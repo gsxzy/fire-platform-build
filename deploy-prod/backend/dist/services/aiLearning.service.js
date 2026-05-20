@@ -7,6 +7,7 @@ exports.AILearningService = void 0;
 const sequelize_1 = require("sequelize");
 const models_1 = require("@/models");
 const logger_1 = __importDefault(require("@/config/logger"));
+const cache_1 = require("@/utils/cache");
 class AILearningService {
     /**
      * 记录一次故障事件（自动累加次数）
@@ -109,44 +110,48 @@ class AILearningService {
      * 按故障类型统计 TOP N
      */
     static async statsByType(limit = 10) {
-        const rows = await models_1.IssueHistory.findAll({
-            attributes: [
-                'issue_type',
-                [sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'total_count'],
-                [sequelize_1.Sequelize.fn('COUNT', sequelize_1.Sequelize.col('id')), 'record_count'],
-            ],
-            group: ['issue_type'],
-            order: [[sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'DESC']],
-            limit,
-            raw: true,
-        });
-        return rows.map((r) => ({
-            issueType: r.issue_type,
-            totalCount: Number(r.total_count),
-            recordCount: Number(r.record_count),
-            label: this.translateIssueType(r.issue_type),
-        }));
+        return (0, cache_1.withCache)(cache_1.CacheTags.DEVICE_STATS, `aiLearning:type:${limit}`, async () => {
+            const rows = await models_1.IssueHistory.findAll({
+                attributes: [
+                    'issue_type',
+                    [sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'total_count'],
+                    [sequelize_1.Sequelize.fn('COUNT', sequelize_1.Sequelize.col('id')), 'record_count'],
+                ],
+                group: ['issue_type'],
+                order: [[sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'DESC']],
+                limit,
+                raw: true,
+            });
+            return rows.map((r) => ({
+                issueType: r.issue_type,
+                totalCount: Number(r.total_count),
+                recordCount: Number(r.record_count),
+                label: this.translateIssueType(r.issue_type),
+            }));
+        }, { ttl: 120 });
     }
     /**
      * 按设备统计 TOP N
      */
     static async statsByDevice(limit = 10) {
-        const rows = await models_1.IssueHistory.findAll({
-            attributes: [
-                'device_id',
-                'device_name',
-                [sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'total_count'],
-            ],
-            group: ['device_id', 'device_name'],
-            order: [[sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'DESC']],
-            limit,
-            raw: true,
-        });
-        return rows.map((r) => ({
-            deviceId: r.device_id,
-            deviceName: r.device_name,
-            totalCount: Number(r.total_count),
-        }));
+        return (0, cache_1.withCache)(cache_1.CacheTags.DEVICE_STATS, `aiLearning:device:${limit}`, async () => {
+            const rows = await models_1.IssueHistory.findAll({
+                attributes: [
+                    'device_id',
+                    'device_name',
+                    [sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'total_count'],
+                ],
+                group: ['device_id', 'device_name'],
+                order: [[sequelize_1.Sequelize.fn('SUM', sequelize_1.Sequelize.col('occurrence_count')), 'DESC']],
+                limit,
+                raw: true,
+            });
+            return rows.map((r) => ({
+                deviceId: r.device_id,
+                deviceName: r.device_name,
+                totalCount: Number(r.total_count),
+            }));
+        }, { ttl: 120 });
     }
     /**
      * 更新故障状态或解决方案

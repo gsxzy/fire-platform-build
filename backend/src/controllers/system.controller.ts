@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { SystemConfig, SystemLog, NotifyTemplate, ScreenConfig, Permission, Department, Alarm, Device, MaintenanceWorkOrder, Unit, Personnel } from '@/models';
 import redis from '@/config/redis';
 import { sanitizePagination } from '@/utils/validator';
@@ -49,7 +49,7 @@ export const SystemController = {
 
   async notifyTemplateDelete(req: Request, res: Response) {
     await NotifyTemplate.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async screenList(req: Request, res: Response) {
@@ -92,7 +92,7 @@ export const SystemController = {
 
   async deptDelete(req: Request, res: Response) {
     await Department.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async permList(req: Request, res: Response) {
@@ -210,7 +210,7 @@ export const SystemController = {
 
   async personnelDelete(req: Request, res: Response) {
     await Personnel.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   /* ── Monitor ── */

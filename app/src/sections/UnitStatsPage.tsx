@@ -45,6 +45,36 @@ export default function UnitStatsPage() {
     setLoading(false);
   };
 
+  if (loading || error || !overview?.unit) {
+    return (
+      <div className="space-y-4 h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
+        <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <BarChart3 className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-100 leading-tight">单位统计</h2>
+              <p className="text-[10px] text-slate-500">联网单位数据统计与消防健康度分析</p>
+            </div>
+          </div>
+        </div>
+        {loading ? (
+          <div className="h-[400px] flex flex-col items-center justify-center gap-2 text-slate-500">
+            <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+            <span className="text-xs">统计数据加载中…</span>
+          </div>
+        ) : (
+          <EmptyState
+            title="暂无统计数据"
+            description={error ? '数据加载失败，请检查网络或稍后重试' : '尚未录入单位或设备数据'}
+            action={<button onClick={loadData} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded">刷新</button>}
+          />
+        )}
+      </div>
+    );
+  }
+
   const u = overview.unit;
   const d = overview.device;
   const a = overview.alarm;
@@ -61,29 +91,6 @@ export default function UnitStatsPage() {
     { label: '本月告警', value: `${a.total30d}条`, icon: Bell, color: 'text-red-400' },
     { label: '平均在线率', value: d.total > 0 ? `${Math.round((d.normal / d.total) * 100)}%` : '0%', icon: Activity, color: 'text-cyan-400' },
   ];
-
-  if (!loading && (error || !overview)) {
-    return (
-      <div className="space-y-4 h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
-        <div className="glass rounded-xl px-4 py-3 flex items-center justify-between animate-fade-in-up">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20">
-              <BarChart3 className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-100 leading-tight">单位统计</h2>
-              <p className="text-[10px] text-slate-500">联网单位数据统计与消防健康度分析</p>
-            </div>
-          </div>
-        </div>
-        <EmptyState
-          title="暂无统计数据"
-          description={error ? '数据加载失败，请检查网络或稍后重试' : '尚未录入单位或设备数据'}
-          action={<button onClick={loadData} className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded">刷新</button>}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 h-[calc(100vh-7rem)] overflow-y-auto scrollbar-thin">
@@ -127,12 +134,7 @@ export default function UnitStatsPage() {
         {/* 单位类型分布 */}
         <div className="bg-slate-800/50 rounded-lg border border-slate-700/30 p-4">
           <div className="text-xs font-medium text-slate-200 mb-3">单位类型分布</div>
-          {loading ? (
-            <div className="h-[220px] flex flex-col items-center justify-center gap-2 text-slate-500">
-              <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
-              <span className="text-xs">统计数据加载中…</span>
-            </div>
-          ) : unitTypeData.length > 0 ? (
+          {unitTypeData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -173,12 +175,7 @@ export default function UnitStatsPage() {
         {/* 设备分类统计 */}
         <div className="bg-slate-800/50 rounded-lg border border-slate-700/30 p-4">
           <div className="text-xs font-medium text-slate-200 mb-3">设备分类统计</div>
-          {loading ? (
-            <div className="h-[250px] flex flex-col items-center justify-center gap-2 text-slate-500">
-              <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
-              <span className="text-xs">设备统计加载中…</span>
-            </div>
-          ) : categoryStats.length > 0 ? (
+          {categoryStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={categoryStats.slice(0, 8)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />

@@ -1,0 +1,21 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const dispatch_controller_1 = require("@/controllers/dispatch.controller");
+const handleController_1 = require("@/utils/handleController");
+const permission_1 = require("@/middleware/permission");
+const router = (0, express_1.Router)();
+const h = (name) => (0, handleController_1.handleController)(`Dispatch.${String(name)}`, dispatch_controller_1.DispatchController[name]);
+const view = (0, permission_1.requirePermission)('alarm:view');
+const manage = (0, permission_1.requirePermission)('alarm:manage');
+router.get('/', view, h('list'));
+router.get('/stats', view, h('stats'));
+router.get('/:id', view, h('byId'));
+router.post('/:id/dispatch', manage, h('dispatch'));
+router.post('/:id/transfer', manage, h('transfer'));
+router.post('/:id/start-handling', manage, h('startHandling'));
+router.post('/:id/resolve', manage, h('resolve'));
+router.post('/:id/false-alarm', manage, h('markFalseAlarm'));
+router.post('/from-alarm', manage, h('createFromAlarm'));
+exports.default = router;
+//# sourceMappingURL=dispatch.routes.js.map

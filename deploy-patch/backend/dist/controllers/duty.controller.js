@@ -1,125 +1,79 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DutyController = void 0;
 const response_1 = require("@/utils/response");
-const logger_1 = __importDefault(require("@/config/logger"));
 const duty_service_1 = require("@/services/duty.service");
 const validator_1 = require("@/utils/validator");
 exports.DutyController = {
-    // 排班
+    // ── 排班 ──
     async scheduleList(req, res) {
-        try {
-            const { startDate, endDate } = req.query;
-            const pageNum = parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1;
-            const pageSize = parseInt(String(req.query.pageSize ?? 10), 10) || 10;
-            const data = await duty_service_1.DutyService.getSchedules(startDate, endDate, pageNum, pageSize);
-            return res.json((0, response_1.page)(data.list, data.total, data.pageNum, data.pageSize));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] scheduleList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { startDate, endDate, shiftId } = req.query;
+        const pageNum = parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1;
+        const pageSize = parseInt(String(req.query.pageSize ?? 10), 10) || 10;
+        const data = await duty_service_1.DutyService.getSchedules(startDate, endDate, shiftId, pageNum, pageSize);
+        (0, response_1.sendPage)(res, req, data.list, data.total, data.pageNum, data.pageSize);
     },
     async scheduleById(req, res) {
-        try {
-            const schedule = await duty_service_1.DutyService.getScheduleById(req.params.id);
-            return res.json((0, response_1.success)(schedule || null));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] scheduleById 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const schedule = await duty_service_1.DutyService.getScheduleById(req.params.id);
+        (0, response_1.sendSuccess)(res, req, schedule || null);
     },
     async scheduleCreate(req, res) {
-        try {
-            const schedule = await duty_service_1.DutyService.createSchedule((0, validator_1.sanitizeBody)(req.body));
-            return res.json((0, response_1.success)({ id: schedule.id }, '排班成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] scheduleCreate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const schedule = await duty_service_1.DutyService.createSchedule((0, validator_1.sanitizeBody)(req.body));
+        (0, response_1.sendSuccess)(res, req, { id: schedule.id }, '排班成功');
     },
     async scheduleUpdate(req, res) {
-        try {
-            await duty_service_1.DutyService.updateSchedule(String((0, validator_1.parseIdStrict)(req.params.id)), (0, validator_1.sanitizeBody)(req.body));
-            return res.json((0, response_1.success)(null, '更新成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] scheduleUpdate 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        await duty_service_1.DutyService.updateSchedule(String((0, validator_1.parseIdStrict)(req.params.id)), (0, validator_1.sanitizeBody)(req.body));
+        (0, response_1.sendSuccess)(res, req, null, '更新成功');
     },
     async scheduleDelete(req, res) {
-        try {
-            await duty_service_1.DutyService.deleteSchedule(String((0, validator_1.parseIdStrict)(req.params.id)));
-            return res.json((0, response_1.success)(null, '删除成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] scheduleDelete 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        await duty_service_1.DutyService.deleteSchedule(String((0, validator_1.parseIdStrict)(req.params.id)));
+        (0, response_1.sendSuccess)(res, req, null, '删除成功');
     },
-    // 签到
+    // ── 签到/签退 ──
     async checkIn(req, res) {
-        try {
-            const log = await duty_service_1.DutyService.checkIn(req.user.userId, req.user.username);
-            return res.json((0, response_1.success)({ id: log.id }, '签到成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] checkIn 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { scheduleId } = req.body;
+        const log = await duty_service_1.DutyService.checkIn(req.user.userId, req.user.username, scheduleId);
+        (0, response_1.sendSuccess)(res, req, { id: log.id }, '签到成功');
     },
-    // 签退（交接班）
     async checkOut(req, res) {
-        try {
-            const { handoverContent, incidents } = req.body;
-            await duty_service_1.DutyService.checkOut(req.user.userId, handoverContent, incidents);
-            return res.json((0, response_1.success)(null, '签退成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] checkOut 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { handoverContent, incidents } = req.body;
+        await duty_service_1.DutyService.checkOut(req.user.userId, handoverContent, incidents);
+        (0, response_1.sendSuccess)(res, req, null, '签退成功');
     },
-    // 值班日志
+    // ── 值班日志（增强版） ──
     async logList(req, res) {
-        try {
-            const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
-            const { userId } = req.query;
-            const data = await duty_service_1.DutyService.getDutyLogs(+pageNum, +pageSize, userId ? +userId : undefined);
-            return res.json((0, response_1.page)(data.list, data.total, data.pageNum, data.pageSize));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] logList 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
+        const { userId, eventType, eventSource, startTime, endTime, scheduleId } = req.query;
+        const data = await duty_service_1.DutyService.getDutyLogs(+pageNum, +pageSize, {
+            userId: userId ? +userId : undefined,
+            eventType: eventType !== undefined ? +eventType : undefined,
+            eventSource: eventSource,
+            startTime: startTime,
+            endTime: endTime,
+            scheduleId: scheduleId ? +scheduleId : undefined,
+        });
+        (0, response_1.sendPage)(res, req, data.list, data.total, data.pageNum, data.pageSize);
     },
-    // 当前值班人员
+    async addLog(req, res) {
+        const { scheduleId, content, attachments, eventSource } = req.body;
+        const log = await duty_service_1.DutyService.addManualLog(req.user.userId, req.user.username, {
+            scheduleId, content, attachments, eventSource,
+        });
+        (0, response_1.sendSuccess)(res, req, { id: log.id }, '记录成功');
+    },
+    async generateSummary(req, res) {
+        const { scheduleId } = req.params;
+        const data = await duty_service_1.DutyService.generateShiftSummary(scheduleId);
+        (0, response_1.sendSuccess)(res, req, data);
+    },
+    // ── 当前值班/缺勤 ──
     async currentDuty(req, res) {
-        try {
-            const data = await duty_service_1.DutyService.getCurrentDuty();
-            return res.json((0, response_1.success)(data));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] currentDuty 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const data = await duty_service_1.DutyService.getCurrentDuty();
+        (0, response_1.sendSuccess)(res, req, data);
     },
-    // 离岗预警
     async absenceAlert(req, res) {
-        try {
-            const data = await duty_service_1.DutyService.checkAbsence();
-            return res.json((0, response_1.success)(data));
-        }
-        catch (err) {
-            logger_1.default.error(`[DutyController] absenceAlert 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const data = await duty_service_1.DutyService.checkAbsence();
+        (0, response_1.sendSuccess)(res, req, data);
     },
 };
 //# sourceMappingURL=duty.controller.js.map

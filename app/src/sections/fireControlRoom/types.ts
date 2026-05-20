@@ -23,6 +23,15 @@ export interface BusPoint {
   id: number; host_id: number; loop_no: number; point_no: number;
   point_name: string; device_type: string; install_location: string; status: number;
 }
+export interface IotDeviceRealtime {
+  id: number | string;
+  name: string;
+  deviceType: string;
+  value: number;
+  unit: string;
+  max: number;
+  status: number; // 1 online, 0 offline
+}
 export interface RealtimeData {
   pressure_1: number; pressure_2: number;
   liquid_level_1: number; liquid_level_2: number;
@@ -30,6 +39,7 @@ export interface RealtimeData {
   current_mode: number; silenced: number;
   fire_count: number; fault_count: number;
   shield_count: number; feedback_count: number;
+  iotDevices?: IotDeviceRealtime[];
 }
 export interface CommandLog {
   id: number; command_type: string; command_value: string;

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { FireInspection, InspectionTemplate, Hazard } from '@/models';
 import { parseIdStrict, sanitizeBody } from '@/utils/validator';
 import { HttpError } from '@/utils/httpError';
@@ -77,7 +77,7 @@ export const InspectionController = {
 
   async delete(req: Request, res: Response) {
     await FireInspection.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   /* ── 检查项模板 ── */
@@ -103,7 +103,7 @@ export const InspectionController = {
 
   async templateDelete(req: Request, res: Response) {
     await InspectionTemplate.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 };
 

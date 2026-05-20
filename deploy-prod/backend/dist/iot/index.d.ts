@@ -3,6 +3,8 @@ declare class IoTGateway {
     start(): Promise<void>;
     private handleMqttMessage;
     private processAlarm;
+    /** 按协议/管道类型增加 Redis 计数 */
+    private incrementPipelineStats;
     readModbus(ip: string, port: number, address: number, quantity: number, slaveId?: number): Promise<{
         success: boolean;
         data: any;

@@ -3,7 +3,7 @@
  * 全局加载状态管理 + 顶部进度条 + 骨架屏
  * ═══════════════════════════════════════════════════════════════
  */
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 interface LoadingContextType {
   isLoading: boolean;
@@ -39,8 +39,10 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
     }, 300);
   }, []);
 
+  const value = useMemo(() => ({ isLoading, progress, message, startLoading, setProgress, stopLoading }), [isLoading, progress, message, startLoading, setProgress, stopLoading]);
+
   return (
-    <LoadingContext.Provider value={{ isLoading, progress, message, startLoading, setProgress, stopLoading }}>
+    <LoadingContext.Provider value={value}>
       {children}
       {/* Top Progress Bar */}
       {isLoading && (

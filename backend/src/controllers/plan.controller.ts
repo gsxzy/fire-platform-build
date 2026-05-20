@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { EmergencyPlan, EmergencyDrill, DrillParticipant } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 
@@ -67,7 +67,7 @@ export const PlanController = {
 
   async planDelete(req: Request, res: Response) {
     await EmergencyPlan.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async drillList(req: Request, res: Response) {
@@ -93,7 +93,7 @@ export const PlanController = {
 
   async drillDelete(req: Request, res: Response) {
     await EmergencyDrill.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async participantList(req: Request, res: Response) {
@@ -113,6 +113,6 @@ export const PlanController = {
     const drillId = parseIdStrict(req.params.id);
     const participantId = parseIdStrict(req.params.participantId);
     await DrillParticipant.destroy({ where: { id: participantId, drill_id: drillId } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 };

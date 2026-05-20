@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/respond';
 import { Role, Permission } from '@/models';
 
 export const RoleController = {
@@ -31,6 +31,6 @@ export const RoleController = {
 
   async delete(req: Request, res: Response) {
     await Role.destroy({ where: { id: req.params.id } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 };

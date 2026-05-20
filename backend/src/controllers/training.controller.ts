@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { TrainingCourse, TrainingExam, TrainingRecord } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 import { HttpError } from '@/utils/httpError';
@@ -27,7 +27,7 @@ export const TrainingController = {
 
   async courseDelete(req: Request, res: Response) {
     await TrainingCourse.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   /* ── 考试 ── */

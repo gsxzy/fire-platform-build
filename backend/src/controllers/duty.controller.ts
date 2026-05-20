@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { DutyService } from '@/services/duty.service';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 
@@ -29,7 +29,7 @@ export const DutyController = {
 
   async scheduleDelete(req: Request, res: Response) {
     await DutyService.deleteSchedule(String(parseIdStrict(req.params.id)));
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async checkIn(req: Request, res: Response) {

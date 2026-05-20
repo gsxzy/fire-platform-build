@@ -160,7 +160,7 @@ export default function AIAssistant() {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[540px] bg-slate-800 rounded-xl border border-slate-700/50 shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className="fixed bottom-6 right-6 w-[calc(100vw-3rem)] max-w-96 h-[540px] max-h-[calc(100vh-6rem)] bg-slate-800 rounded-xl border border-slate-700/50 shadow-2xl z-50 flex flex-col overflow-hidden">
           {/* Header */}
           <div className="p-3 border-b border-slate-700/30 flex items-center justify-between bg-gradient-to-r from-blue-500/10 to-cyan-500/10">
             <div className="flex items-center gap-2">

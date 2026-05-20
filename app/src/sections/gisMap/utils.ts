@@ -31,8 +31,8 @@ export function mapGisUnitRow(
 
   const rawLat = Number(u.lat);
   const rawLng = Number(u.lng);
-  const lat = rawLat || NaN;
-  const lng = rawLng || NaN;
+  const lat = Number.isFinite(rawLat) ? rawLat : NaN;
+  const lng = Number.isFinite(rawLng) ? rawLng : NaN;
 
   return {
     id: String(u.id ?? ''),

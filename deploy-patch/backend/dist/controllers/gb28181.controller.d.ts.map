@@ -1,0 +1,1 @@
+{"version":3,"file":"gb28181.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/gb28181.controller.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AACH,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAuBjD,eAAO,MAAM,iBAAiB;cACZ,OAAO,OAAO,QAAQ;cA2BtB,OAAO,OAAO,QAAQ;gBAQpB,OAAO,OAAO,QAAQ;gBAatB,OAAO,OAAO,QAAQ;gBAkCtB,OAAO,OAAO,QAAQ;CAOzC,CAAC"}

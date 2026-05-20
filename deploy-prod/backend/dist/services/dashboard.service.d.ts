@@ -23,6 +23,10 @@ export declare class DashboardService {
                 total: number;
                 online: number;
             }[];
+            activeTotal: number;
+            activeOnline: number;
+            activeOffline: number;
+            activeRate: string;
         };
         workOrder: {
             pending: number;
@@ -54,6 +58,9 @@ export declare class DashboardService {
             deviceOnline: number;
             unitOnlineRate: string;
             deviceOnlineRate: string;
+            deviceActiveTotal: number;
+            deviceActiveOnline: number;
+            deviceActiveRate: string;
         };
         alarmTrend: {
             day: string;
@@ -101,6 +108,7 @@ export declare class DashboardService {
             handleRate: string;
         };
     }>;
+    private static _fetchWorkbenchData;
     private static buildWeeklyAlarmStats;
     static getMonitorOverview(): Promise<{
         deviceStats: import("sequelize").Model<any, any>[];
@@ -129,8 +137,48 @@ export declare class DashboardService {
         inspection: {
             month: number;
         };
-        recentAlarms: import("sequelize").Model<any, any>[];
+        recentAlarms: {
+            device: any;
+            unit: any;
+            time: string;
+            type: string;
+            level: string;
+        }[];
         alarmTrend: any[];
+        hourlyData: {
+            hour: string;
+            alarm: number;
+            fault: number;
+        }[];
+        unitAlarmData: {
+            name: any;
+            value: number;
+        }[];
+        deviceTypeDist: {
+            name: any;
+            value: number;
+            color: string;
+        }[];
+        systems: {
+            name: any;
+            status: string;
+            color: string;
+        }[];
     }>;
+    private static _fetchBigScreenData;
+    private static buildHourlyAlarmStats;
+    static getBigScreenConfig(): Promise<{
+        screenName: any;
+        layout: any;
+        widgets: {
+            type: any;
+            name: any;
+            config: any;
+            x: any;
+            y: any;
+            width: any;
+            height: any;
+        }[];
+    } | null>;
 }
 //# sourceMappingURL=dashboard.service.d.ts.map

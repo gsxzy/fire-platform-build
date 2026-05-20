@@ -3,8 +3,9 @@ import { useVisibilityPolling } from '@/hooks/useVisibilityPolling';
 import { useNavigate } from 'react-router';
 import { dashboardService } from '@/api/services';
 import DataContainer from '@/components/DataContainer';
+import { logger } from '@/lib/logger';
 import {
-  Monitor, Bell, Cpu, Video, MapPin, Clock
+  Monitor, Bell, Cpu, Video, MapPin, Clock, Activity
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -58,8 +59,8 @@ export default function ScreenDashboardPage() {
     setError(null);
     try {
       const [screenRes, dataRes] = await Promise.all([
-        dashboardService.bigScreen().catch(() => null),
-        dashboardService.bigScreenConfig().catch(() => null),
+        dashboardService.bigScreen().catch((e) => { logger.error('[大屏] 数据加载失败:', e); return null; }),
+        dashboardService.bigScreenConfig().catch((e) => { logger.error('[大屏] 配置加载失败:', e); return null; }),
       ]);
       const data = (screenRes as any)?.data ?? screenRes ?? {};
       if (data && typeof data === 'object') {
@@ -89,9 +90,10 @@ export default function ScreenDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (systems.length === 0) return;
     const timer = setInterval(() => setPulseIndex(i => (i + 1) % systems.length), 2000);
     return () => clearInterval(timer);
-  }, []);
+  }, [systems]);
 
   const stats = useMemo(() => {
     const s = screenData || {};
@@ -104,7 +106,7 @@ export default function ScreenDashboardPage() {
   }, [screenData]);
 
   return (
-    <DataContainer loading={loading} error={error} data={hourlyData} onRetry={loadData} emptyText="暂无数据">
+    <DataContainer loading={loading} error={error} data={screenData} onRetry={loadData} emptyText="暂无数据" allowEmptyChildren>
     <div className="h-full flex flex-col gap-3" style={{ minHeight: 'calc(100vh - 7rem)' }}>
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0 px-3 md:px-5 py-2.5 md:py-3 border border-blue-500/20 rounded-xl glass animate-fade-in-up">
@@ -162,11 +164,11 @@ export default function ScreenDashboardPage() {
             <div className="text-xs font-medium text-slate-200 mb-3">子系统状态</div>
             <div className="space-y-2">
               {systems.map((sys: any, i: number) => {
-                const Icon = sys.icon;
+                const SysIcon = sys.icon || Activity;
                 const isActive = pulseIndex === i;
                 return (
                   <div key={sys.name} className={`flex items-center gap-2 p-2 rounded-lg transition-all ${isActive ? 'bg-slate-700/30 border border-blue-500/20' : ''}`}>
-                    <Icon className="w-4 h-4" style={{ color: sys.color }} />
+                    <SysIcon className="w-4 h-4" style={{ color: sys.color }} />
                     <span className="text-[10px] text-slate-300 flex-1">{sys.name}</span>
                     <span className={`text-[9px] px-1.5 py-0.5 rounded ${sys.status === '正常' ? 'text-emerald-400 bg-emerald-500/10' : 'text-yellow-400 bg-yellow-500/10'}`}>{sys.status}</span>
                   </div>

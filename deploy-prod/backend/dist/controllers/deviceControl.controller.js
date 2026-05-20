@@ -1,87 +1,105 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DeviceControlController = void 0;
-const response_1 = require("@/utils/response");
-const logger_1 = __importDefault(require("@/config/logger"));
+const respond_1 = require("@/utils/respond");
 const validator_1 = require("@/utils/validator");
 const deviceControl_service_1 = require("@/services/deviceControl.service");
 exports.DeviceControlController = {
     async sendCommand(req, res) {
+        const { deviceId, cmdType, cmdParam, confirmToken } = req.body;
+        const commandType = Number(cmdType);
         try {
-            const { deviceId, cmdType, cmdParam } = req.body;
-            const result = await deviceControl_service_1.DeviceControlService.sendCommand({
-                deviceId: Number(deviceId),
-                commandType: Number(cmdType),
-                params: cmdParam ?? {},
-                operatorId: req.user.userId,
-                operatorName: req.user.username,
-            });
-            return res.json((0, response_1.success)(result, result.message));
+            const confirm = await deviceControl_service_1.DeviceControlService.requireConfirmToken(commandType, confirmToken);
+            if (confirm.needConfirm) {
+                (0, respond_1.sendSuccess)(res, req, { needConfirm: true, confirmToken: confirm.token }, '高危操作，请二次确认');
+                return;
+            }
         }
         catch (err) {
-            logger_1.default.error(`[DeviceControl] sendCommand 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            (0, respond_1.sendSuccess)(res, req, { success: false, message: err.message }, err.message);
+            return;
         }
+        const result = await deviceControl_service_1.DeviceControlService.sendCommand({
+            deviceId: Number(deviceId),
+            commandType,
+            params: cmdParam ?? {},
+            operatorId: req.user.userId,
+            operatorName: req.user.username,
+        });
+        (0, respond_1.sendSuccess)(res, req, result, result.message);
     },
     async remoteStartStop(req, res) {
+        const { deviceId, action, confirmToken } = req.body;
+        const commandType = action === 'start' ? 1 : 2;
         try {
-            const { deviceId, action } = req.body;
-            const result = await deviceControl_service_1.DeviceControlService.remoteStartStop(deviceId, action, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result));
+            const confirm = await deviceControl_service_1.DeviceControlService.requireConfirmToken(commandType, confirmToken);
+            if (confirm.needConfirm) {
+                (0, respond_1.sendSuccess)(res, req, { needConfirm: true, confirmToken: confirm.token }, '高危操作，请二次确认');
+                return;
+            }
         }
         catch (err) {
-            logger_1.default.error(`[DeviceControl] remoteStartStop 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            (0, respond_1.sendSuccess)(res, req, { success: false, message: err.message }, err.message);
+            return;
         }
+        const result = await deviceControl_service_1.DeviceControlService.remoteStartStop(deviceId, action, req.user.userId, req.user.username);
+        (0, respond_1.sendSuccess)(res, req, result);
     },
     async remoteReset(req, res) {
+        const { deviceId, confirmToken } = req.body;
         try {
-            const { deviceId } = req.body;
-            const result = await deviceControl_service_1.DeviceControlService.remoteReset(deviceId, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result));
+            const confirm = await deviceControl_service_1.DeviceControlService.requireConfirmToken(3, confirmToken);
+            if (confirm.needConfirm) {
+                (0, respond_1.sendSuccess)(res, req, { needConfirm: true, confirmToken: confirm.token }, '复位为高危操作，请二次确认');
+                return;
+            }
         }
         catch (err) {
-            logger_1.default.error(`[DeviceControl] remoteReset 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            (0, respond_1.sendSuccess)(res, req, { success: false, message: err.message }, err.message);
+            return;
         }
+        const result = await deviceControl_service_1.DeviceControlService.remoteReset(deviceId, req.user.userId, req.user.username);
+        (0, respond_1.sendSuccess)(res, req, result);
     },
     async silence(req, res) {
+        const { deviceId, confirmToken } = req.body;
         try {
-            const { deviceId } = req.body;
-            const result = await deviceControl_service_1.DeviceControlService.silence(deviceId, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result));
+            const confirm = await deviceControl_service_1.DeviceControlService.requireConfirmToken(4, confirmToken);
+            if (confirm.needConfirm) {
+                (0, respond_1.sendSuccess)(res, req, { needConfirm: true, confirmToken: confirm.token }, '消音为高危操作，请二次确认');
+                return;
+            }
         }
         catch (err) {
-            logger_1.default.error(`[DeviceControl] silence 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            (0, respond_1.sendSuccess)(res, req, { success: false, message: err.message }, err.message);
+            return;
         }
+        const result = await deviceControl_service_1.DeviceControlService.silence(deviceId, req.user.userId, req.user.username);
+        (0, respond_1.sendSuccess)(res, req, result);
     },
     async batchCommand(req, res) {
+        const { deviceIds, cmdType, param, confirmToken } = req.body;
+        const commandType = Number(cmdType);
         try {
-            const { deviceIds, cmdType, param } = req.body;
-            const ids = Array.isArray(deviceIds) ? deviceIds.map((id) => Number(id)) : [];
-            const result = await deviceControl_service_1.DeviceControlService.batchControl(ids, Number(cmdType), param ?? {}, req.user.userId, req.user.username);
-            return res.json((0, response_1.success)(result));
+            const confirm = await deviceControl_service_1.DeviceControlService.requireConfirmToken(commandType, confirmToken);
+            if (confirm.needConfirm) {
+                (0, respond_1.sendSuccess)(res, req, { needConfirm: true, confirmToken: confirm.token }, '批量控制为高危操作，请二次确认');
+                return;
+            }
         }
         catch (err) {
-            logger_1.default.error(`[DeviceControl] batchCommand 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
+            (0, respond_1.sendSuccess)(res, req, { success: false, message: err.message }, err.message);
+            return;
         }
+        const ids = Array.isArray(deviceIds) ? deviceIds.map((id) => Number(id)) : [];
+        const result = await deviceControl_service_1.DeviceControlService.batchControl(ids, commandType, param ?? {}, req.user.userId, req.user.username);
+        (0, respond_1.sendSuccess)(res, req, result);
     },
     async commandHistory(req, res) {
-        try {
-            const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
-            const { deviceId } = req.query;
-            const data = await deviceControl_service_1.DeviceControlService.getCommandHistory(deviceId ? +deviceId : undefined, +pageNum, +pageSize);
-            return res.json((0, response_1.page)(data.list, data.total, data.pageNum, data.pageSize));
-        }
-        catch (err) {
-            logger_1.default.error(`[DeviceControl] commandHistory 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`操作失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { pageNum, pageSize } = (0, validator_1.sanitizePagination)(req);
+        const { deviceId } = req.query;
+        const data = await deviceControl_service_1.DeviceControlService.getCommandHistory(deviceId ? +deviceId : undefined, +pageNum, +pageSize);
+        (0, respond_1.sendPage)(res, req, data.list, data.total, data.pageNum, data.pageSize);
     },
 };
 //# sourceMappingURL=deviceControl.controller.js.map

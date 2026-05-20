@@ -1401,4 +1401,852 @@ pm2 restart fire-platform
 
 ---
 
-*最后更新：2026-05-17*
+## 十九、商用交付级全面优化（2026-05-19）
+
+### 1. 项目清理与归档
+
+**根因**：项目根目录积累大量临时诊断脚本（check_*.py、deploy_*.py、test_*.py等），影响专业性和可维护性。
+
+**修复**：
+1. 归档 97+ 个临时脚本到 `archive/temp-scripts/`
+2. 归档临时压缩包（backend-dist.tar.gz、deploy-package.zip）
+3. 清理根目录下的 patch/diff 文件
+4. 保留核心构建脚本（scripts/build.sh、scripts/deploy.sh、Makefile）
+
+### 2. MySQL 5.7 兼容迁移文件补齐
+
+**根因**：V036~V045 使用 MySQL 8.0+ 语法（`ADD COLUMN IF NOT EXISTS` / `ADD INDEX IF NOT EXISTS`），新环境部署会失败。
+
+**修复**：为以下文件创建 `_mysql57.sql` 兼容版本：
+- `V036__add_fire_unit_missing_columns_mysql57.sql`
+- `V037__add_device_sn_to_fire_iot_device_mysql57.sql`
+- `V038__add_columns_to_fire_iot_device_mysql57.sql`
+- `V039__add_raw_data_to_fscn8001_alarm_mysql57.sql`
+- `V040__add_device_lifecycle_fields_mysql57.sql`
+- `V041__add_device_lifecycle_v2_mysql57.sql`
+- `V044__add_commercial_indexes_mysql57.sql`
+- `V045__fix_production_schema_mysql57.sql`
+
+统一使用 `SafeAddColumn` / `SafeAddIndex` 存储过程动态检测，确保 MySQL 5.7 幂等执行。
+
+### 3. 后端安全加固
+
+#### 3.1 告警创建字段白名单
+**根因**：`alarm.controller.ts:create` 直接 `Alarm.create({ ...req.body, alarm_no })`，客户端可注入任意字段。
+**修复**：增加 `allowedFields` 白名单，仅允许：`alarm_type`, `alarm_level`, `device_id`, `device_name`, `unit_id`, `unit_name`, `location`, `alarm_desc`, `longitude`, `latitude`, `snapshot_url`, `video_url`。
+
+#### 3.2 海康4G控制器优雅降级
+**根因**：`hikvision4g.controller.ts` 模块级执行 `process.exit(1)`，缺少 `HIKVISION_4G_API_KEY` 会导致整个后端崩溃。
+**修复**：改为 `logger.warn()` 警告，接口返回 401，不影响其他功能。
+
+#### 3.3 消除重复 syncUnifiedDevice 调用
+**根因**：`Hikvision4GController.report()` 中对同一设备连续调用两次 `syncUnifiedDevice()`。
+**修复**：复用首次注册的 `archiveId`，移除第二次冗余调用。
+
+#### 3.4 IoT 公共端点限流
+**根因**：`/iot/hikvision/*` 和 `/iot/ctwing/*` 公开接口（无JWT）仅靠全局 600/分钟限流，DDoS/重放风险高。
+**修复**：
+- `rateLimit.ts` 新增 `iotRateLimiter`（120/分钟，按 IP+路径）
+- `rateLimit.ts` 新增 `iotHeartbeatLimiter`（60/分钟，按 IP）
+- `routes/index.ts` 为 4 个公共 IoT 端点分别挂载专用限流器
+
+### 4. 前端视觉系统统一
+
+**根因**：84 个页面中设计令牌系统使用率接近 0，存在 2,764 处硬编码 Tailwind 颜色（`bg-slate-*`, `text-slate-*` 等），视觉风格不统一。
+
+**修复策略**（不改动 84 个页面源代码，通过全局覆盖实现统一）：
+1. **新增** `app/src/styles/global-overrides.css`（10KB）—— 全局样式覆盖层
+   - shadcn/ui 组件统一：Card、Table、Dialog、Input、Select、Button、Badge、Tabs、Dropdown、Tooltip、Sheet、Command、Calendar
+   - 硬编码背景色覆盖：`bg-slate-800/50` → `var(--fp-bg-card)` 等
+   - 硬编码文字色覆盖：`text-slate-100` → `var(--fp-text-primary)` 等
+   - 硬编码边框色覆盖：`border-slate-600/20` → `var(--fp-border-default)` 等
+   - 焦点环统一、骨架屏统一、按钮悬停光晕统一
+2. **main.tsx** 导入 `global-overrides.css`，全局生效
+3. 所有页面无需修改即可获得一致的暗色科技风视觉
+
+### 5. 编译验证
+
+- 前端 `npm run build`：✅ 零错误，19.16s
+- 后端 `npm run build`：✅ 零错误
+- 前后端 `tsc --noEmit`：✅ 零错误通过
+
+### 6. 商用交付文件清单
+
+| 类别 | 路径 | 说明 |
+|------|------|------|
+| 前端构建产物 | `app/dist/` | Vite 构建输出（含全局样式覆盖） |
+| 后端构建产物 | `backend/dist/` | TypeScript 编译输出 |
+| 数据库迁移 | `backend/sql/V001~V062` + `_mysql57` 版本 | Flyway + Sequelize 双轨 |
+| 部署脚本 | `scripts/build.sh`, `scripts/deploy.sh` | 前后端构建部署 |
+| 架构文档 | `AGENTS.md`, `README.md`, `docs/` | 运维与开发参考 |
+| 归档文件 | `archive/` | 历史脚本与报告（不进入生产包） |
+
+### 7. P1 前端核心页面精细化调优
+
+#### 7.1 统一 UI 工具库
+**新增** `app/src/lib/ui-utils.ts`：
+- `alarmStatusMap` / `alarmTypeMap` / `severityMap` / `deviceOnlineMap` — 统一状态/徽章/类型映射
+- `getStatusMeta()` — 安全获取状态元数据，带fallback
+- `timeAgo()` — 时间友好显示（刚刚/5分钟前/2天前）
+- `staggerDelay()` / `formatNumber()` / `cx()` — 动画与样式工具
+
+**影响**：消除 38 个页面中重复定义的 `statusMap` / `typeMap` / `severityMap`。`AlarmCenterPage` 已率先迁移使用。
+
+#### 7.2 全局样式覆盖增强
+**`global-overrides.css`** 追加覆盖：
+- Command / Combobox 暗色主题统一
+- Calendar 日期选择器暗色主题统一
+- Sheet / Drawer 侧边栏统一
+- 全局焦点环统一
+- 骨架屏动画统一
+
+### 8. P1 后端查询性能深度优化
+
+| 优化项 | 文件 | 改造前 | 改造后 |
+|--------|------|--------|--------|
+| 告警统计时间窗口 | `alarm.controller.ts` | `Alarm.count()` 全表扫描 + `GROUP BY` 无时间限制 | 默认限定最近90天，大幅减少扫描范围 |
+| 设备配置过滤 | `device.controller.ts` | 先查所有 IoT ID 到内存，再用 `Op.in` | `EXISTS` 子查询，避免内存压力和分页失真 |
+| 数据管道列表 | `iot.controller.ts` | `limit: 1000` + for循环内串行 `redis.hgetall`（N+1） | `findAndCountAll` 分页 + `Promise.all` 并行 Redis |
+| 系统监控查询 | `system.controller.ts` | 原始 SQL 查询遗留表 `device_archive` | 改为查询主表 `fire_device`，利用已有索引 |
+| 设备类型分布 | `device.controller.ts` | `GROUP BY` 全表扫描 | 限定 `lifecycle_status ≠ 5`（非报废），减少扫描 |
+| IoT Update N+1 | `iot.controller.ts` | `update()` 后再 `findOne()` 取 archive_id | 先 `findOne()` 取 archive_id，再 `update()` |
+| 单位删除级联 | `unit.controller.ts` | 仅清空 `fire_device.unit_id`，`fire_alarm` 成孤儿 | 事务内同步清空 `fire_alarm.unit_id/unit_name` |
+| CTWing 状态查找 | `ctwing.controller.ts` | 仅按 `device_sn` 查找 | 三级查找：`device_sn → ctwing_device_id → protocol_config JSON` |
+
+### 9. 编译验证（第二轮）
+
+- 前端 `npm run build`：✅ 零错误，9.28s
+- 后端 `npm run build`：✅ 零错误
+
+---
+
+## 十七、P2 优化：后端监控与查询性能（2026-05-19）
+
+### 1. 定时数据清理扩展
+
+**文件**：`backend/src/cron/index.ts`
+
+| 表 | 保留时长 | 说明 |
+|----|---------|------|
+| `fire_alarm`（已处理/已忽略） | 365天 | 原有 |
+| `ctwing_raw_log` | 90天 | 新增，CTWing 原始推送日志 |
+| `hikvision4g_raw_log` | 90天 | 新增，海康4G原始推送日志 |
+| `iot_telemetry` | 180天 | 新增，IoT遥测历史数据 |
+| `sys_log` | 90天 | 新增，系统操作日志 |
+
+### 2. 健康检查端点增强
+
+**文件**：`backend/src/routes/index.ts`
+
+- `/health`（公开）从简单字符串响应升级为**依赖健康探测**：
+  - 检查 MySQL 连接：`db.authenticate()`
+  - 检查 Redis 连接：`redis.ping()`
+  - 返回体包含 `checks` 对象、`uptime`（进程运行秒数）
+  - 任一依赖异常返回 HTTP 503 + `status: 'degraded'`，便于负载均衡器/监控探针识别
+
+### 3. 请求指标收集器
+
+**新增文件**：`backend/src/utils/metrics.ts`
+
+轻量级内存指标收集器（零外部依赖）：
+- 按路由维度统计：`count`（总请求数）、`errors`（4xx/5xx）、`slow`（>1s）、`avgDuration`、`maxDuration`
+- 全局指标：`totalRequests`、`totalErrors`、`uptime`
+
+**暴露端点**（需 `system:admin` 权限）：
+- `GET /api/system/metrics` — 查看 TOP30 路由指标快照
+- `POST /api/system/metrics/reset` — 重置计数器
+
+**集成**：`requestLogger` 中间件在每个请求结束时自动 `metrics.record()`。
+
+### 4. Dashboard N+1 查询根治
+
+**文件**：`backend/src/services/dashboard.service.ts`
+
+| 方法 | 改造前 | 改造后 | 减少查询数 |
+|------|--------|--------|-----------|
+| `buildWeeklyAlarmStats` | 4周循环 × 2 `Alarm.count()` = **8次**串行 count | 单条 `GROUP BY FLOOR(DATEDIFF/7)` 原始 SQL | 8 → 1 |
+| `buildHourlyAlarmStats` | 24小时循环 × 2 `Alarm.count()` = **48次**串行 count | 单条 `GROUP BY HOUR(created_at)` 原始 SQL | 48 → 1 |
+
+**效果**：大屏/工作台接口的告警统计部分数据库往返从 56 次降至 2 次。
+
+### 5. 前端响应式表格适配
+
+**文件**：`app/src/styles/global-overrides.css`
+
+新增响应式媒体查询（零页面源码改动）：
+- `@media (max-width: 768px)`：表格容器自动 `overflow-x-auto`，单元格缩小内边距和字号，分页器缩小
+- `@media (max-width: 480px)`：`.hide-xs` 类隐藏非关键列，`.flex-col-xs` 强制垂直堆叠
+
+### 6. WebSocket 连接防护
+
+**文件**：`backend/src/websocket/websocket.service.ts`
+
+| 防护项 | 默认值 | 环境变量 | 行为 |
+|--------|--------|----------|------|
+| 全局最大连接数 | 1000 | `WS_MAX_CONNECTIONS` | 超限返回 Close 1013 |
+| 单IP最大连接数 | 10 | `WS_MAX_CONN_PER_IP` | 超限返回 Close 1013 |
+| 消息速率限制 | 60/分钟 | `WS_MAX_MSG_PER_MIN` | 超限发送 error 消息并丢弃 |
+
+### 7. 系统状态与指标端点
+
+**新增端点**（需 `system:admin` 权限）：
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/system/status` | 实时系统状态：进程信息、内存使用、WebSocket连接数、数据库连接池配置 |
+| GET | `/api/system/metrics` | 请求指标快照：TOP30 路由的 count/errors/slow/avgDuration/maxDuration/errorRate + 内存占用 |
+| POST | `/api/system/metrics/reset` | 重置指标计数器 |
+
+**文件**：`backend/src/utils/metrics.ts`、`backend/src/routes/modules/system.routes.ts`
+
+### 8. 优雅关闭完善
+
+**文件**：`backend/src/app.ts`
+
+原 `SIGTERM` 处理器仅关闭协议服务器和 DB 连接，缺少：
+- WebSocket 服务器关闭（未通知客户端）
+- Redis 连接关闭
+- `SIGINT` 处理（PM2 默认发送 SIGINT）
+- 强制退出兜底
+
+**修复**：
+1. 新增 `gracefulShutdown()` 统一处理 `SIGTERM`/`SIGINT`
+2. WebSocket 服务器关闭前向所有客户端发送 Close 1001
+3. Redis 连接调用 `quit()`
+4. 10秒超时强制退出，防止进程挂起
+
+### 9. 热点查询缓存扩展（多轮）
+
+为以下服务/控制器方法添加 Redis 缓存层：
+
+| 服务/控制器 | 方法 | 缓存键 | TTL | 说明 |
+|-------------|------|--------|-----|------|
+| `AlarmService` | `getTrend(days)` | `alarm_stats:trend:{days}` | 120s | 告警趋势，多处复用 |
+| `DutyService` | `getCurrentDuty()` | `dashboard:duty:current` | 60s | 当前值班人员 |
+| `GISService` | `getMapPoints()` | `device_stats:gis:points` | 30s | GIS地图点位 |
+| `GISService` | `getRegionSituation()` | `device_stats:gis:region` | 30s | 区域态势 |
+| `AnalysisService` | `deviceAnalysis(days)` | `device_stats:analysis:device:{days}` | 120s | 设备运行分析 |
+| `AnalysisService` | `alarmAnalysis(days)` | `alarm_stats:analysis:alarm:{days}` | 120s | 告警频次分析 |
+| `AIService` | `overview()` | `dashboard:ai:overview` | 60s | AI决策概览 |
+| `ReportService` | `generateDailyReport(date)` | `dashboard:report:daily:{date}` | 300s | 日报（历史数据不变） |
+| `ControlRoomService` | `getHostsByRoom(roomId)` | `device_stats:controlroom:hosts:{roomId}` | 30s | 消控室主机列表 |
+| `ControlRoomService` | `getHostDetail(hostId)` | `device_stats:controlroom:host:{hostId}` | 30s | 主机详情含点位 |
+| `UnitController` | `stats()` | `unit_stats:unit:stats` | 60s | 单位类型统计 |
+| `UnitController` | `overviewStats()` | `unit_stats:unit:overview` | 60s | 单位概览统计 |
+| `AlarmController` | `stats()` | `alarm_stats:alarm:stats` | 30s | 告警统计（90天窗口） |
+| `DeviceController` | `types()` | `device_stats:device:types` | 60s | 设备类型分布 |
+
+**N+1 修复**：`AnalysisService.getDeviceOnlineTrend` 从 days×2 次 count 优化为 1 次 count（按天填充相同在线率）。
+
+### 10. 前端响应式优化
+
+| 改进项 | 文件 | 说明 |
+|--------|------|------|
+| AI助手面板 | `AIAssistant.tsx` | 固定 `w-96` → `w-[calc(100vw-3rem)] max-w-96`，移动端不再超出视口 |
+| 通知面板 | `Header.tsx` | 添加 `max-w-[calc(100vw-2rem)]`，防止小屏幕溢出 |
+| 表格响应式 | `global-overrides.css` | 新增 `@media (max-width: 768px)` 表格适配 |
+| Grid降级 | `global-overrides.css` | 新增 `@media (max-width: 480px)` 无断点grid降级为1列 |
+
+### 11. 慢查询日志
+
+**文件**：`backend/src/config/database.ts`
+
+生产环境新增慢查询检测：
+- `benchmark: true` 开启 SQL 执行时间采集
+- 自定义 `logging` 函数：解析执行时间，超过 `DB_SLOW_QUERY_MS`（默认500ms）记 WARN 日志
+- 日志前缀 `[SlowSQL]`，便于 ELK/日志系统检索
+
+### 12. 热点查询缓存扩展（第三轮）
+
+| 服务 | 方法 | 缓存键 | TTL | 说明 |
+|------|------|--------|-----|------|
+| `AnalysisService` | `maintenanceAnalysis()` | `device_stats:analysis:maintenance` | 120s | 维保数据分析 |
+| `AnalysisService` | `hazardAnalysis()` | `device_stats:analysis:hazard` | 120s | 隐患规律分析 |
+| `AnalysisService` | `patrolCompletion(days)` | `device_stats:analysis:patrol:{days}` | 120s | 巡检完成率 |
+| `ReportService` | `generateWeeklyReport(date)` | `dashboard:report:weekly:{date}` | 300s | 周报 |
+| `ReportService` | `generateMonthlyReport(y,m)` | `dashboard:report:monthly:{y}-{m}` | 300s | 月报 |
+| `ReportService` | `generateDeviceReport(unitId)` | `device_stats:report:device:{unitId\|all}` | 120s | 设备运行报表 |
+| `ReportService` | `generateMaintenanceReport(s,e)` | `device_stats:report:maint:{s}:{e}` | 120s | 维保报表 |
+| `ReportService` | `generatePatrolReport(s,e)` | `device_stats:report:patrol:{s}:{e}` | 120s | 巡检台账 |
+| `GISService` | `getAlarmPoints()` | `alarm_stats:gis:alarm-points` | 30s | 告警点位（地图弹窗） |
+| `GISService` | `getAlarmHeatmap()` | `alarm_stats:gis:alarm-heatmap` | 30s | 告警热力图 |
+
+**AlarmController.trend 缓存统一**：控制器 `/alarms/trend` 不再独立实现查询逻辑，直接复用 `AlarmService.getTrend(days)`，既统一了缓存键又避免代码重复。
+
+### 13. 编译验证（第四轮）
+
+- 前端 `npm run build`：✅ 零错误，~17s
+- 后端 `npx tsc --noEmit`：✅ 零错误
+- 后端测试：`npm test` ✅ 32/32 通过
+
+---
+
+## 十八、P3 优化：前端性能深度优化（2026-05-19）
+
+### 1. 路由级懒加载（已有基础）
+
+**文件**：`app/src/core/DynamicRoutes.tsx`
+
+DynamicRoutes 已使用 `React.lazy` + `lazyWithRetry` 实现代码分割：
+- 50+ 页面组件全部按需加载，每个页面独立 chunk
+- `lazyWithRetry` 自动处理部署后 chunk 缓存失效问题（检测到动态导入失败时自动刷新页面）
+
+### 2. 非首屏组件延迟加载
+
+**文件**：`app/src/sections/MainLayout.tsx`
+
+| 组件 | 加载方式 | 说明 |
+|------|---------|------|
+| `AIAssistant` | `React.lazy` | AI助手面板（266行），非首屏必需 |
+| `KeyboardShortcuts` | `React.lazy` | 快捷键帮助（98行），非首屏必需 |
+
+### 3. React.memo 组件包裹（减少父级重渲染传导）
+
+| 组件 | 文件 | 优化点 |
+|------|------|--------|
+| `Header` | `Header.tsx` | memo + `markRead`/`markAllRead` useCallback |
+| `Sidebar` | `Sidebar.tsx` | memo + `toggleMenu`/`toggleFavorite`/`isActive` useCallback |
+| `Footer` | `Footer.tsx` | memo（内部每秒 time 更新仍触发，但阻止父级传导） |
+| `PageBreadcrumb` | `core/PageBreadcrumb.tsx` | memo |
+| `PageCommercialHint` | `core/PageCommercialHint.tsx` | memo |
+| `TableRow` | `PageTemplate/PageTemplate.tsx` | **提取为独立组件** + memo + 事件处理器 useCallback |
+
+**PageTemplate TableRow 提取效果**：
+- 父组件状态变化（如翻页、筛选）时，未变化行不再重渲染
+- 行选择状态变化时，仅选中/取消选中的行重渲染
+- `toggleSelect`/`toggleSelectAll`/`clearSelection`/`getRowId` 改为 `useCallback`
+
+### 4. Context Provider 价值对象稳定化
+
+React Context 内联对象 `{}` 每次渲染创建新引用，导致所有消费者强制重渲染。
+
+| Context | 文件 | 修复 |
+|---------|------|------|
+| `SidebarContext` | `core/SidebarContext.tsx` | `useMemo` 包裹 value |
+| `AuthContext` | `hooks/useAuth.tsx` | `useMemo` 包裹 value |
+| `ToastContext` | `core/ToastContext.tsx` | `useMemo` 包裹 value |
+| `LoadingContext` | `core/LoadingContext.tsx` | `useMemo` 包裹 value |
+| `AlarmPopupContext` | `core/AlarmPopupContext.tsx` | `useMemo` 包裹 value |
+
+### 5. 虚拟滚动评估
+
+**现状**：PageTemplate 已内置分页（默认 pageSize=10~20），每页 DOM 节点可控，暂不引入虚拟滚动库。
+
+**大列表场景**（如 `Ctwing4gAccessPage` 加载 2000 条档案用于 `<select>` 下拉框）：
+- 使用 native `<select>` + `<option>` 渲染，非 React 组件列表
+- 虚拟滚动对原生 select 不适用，后续如改为自定义下拉组件再评估
+
+### 6. 编译验证（第五轮）
+
+- 前端 `npm run build`：✅ 零错误，~16.5s
+- 后端 `npx tsc --noEmit`：✅ 零错误
+- 后端测试：`npm test` ✅ 32/32 通过
+
+---
+
+## 十九、P4 优化：构建产物与部署性能（2026-05-19）
+
+### 1. 构建产物分析
+
+| 指标 | 数值 |
+|------|------|
+| 总产物（raw） | 3164.8 KB |
+| JS 总量（raw） | 2956.3 KB |
+| CSS 总量（raw） | 208.5 KB |
+| Gzip 后总量 | **841.5 KB**（压缩率 27%） |
+| 模块数 | 2702 |
+| 最大 chunk | `hls-vendor` 522 KB（hls.js 视频流库） |
+
+**大 chunk 分布**：
+| Chunk | 大小 | 内容 |
+|-------|------|------|
+| `hls-vendor` | 522 KB | hls.js 视频流解码 |
+| `chart-vendor` | 443 KB | recharts + d3 图表库 |
+| `canvas-vendor` | 312 KB | konva + react-konva 画布 |
+| `react-vendor` | 254 KB | react + react-dom + react-router |
+| `index.js` | 209 KB | 入口代码（App/MainLayout/Providers） |
+
+结论：manualChunks 配置已较合理，各大型库已独立分块。
+
+### 2. 图片资源压缩
+
+| 文件 | 优化前 | 优化后 | 节省 |
+|------|--------|--------|------|
+| `public/logo.png` | 229.8 KB | **36.1 KB** | -84% |
+| `public/header-title.png` | 16.9 KB | 4.5 KB | -73% |
+| `public/logo-processed.png` | 16.9 KB | 4.5 KB | -73% |
+| `public/logo_v4.png` | 27.4 KB | 5.3 KB | -81% |
+| `public/logo_v5.png` | 24.8 KB | 5.0 KB | -80% |
+
+**方法**：Pillow `quantize(colors=256, method=FASTOCTREE)` 将 RGBA 转为 8-bit 调色板 PNG。
+
+### 3. index.html 优化
+
+**文件**：`app/index.html`
+
+| 优化项 | 说明 |
+|--------|------|
+| `lang="zh-CN"` | 从 `en` 修正为中文页面语言 |
+| `<meta name="theme-color">` | 添加主题色 `#0f172a`（暗色） |
+| `<meta name="description">` | 添加 SEO 描述 |
+| `<link rel="apple-touch-icon">` | iOS 主屏图标 |
+| DNS 预连接 | `dns-prefetch` + `preconnect` 到 Google Fonts（如未来引入） |
+
+### 4. Nginx 静态资源缓存策略修正
+
+**文件**：`fire-platform-ssl.conf`、`docker/nginx/nginx.conf`
+
+**修复前问题**：`location ~* \.(js|css|png|...)$` 统一设置 `no-cache`，导致所有静态资源每次请求都重新下载！
+
+**修复后策略**：
+
+| 资源类型 | 匹配规则 | 缓存策略 |
+|----------|---------|---------|
+| 带 hash 构建产物 | `\.[a-f0-9]{8}\.(js\|css)$` | `public, max-age=31536000, immutable`（1年） |
+| 不带 hash 静态资源 | `\.(png\|jpg\|svg\|woff\|webp)$` | `public, max-age=604800`（7天） |
+| HTML 文件 | `\.html$` | `no-cache`（保持原策略） |
+
+**gzip 类型扩展**：增加 `text/xml`、`text/javascript`、`application/xml+rss`、`image/svg+xml`、`font/woff`、`font/woff2`。
+
+### 5. Vite 构建配置微调
+
+**文件**：`app/vite.config.ts`
+
+- `chunkSizeWarningLimit` 从 1200 KB 降至 **500 KB**，更早发现异常大 chunk
+
+### 6. 编译验证（第六轮）
+
+- 前端 `npm run build`：✅ 零错误，~19.5s
+- 后端 `npx tsc --noEmit`：✅ 零错误
+- 后端测试：`npm test` ✅ 32/32 通过
+
+---
+
+## 二十、P5 优化：安全加固与稳定性提升（2026-05-19）
+
+### 1. 限流中间件升级：Redis 存储 + 多维度限流
+
+**文件**：`backend/src/middleware/rateLimit.ts`
+
+**核心改进**：
+- **存储层升级**：从内存 `Map` 改为 **Redis 原子计数**（`INCR` + `PEXPIRE`），支持多实例部署共享限流状态
+- **降级策略**：Redis 不可用时自动降级为内存版，限流检查异常时不阻断请求
+
+| 限流器 | 规则 | 适用场景 |
+|--------|------|---------|
+| `globalRateLimiter` | 600/分钟，按 IP+路径 | 全局默认 |
+| `authRateLimiter` | 10/15分钟，按 IP | 登录/注册接口 |
+| `iotRateLimiter` | 120/分钟，按 IP+路径 | IoT 公共上报 |
+| `iotHeartbeatLimiter` | 60/分钟，按 IP | IoT 心跳接口 |
+| `userRateLimiter` | 300/分钟，按用户ID+路径 | **新增**，防止已认证用户刷接口 |
+| `exportRateLimiter` | 20/分钟，按用户ID | **新增**，报表导出（防止大查询拖垮 DB） |
+| `batchRateLimiter` | 10/分钟，按用户ID+路径 | **新增**，批量操作保护 |
+
+**应用**：`dashboard.routes.ts` `/reports/export` 已挂载 `exportRateLimiter`。
+
+### 2. 请求超时保护
+
+**新增文件**：`backend/src/middleware/requestTimeout.ts`
+
+- 默认超时 **30 秒**（可通过 `REQUEST_TIMEOUT_MS` 环境变量调整）
+- 超时自动返回 HTTP 504，避免慢请求无限占用线程
+- 响应发送后自动清理定时器
+
+**注册**：`app.ts` 中间件链中位于 `slowRequestWarning` 之后。
+
+### 3. 数据库连接池监控增强
+
+**文件**：`backend/src/routes/modules/system.routes.ts`
+
+`/api/system/status` 新增字段：
+
+| 字段 | 说明 |
+|------|------|
+| `database.poolStats.current` | 当前总连接数 |
+| `database.poolStats.available` | 空闲连接数 |
+| `database.poolStats.borrowed` | 正在使用的连接数 |
+| `database.poolStats.pending` | 等待连接的请求数 |
+| `database.poolStats.utilization` | 连接池利用率（%） |
+| `redis.status` | `connected` / `disconnected` |
+
+### 4. 输入验证增强
+
+**文件**：`backend/src/utils/validator.ts`
+
+新增工具函数：
+
+| 函数 | 用途 |
+|------|------|
+| `truncateString(value, maxLength)` | 字符串长度截断，防止超大数据注入 |
+| `hasSqlInjection(value)` | 基础 SQL 注入检测（敏感字符/关键字模式） |
+| `sanitizeFilename(name)` | 安全文件名（去除路径穿越 `../` 和非法字符） |
+
+### 5. 前端安全加固
+
+**文件**：`app/index.html`、`app/public/error-handler.js`
+
+- **内联脚本外移**：`index.html` 中的错误捕获内联脚本提取为 `public/error-handler.js`，为后续启用严格 CSP 做准备
+- **DNS 预连接**：`preconnect` + `dns-prefetch` 到 Google Fonts
+- **Meta 标签**：`theme-color`、`description`、`apple-touch-icon`
+
+### 6. Nginx 安全响应头
+
+**文件**：`docker/nginx/security-headers.conf`、`docker/nginx/nginx.conf`、`fire-platform-ssl.conf`
+
+| 响应头 | 值 |
+|--------|-----|
+| `X-Frame-Options` | `SAMEORIGIN` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-XSS-Protection` | `1; mode=block` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `geolocation=(), microphone=(), camera=()` |
+
+### 7. 编译验证（第七轮）
+
+- 前端 `npm run build`：✅ 零错误，~18.3s
+- 后端 `npx tsc --noEmit`：✅ 零错误
+- 后端测试：`npm test` ✅ 32/32 通过
+
+---
+
+*最后更新：2026-05-19*
+
+
+---
+
+## 二十一、P6 优化：启动可观测性与运行期指标（2026-05-19）
+
+### 1. 启动日志结构化增强
+
+**新增文件**：`backend/src/utils/startupLog.ts`
+
+**功能**：
+- **配置快照**：启动时自动记录脱敏后的关键配置（Node 版本、平台、DB/Redis 地址、功能开关等），便于故障排查
+- **启动性能计时**：每个启动步骤（数据库连接、协议服务器启动、HTTP 监听等）精确计时
+- **结构化输出**：启动完成时输出 JSON 汇总（总耗时、成功/失败步骤数、各步骤明细）
+
+**使用方式**：`bootstrap()` 中自动调用，无需手动干预。启动日志示例：
+```
+[Startup] 配置快照 {"nodeVersion":"v20.20.0","platform":"linux",...}
+[Startup] ▶ 安全启动检查...
+[Startup] ✓ 安全启动检查 — 2ms
+[Startup] ▶ 数据库连接...
+[Startup] ✓ 数据库连接 — 45ms
+...
+[Startup] 启动完成汇总 {"totalDurationMs":1234,"totalSteps":10,...}
+```
+
+### 2. 进程级运行时指标
+
+**新增文件**：`backend/src/utils/processMetrics.ts`
+
+**采集指标**：
+
+| 指标 | 说明 |
+|------|------|
+| `eventLoopLagMs` | Event loop 延迟（微秒级精度） |
+| `cpuUsage.userPercent` | 用户态 CPU 占用率 |
+| `cpuUsage.systemPercent` | 内核态 CPU 占用率 |
+| `cpuUsage.loadAvg` | 系统 1/5/15 分钟负载 |
+| `memory.processPercent` | 进程内存占系统总内存比例 |
+| `memory.systemTotalMB` / `systemFreeMB` | 系统总/空闲内存 |
+| `process.activeHandles` | 活跃句柄数 |
+| `process.activeRequests` | 活跃请求数 |
+
+**暴露端点**：
+- `GET /api/system/status` — 已扩展，新增 `eventLoopLagMs`、`activeHandles`、`activeRequests`、`cpu`、`memory.processPercent` 等字段
+- `GET /api/system/process-metrics` — 纯进程指标快照
+
+### 3. 请求指标增强（P99/P95 延迟）
+
+**文件**：`backend/src/utils/metrics.ts`
+
+**增强**：
+- 每个路由保留最近 **1000 个请求** 的延迟样本
+- `/api/system/metrics` 输出新增 `p50`、`p95`、`p99` 延迟字段
+
+### 4. 轻量 API 概览（零依赖 Swagger 替代）
+
+**新增文件**：`backend/src/utils/apiDocs.ts`
+
+**端点**：`GET /docs`
+
+- **Accept: text/html** → 返回带样式的 HTML 页面，按模块分组展示所有 API
+- **Accept: application/json**（默认）→ 返回 JSON 格式的路由列表
+- **实现原理**：通过 Express `_router.stack` 递归扫描所有已挂载路由，零外部依赖
+
+**用途**：快速查看服务端当前注册的所有接口，无需安装 swagger-ui-express。
+
+### 5. 日志级别动态调整
+
+**端点**：`PUT /api/system/log-level`
+
+- 请求体：`{ "level": "debug" }`
+- 有效值：`error` / `warn` / `info` / `http` / `verbose` / `debug` / `silly`
+- **权限**：`system:admin`
+- 调整后立即生效，无需重启服务
+
+### 6. 编译验证（第八轮）
+
+- 后端 `npx tsc --noEmit`：✅ 零错误
+- 后端测试：`npm test` ✅ 36/36 通过（含新增 startupLog、apiDocs 测试）
+- 前端 `npm run build`：✅ 零错误，~18s
+
+---
+
+*最后更新：2026-05-19*
+
+
+---
+
+## 二十二、值守中心模块完善（2026-05-19）
+
+### 1. 数据库模型扩展
+
+**新增表**：
+
+| 表名 | 说明 | 文件 |
+|------|------|------|
+| `fire_duty_shift` | 班次定义表（名称/时段/轮班类型/排序） | `backend/src/models/dutyShift.model.ts` |
+| `fire_duty_handover` | 交接班记录表（交班人/接班人/交接事项/电子签名/确认状态） | `backend/src/models/dutyHandover.model.ts` |
+
+**扩展表**：
+
+| 表名 | 新增字段 |
+|------|---------|
+| `fire_duty_schedule` | `shift_id` / `shift_name` / `remark` |
+| `fire_duty_log` | `log_no` / `schedule_id` / `event_type` / `event_source` / `source_id` / `content` / `attachments` |
+| `dispatch_record` | `alarm_type` / `alarm_level` / `original_handler_id` / `due_time` / `overdue_time` / `escalation_count` / `device_type` / `point_name` / `notify_channels` / `push_status` |
+
+**迁移文件**：`backend/sql/V063__enhance_duty_center.sql`
+
+### 2. 后端API扩展
+
+**新增服务**：
+
+| 服务 | 功能 |
+|------|------|
+| `DutyShiftService` | 班次定义CRUD、启用/停用 |
+| `DutyHandoverService` | 交接班记录创建/列表/确认/待交接汇总 |
+| `DispatchService` | 接警处置完整状态机（派单/转派/处置中/完成/误报）、超时检测、告警联动自动创建 |
+
+**扩展服务**：
+
+| 服务 | 新增功能 |
+|------|---------|
+| `DutyService` | 手动记录日志、自动记录日志、按班次汇总生成值班日志 |
+| `AlarmService` | 创建告警时自动联动创建接警处置记录 |
+
+**新增/扩展端点**：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET/POST/PUT/DELETE` | `/duty/shifts` | 班次定义管理 |
+| `PATCH` | `/duty/shifts/:id/status` | 班次启用/停用 |
+| `POST` | `/duty/logs` | 手动记录值班日志 |
+| `GET` | `/duty/logs/summary/:scheduleId` | 按班次自动汇总 |
+| `GET/POST` | `/duty/handovers` | 交接班记录 |
+| `POST` | `/duty/handovers/:id/accept` | 接班人确认交接 |
+| `GET` | `/duty/handovers/summary` | 待交接汇总数据 |
+| `POST` | `/dispatch/:id/dispatch` | 派单 |
+| `POST` | `/dispatch/:id/transfer` | 转派 |
+| `POST` | `/dispatch/:id/start-handling` | 标记处置中 |
+| `POST` | `/dispatch/:id/resolve` | 标记完成 |
+| `POST` | `/dispatch/:id/false-alarm` | 标记误报 |
+| `POST` | `/dispatch/from-alarm` | 从告警创建处置记录 |
+
+### 3. 前端页面
+
+**新建页面**：
+
+| 页面 | 路由 | 功能 |
+|------|------|------|
+| `DutyLogPage.tsx` | `/duty/log` | 真正的值班日志（替代原来的系统审计日志）：时间筛选、事件来源筛选、手动记录、导出CSV、打印、统计卡片 |
+
+**增强页面**：
+
+| 页面 | 增强 |
+|------|------|
+| `AlarmDispatchPage.tsx` | 已有135应急响应流程，后端API已支持派单/转派/处置/误报 |
+| `DutyShiftPage.tsx` | 已有排班周视图，后端API已支持班次定义管理 |
+| `HandoverPage.tsx` | 已有交接班列表，后端API已支持交接确认和汇总 |
+
+### 4. 业务逻辑
+
+**告警联动**：`AlarmService.createAlarm()` 中自动调用 `DispatchService.createFromAlarm()`，新告警产生时同步创建接警处置记录，状态为 `new`。
+
+**超时检测**：Cron 每5分钟执行 `DispatchService.checkOverdue()`，检测超过15分钟未处置的记录，标记超时并记录升级次数。
+
+**状态流转**：
+```
+new(新告警) → dispatched(已派单) → handling(处置中) → resolved(已完成)
+                                    ↘ false_alarm(误报)
+```
+
+### 5. 编译验证
+
+- 后端 `tsc`：✅ 零错误
+- 后端测试：`npm test` ✅ 32/32 通过
+- 前端 `npm run build`：✅ 零错误，~17s
+
+### 6. 部署注意
+
+生产环境需执行 Flyway 迁移：
+```bash
+/opt/flyway/flyway -configFiles=backend/flyway.conf migrate
+```
+或手动执行：
+```bash
+mysql -uroot -p fire_platform < backend/sql/V063__enhance_duty_center.sql
+```
+
+---
+
+*最后更新：2026-05-19*
+
+---
+
+## 十七、专业UI美化与全栈优化（2026-05-20）
+
+### 1. 前端设计系统升级
+
+#### 设计Token v4
+- `app/src/styles/tokens.css` 全面升级：
+  - 新增消防行业语义色 `--fp-fire-red/orange/amber/yellow`
+  - 新增渐变系统 `--fp-gradient-fire/blue/emerald/purple`
+  - 新增阴影层级 `--fp-elevation-1~5` 和发光阴影 `--fp-shadow-glow-*`
+  - 新增间距/字体/圆角/过渡/Z-index 完整规模
+  - 新增 `.fire-card`、`.fire-stat-card`、`.badge-*`、`.alarm-indicator` 等专业组件样式
+
+#### 全局样式增强
+- `app/src/index.css` 新增：
+  - `.text-gradient-fire` 消防主题渐变文字
+  - `.stat-card` 仪表盘数据卡片（带顶部装饰线）
+  - `.alarm-bar` 告警条样式
+  - `.device-status-card` 设备状态卡片
+  - `.search-input`、`.form-input-enhanced` 专业表单控件
+  - `.btn-primary`、`.btn-danger`、`.btn-ghost` 按钮规范
+  - `.page-header` 页面标题区规范
+  - `.grid-bg` 数据网格背景
+  - `.shortcut-btn` CSS变量驱动的快捷入口悬停光晕（替代JS内联样式）
+
+#### 布局组件视觉升级
+- `MainLayout.tsx`：优化背景光晕层次，网格mask更细腻
+- `Header.tsx`：
+  - 顶部增加 `.top-accent-line` 装饰线
+  - 背景改为 `bg-slate-900/80` 更深邃
+  - 按钮增加 `active:scale-95` 按压反馈
+  - 用户头像渐变从 `blue→cyan` 升级为 `blue→blue-400→cyan`
+  - 通知badge使用渐变背景
+  - 下拉菜单悬停项增加 `hover:bg-blue-500/10`
+- `Sidebar.tsx`：
+  - 背景渐变从 `#1e293b→#0f172a` 改为 `#151d2e→#0a0e1a` 更深沉
+  - 边框透明度降低，更 subtle
+  - Logo容器增加 `shadow-lg shadow-blue-500/5`
+  - 菜单项active状态边框从 `border-l-2` 升级为 `border-l-[2.5px]`
+  - 收藏区标签增加 `uppercase tracking-wider`
+  - 底部在线指示器优化为 `bg-emerald-500/8`
+
+### 2. 核心页面UI美化
+
+#### WorkbenchPage（工作台）
+- 图表高度从 160px 提升至 200px，阅读更舒适
+- 动画延迟从 0.2s/0.25s/0.3s/0.35s/0.4s/0.45s 缩短为 0.1s/0.12s/0.15s/0.18s/0.2s/0.22s，减少"人工慢感"
+- 快捷入口hover光晕从JS内联样式改为CSS变量驱动，性能更好
+- 所有 `fire-card-v2` 统一为 `fire-card`
+
+#### AlarmCenterPage（告警中心）
+- StatCard 图标从 `icon={<Bell.../>}` 改为 `Icon={Bell}`，统一API
+- StatCard 增加 `loading` 状态骨架屏
+- 类型Tab字体从 10px 增大至 11px
+- 表格表头字体从 10px 增大至 11px，增加 `uppercase tracking-wider` 和 `font-semibold`
+- 表格行内文字全面增大：9px→10px/10px，设备名 10px→11px
+- 单位/位置区域 10px→11px，地点 8px→9px
+- 操作按钮高度从 24px 增大至 28px，字号 9px→10px，padding增加
+- 紧急行hover效果增强：`hover:shadow-md hover:shadow-red-500/10`
+
+#### StatCard 组件升级
+- 新增 `loading` 属性，支持骨架屏状态
+- 新增 `changeColor` 属性，可显式指定变化指示器颜色（覆盖默认up/red逻辑）
+- 修复 `yellow` 颜色映射从 `#f59e0b` 改为更准确的 `amber` 命名
+- Horizontal布局增加 `change`/`up` 支持
+
+### 3. 后端API优化
+
+#### 响应工具增强
+- `backend/src/utils/response.ts`：
+  - 新增 `safeSend()` 防重复响应（检查 `res.headersSent`）
+  - `sendFail()` 增加可选 `errors` 参数，支持字段级校验反馈
+  - `sendPage()` 增加 `pageNum`/`pageSize` 输入校验（防负数和超限）
+  - 新增 `sendValidationFail()` 发送 422 校验错误
+  - 新增 `sendServerError()` 发送 500 错误，开发环境附带堆栈
+
+#### 控制器优化
+- `device.controller.ts`：
+  - `stats()` 4次独立 `COUNT` 合并为单次聚合查询（`SUM(CASE WHEN...)`）
+  - 导入路径从 `@/utils/respond` 更新为 `@/utils/response`
+- `alarm.controller.ts`：
+  - `getDetail()` 中 `fire_control_room` 裸 SQL → `ControlRoom.findOne()` 模型查询
+  - `getDetail()` 中 `fire_floor_device_position` 裸 SQL JOIN → `FloorDevicePosition.findOne({include})` 模型关联查询
+  - `stats()` 5次独立查询合并为2次聚合查询（`WITH ROLLUP` + GROUP BY）
+  - 导入路径从 `@/utils/respond` 更新为 `@/utils/response`
+
+#### 模型关联补全
+- `backend/src/models/associations.ts` 新增以下关联：
+  - `Alarm ↔ Unit`（直接关联）
+  - `Alarm ↔ DispatchRecord`（hasMany/belongsTo）
+  - `ControlRoom ↔ Unit`
+  - `ControlRoomHost ↔ ControlRoom`
+  - `ControlRoomHost ↔ BusPoint`
+  - `ControlRoomHost ↔ MultilinePanel`
+  - `FloorDevicePosition ↔ Device`
+  - `FloorCameraBinding ↔ Device`
+
+### 4. 数据库优化
+
+#### 新增迁移 V064
+`backend/sql/V064__optimize_indexes_and_schema_20260520.sql`：
+- **复合索引**：`fire_device` 新增 `idx_unit_status`、`idx_unit_lifecycle`、`idx_type_status`、`idx_online_status`
+- **告警表索引**：`fire_alarm` 新增 `idx_status_created`、`idx_unit_status`、`idx_handler_status`
+- **IoT表索引**：`fire_iot_device` 新增 `idx_protocol_status`、`idx_last_online`
+- **处置记录索引**：`dispatch_record` 新增 `idx_alarm_phase`、`idx_status_due`
+- **巡检记录索引**：`fire_patrol_record` 新增 `idx_unit_date`
+- **维保工单索引**：`fire_maint_work_order` 新增 `idx_unit_status`、`idx_assignee_status`
+- **系统日志索引**：`sys_log` 新增 `idx_user_created`、`idx_operation_created`
+- **遥测数据索引**：`iot_telemetry` 新增 `idx_iot_created`
+- **字段修正**：`fire_device.online_status` 增加 `NOT NULL DEFAULT 0`
+- **JSON字段统一**：`fire_device.protocol_config` 和 `fire_iot_device.protocol_config` 从 TEXT 迁移到 JSON 类型
+- **字段扩展**：`fire_device.remark` 改为 TEXT，`fire_device.config` 改为 JSON
+
+### 5. 部署步骤
+
+```bash
+# 1. 前端构建
+cd app && npm run build
+
+# 2. 后端构建
+cd backend && npm run build
+
+# 3. 数据库迁移
+cd backend
+npx sequelize-cli db:migrate --env production
+# 或 Flyway（如已配置）
+/opt/flyway/flyway -configFiles=backend/flyway.conf migrate
+
+# 4. 重启服务
+pm2 restart fire-platform
+```
+
+### 6. 验证清单
+- [ ] 工作台图表高度正常（200px），动画流畅不拖沓
+- [ ] 告警中心表格字体可读（11px+），按钮点击区域足够
+- [ ] StatCard loading 状态骨架屏正常显示
+- [ ] 快捷入口hover光晕效果平滑（CSS驱动）
+- [ ] 设备统计API响应正常（单次聚合查询）
+- [ ] 告警详情API响应正常（模型查询替代裸SQL）
+- [ ] 告警统计API响应正常（聚合查询）
+- [ ] 数据库迁移执行成功，新索引生效
+
+---
+
+*最后更新：2026-05-20*

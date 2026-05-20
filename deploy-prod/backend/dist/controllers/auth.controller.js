@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jwt_1 = require("@/utils/jwt");
-const response_1 = require("@/utils/response");
+const respond_1 = require("@/utils/respond");
+const httpError_1 = require("@/utils/httpError");
 const models_1 = require("@/models");
-const logger_1 = __importDefault(require("@/config/logger"));
 const refreshToken_service_1 = require("@/services/refreshToken.service");
 function buildLoginUserPayload(user, roles, permissions) {
     return {
@@ -24,150 +24,117 @@ function buildLoginUserPayload(user, roles, permissions) {
 }
 exports.AuthController = {
     async login(req, res) {
-        try {
-            const { username, password } = req.body;
-            if (!username || !password)
-                return res.status(400).json((0, response_1.fail)('用户名和密码不能为空', 400));
-            const user = await models_1.User.findOne({
-                where: { username },
-                include: [{ model: models_1.Role, include: [models_1.Permission] }],
-            });
-            if (!user)
-                return res.status(401).json((0, response_1.fail)('用户名或密码错误', 401));
-            if (user.status === 0)
-                return res.status(403).json((0, response_1.fail)('账号已被禁用', 403));
-            const valid = await bcryptjs_1.default.compare(password, user.password);
-            if (!valid)
-                return res.status(401).json((0, response_1.fail)('用户名或密码错误', 401));
-            await models_1.User.update({ last_login: new Date(), login_ip: req.ip }, { where: { id: user.id } });
-            const roles = user.roles?.map((r) => ({ id: r.id, name: r.role_name, code: r.role_code })) || [];
-            const permissions = new Set();
-            user.roles?.forEach((r) => r.permissions?.forEach((p) => permissions.add(p.perm_code)));
-            const accessToken = (0, jwt_1.signToken)({ userId: user.id, username });
-            const refreshToken = (0, refreshToken_service_1.generateRefreshToken)();
-            await (0, refreshToken_service_1.storeRefreshToken)(refreshToken, user.id, username, roles.map((r) => r.code));
-            const userPayload = buildLoginUserPayload(user, roles, Array.from(permissions));
-            return res.json((0, response_1.success)({
-                accessToken,
-                refreshToken,
-                tokenType: 'Bearer',
-                expiresIn: 86400,
-                user: userPayload,
-                userInfo: userPayload,
-            }, '登录成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[Auth] login 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`登录失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { username, password } = req.body;
+        if (!username || !password)
+            throw new httpError_1.HttpError('用户名和密码不能为空', 400);
+        const user = await models_1.User.findOne({
+            where: { username },
+            include: [{ model: models_1.Role, include: [models_1.Permission] }],
+        });
+        if (!user)
+            throw new httpError_1.HttpError('用户名或密码错误', 401);
+        if (user.status === 0)
+            throw new httpError_1.HttpError('账号已被禁用', 403);
+        const valid = await bcryptjs_1.default.compare(password, user.password);
+        if (!valid)
+            throw new httpError_1.HttpError('用户名或密码错误', 401);
+        await models_1.User.update({ last_login: new Date(), login_ip: req.ip }, { where: { id: user.id } });
+        const roles = user.roles?.map((r) => ({ id: r.id, name: r.role_name, code: r.role_code })) || [];
+        const permissions = new Set();
+        user.roles?.forEach((r) => r.permissions?.forEach((p) => permissions.add(p.perm_code)));
+        const accessToken = (0, jwt_1.signToken)({ userId: user.id, username });
+        const refreshToken = (0, refreshToken_service_1.generateRefreshToken)();
+        await (0, refreshToken_service_1.storeRefreshToken)(refreshToken, user.id, username, roles.map((r) => r.code));
+        const userPayload = buildLoginUserPayload(user, roles, Array.from(permissions));
+        (0, respond_1.sendSuccess)(res, req, {
+            accessToken,
+            refreshToken,
+            tokenType: 'Bearer',
+            expiresIn: 86400,
+            user: userPayload,
+            userInfo: userPayload,
+        }, '登录成功');
     },
     async refresh(req, res) {
-        try {
-            const { refreshToken } = req.body || {};
-            if (!refreshToken)
-                return res.status(400).json((0, response_1.fail)('refreshToken 不能为空', 400));
-            const data = await (0, refreshToken_service_1.getRefreshTokenData)(refreshToken);
-            if (!data)
-                return res.status(401).json((0, response_1.fail)('refreshToken 无效或已过期', 401));
-            await (0, refreshToken_service_1.revokeRefreshToken)(refreshToken);
-            const user = await models_1.User.findByPk(data.userId, {
-                include: [{ model: models_1.Role, include: [models_1.Permission] }],
-            });
-            if (!user || user.status === 0) {
-                return res.status(401).json((0, response_1.fail)('用户不存在或已被禁用', 401));
-            }
-            const roles = user.roles?.map((r) => ({ id: r.id, name: r.role_name, code: r.role_code })) || [];
-            const permissions = new Set();
-            user.roles?.forEach((r) => r.permissions?.forEach((p) => permissions.add(p.perm_code)));
-            const accessToken = (0, jwt_1.signToken)({ userId: user.id, username: user.username });
-            const newRefresh = (0, refreshToken_service_1.generateRefreshToken)();
-            await (0, refreshToken_service_1.storeRefreshToken)(newRefresh, user.id, user.username, roles.map((r) => r.code));
-            return res.json((0, response_1.success)({ accessToken, refreshToken: newRefresh }, 'Token 刷新成功'));
+        const { refreshToken } = req.body || {};
+        if (!refreshToken)
+            throw new httpError_1.HttpError('refreshToken 不能为空', 400);
+        const data = await (0, refreshToken_service_1.getRefreshTokenData)(refreshToken);
+        if (!data)
+            throw new httpError_1.HttpError('refreshToken 无效或已过期', 401);
+        await (0, refreshToken_service_1.revokeRefreshToken)(refreshToken);
+        const user = await models_1.User.findByPk(data.userId, {
+            include: [{ model: models_1.Role, include: [models_1.Permission] }],
+        });
+        if (!user || user.status === 0) {
+            throw new httpError_1.HttpError('用户不存在或已被禁用', 401);
         }
-        catch (err) {
-            logger_1.default.error(`[Auth] refresh 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`刷新失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const accessToken = (0, jwt_1.signToken)({ userId: user.id, username: user.username });
+        const newRefresh = (0, refreshToken_service_1.generateRefreshToken)();
+        await (0, refreshToken_service_1.storeRefreshToken)(newRefresh, user.id, user.username, (user.roles || []).map((r) => r.role_code));
+        (0, respond_1.sendSuccess)(res, req, { accessToken, refreshToken: newRefresh }, 'Token 刷新成功');
     },
     async logout(req, res) {
-        try {
-            const { refreshToken } = (req.body || {});
-            if (refreshToken)
-                await (0, refreshToken_service_1.revokeRefreshToken)(refreshToken);
-            const authHeader = req.headers.authorization;
-            if (authHeader?.startsWith('Bearer ')) {
-                const token = authHeader.slice(7);
-                const uid = (0, jwt_1.decodeUserIdIgnoreExpiration)(token);
-                if (uid != null)
-                    await (0, refreshToken_service_1.revokeAllUserRefreshTokens)(uid);
-            }
-            return res.json((0, response_1.success)(null, '登出成功'));
+        const { refreshToken } = (req.body || {});
+        if (refreshToken)
+            await (0, refreshToken_service_1.revokeRefreshToken)(refreshToken);
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            const token = authHeader.slice(7);
+            const uid = (0, jwt_1.decodeUserIdIgnoreExpiration)(token);
+            if (uid != null)
+                await (0, refreshToken_service_1.revokeAllUserRefreshTokens)(uid);
         }
-        catch (err) {
-            logger_1.default.error(`[Auth] logout 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`登出失败: ${err?.message || '未知错误'}`, 500));
-        }
+        (0, respond_1.sendSuccess)(res, req, null, '登出成功');
     },
     async register(req, res) {
-        try {
-            const { username, password, realName, phone } = req.body;
-            if (!username || !password)
-                return res.status(400).json((0, response_1.fail)('用户名和密码不能为空', 400));
-            const exists = await models_1.User.findOne({ where: { username } });
-            if (exists)
-                return res.status(409).json((0, response_1.fail)('用户名已存在', 409));
-            const hashed = await bcryptjs_1.default.hash(password, 10);
-            const user = await models_1.User.create({ username, password: hashed, real_name: realName, phone });
-            return res.json((0, response_1.success)({ id: user.id }, '注册成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[Auth] register 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`注册失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { username, password, realName, phone } = req.body;
+        if (!username || !password)
+            throw new httpError_1.HttpError('用户名和密码不能为空', 400);
+        if (username.length < 3 || username.length > 32)
+            throw new httpError_1.HttpError('用户名长度应为3-32位', 400);
+        if (password.length < 6)
+            throw new httpError_1.HttpError('密码长度至少6位', 400);
+        if (phone && !/^1[3-9]\d{9}$/.test(phone))
+            throw new httpError_1.HttpError('手机号格式不正确', 400);
+        const exists = await models_1.User.findOne({ where: { username } });
+        if (exists)
+            throw new httpError_1.HttpError('用户名已存在', 409);
+        const hashed = await bcryptjs_1.default.hash(password, 10);
+        const user = await models_1.User.create({ username, password: hashed, real_name: realName, phone });
+        (0, respond_1.sendSuccess)(res, req, { id: user.id }, '注册成功');
     },
     async profile(req, res) {
-        try {
-            const user = await models_1.User.findByPk(req.user.userId, {
-                attributes: { exclude: ['password'] },
-                include: [models_1.Role],
-            });
-            return res.json((0, response_1.success)(user));
-        }
-        catch (err) {
-            logger_1.default.error(`[Auth] profile 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`获取失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const user = await models_1.User.findByPk(req.user.userId, {
+            attributes: { exclude: ['password'] },
+            include: [models_1.Role],
+        });
+        (0, respond_1.sendSuccess)(res, req, user);
     },
     async updateProfile(req, res) {
-        try {
-            const { realName, phone, email, avatar } = req.body;
-            await models_1.User.update({ real_name: realName, phone, email, avatar }, { where: { id: req.user.userId } });
-            return res.json((0, response_1.success)(null, '更新成功'));
-        }
-        catch (err) {
-            logger_1.default.error(`[Auth] updateProfile 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`更新失败: ${err?.message || '未知错误'}`, 500));
-        }
+        const { realName, phone, email, avatar } = req.body;
+        if (phone && !/^1[3-9]\d{9}$/.test(phone))
+            throw new httpError_1.HttpError('手机号格式不正确', 400);
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+            throw new httpError_1.HttpError('邮箱格式不正确', 400);
+        await models_1.User.update({ real_name: realName, phone, email, avatar }, { where: { id: req.user.userId } });
+        (0, respond_1.sendSuccess)(res, req, null, '更新成功');
     },
     async changePassword(req, res) {
-        try {
-            const { oldPassword, newPassword } = req.body;
-            if (!oldPassword || !newPassword) {
-                return res.status(400).json((0, response_1.fail)('原密码和新密码不能为空', 400));
-            }
-            const user = (await models_1.User.findByPk(req.user.userId));
-            const valid = await bcryptjs_1.default.compare(oldPassword, user.password);
-            if (!valid)
-                return res.status(400).json((0, response_1.fail)('原密码错误', 400));
-            const hashed = await bcryptjs_1.default.hash(newPassword, 10);
-            await models_1.User.update({ password: hashed }, { where: { id: req.user.userId } });
-            await (0, refreshToken_service_1.revokeAllUserRefreshTokens)(req.user.userId);
-            return res.json((0, response_1.success)(null, '密码修改成功'));
+        const { oldPassword, newPassword } = req.body;
+        if (!oldPassword || !newPassword) {
+            throw new httpError_1.HttpError('原密码和新密码不能为空', 400);
         }
-        catch (err) {
-            logger_1.default.error(`[Auth] changePassword 失败: ${err?.message || err}`);
-            return res.status(500).json((0, response_1.fail)(`修改失败: ${err?.message || '未知错误'}`, 500));
-        }
+        if (newPassword.length < 6)
+            throw new httpError_1.HttpError('新密码长度至少6位', 400);
+        const user = (await models_1.User.findByPk(req.user.userId));
+        const valid = await bcryptjs_1.default.compare(oldPassword, user.password);
+        if (!valid)
+            throw new httpError_1.HttpError('原密码错误', 400);
+        const hashed = await bcryptjs_1.default.hash(newPassword, 10);
+        await models_1.User.update({ password: hashed }, { where: { id: req.user.userId } });
+        await (0, refreshToken_service_1.revokeAllUserRefreshTokens)(req.user.userId);
+        (0, respond_1.sendSuccess)(res, req, null, '密码修改成功');
     },
 };
 //# sourceMappingURL=auth.controller.js.map

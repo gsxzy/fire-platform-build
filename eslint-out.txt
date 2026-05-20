@@ -1,0 +1,56 @@
+﻿
+D:\新致远智慧消防平台\fire-platform-build\app\src\api\services\gb28181.service.ts
+  289:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\hooks\useAsyncRequest.ts
+  51:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\DeviceAccessPage.tsx
+  28:3  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\FireControlRoomPage.tsx
+   19:1   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  240:16  warning  'apiErr' is defined but never used                                                                     @typescript-eslint/no-unused-vars
+  367:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  386:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  402:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  415:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  426:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\TrainingPage.tsx
+  92:24  error    Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\TrainingPage.tsx:92:24
+  90 |       setAnswers({});
+  91 |       setResult(null);
+> 92 |       setExamStartTime(Date.now());
+     |                        ^^^^^^^^^^ Cannot call impure function
+  93 |     } catch (e) {
+  94 |       alert('加载试卷失败');
+  95 |     }  react-hooks/purity
+  93:14  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\alarmDetailModal\hooks.ts
+  117:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\deviceAccess\components\AccessModal.tsx
+  72:27  error  React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\fireControlRoom\components\BusCard.tsx
+  17:1   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  50:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  59:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\fireControlRoom\components\MultilineCard.tsx
+  17:1   warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  53:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+  62:14  warning  'e' is defined but never used                                                                          @typescript-eslint/no-unused-vars
+
+D:\新致远智慧消防平台\fire-platform-build\app\src\sections\gb28181\components\DetailUnitAssign.tsx
+  28:14  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 21 problems (2 errors, 19 warnings)
+  0 errors and 5 warnings potentially fixable with the `--fix` option.
+

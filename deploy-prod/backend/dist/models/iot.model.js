@@ -28,6 +28,11 @@ exports.IoTDevice = database_1.default.define('iot_device', {
     indexes: [
         { name: 'idx_unit_id', fields: ['unit_id'] },
         { name: 'idx_protocol_type', fields: ['protocol_type'] },
+        { name: 'idx_archive_device_id', fields: ['archive_device_id'] },
+        { name: 'idx_device_sn', fields: ['device_sn'] },
+        { name: 'idx_ctwing_device_id', fields: ['ctwing_device_id'] },
+        /* 复合索引：在线状态检测（status + last_online） */
+        { name: 'idx_status_online', fields: ['status', 'last_online'] },
     ],
 });
 exports.ProtocolConfig = database_1.default.define('protocol_config', {

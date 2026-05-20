@@ -11,7 +11,7 @@
 import { useNavigate, useLocation } from 'react-router';
 import { Home, ChevronRight, ArrowLeft } from 'lucide-react';
 import { ModuleEngine } from '@/core/platform';
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 
 interface BreadcrumbItem {
   label: string;
@@ -19,7 +19,7 @@ interface BreadcrumbItem {
   isLast: boolean;
 }
 
-export default function PageBreadcrumb() {
+function PageBreadcrumbComponent() {
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
@@ -145,6 +145,9 @@ export default function PageBreadcrumb() {
     </div>
   );
 }
+
+const PageBreadcrumb = memo(PageBreadcrumbComponent);
+export default PageBreadcrumb;
 
 /* ═══════════════════════════════════════════════════════════════
    常见路径标签映射（兜底解析用）

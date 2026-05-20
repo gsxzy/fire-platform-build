@@ -175,8 +175,10 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
         open={mapPickerOpen}
         onClose={() => setMapPickerOpen(false)}
         onConfirm={(lng, lat) => {
-          handleChange('lng', lng);
-          handleChange('lat', lat);
+          const next = { ...values, lng, lat };
+          setValues(next);
+          setTouched(prev => new Set(prev).add('lng').add('lat'));
+          setErrors(validate(next));
         }}
         initialLng={values.lng !== undefined && values.lng !== '' ? Number(values.lng) : undefined}
         initialLat={values.lat !== undefined && values.lat !== '' ? Number(values.lat) : undefined}

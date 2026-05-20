@@ -11,7 +11,7 @@ import ConfirmPanel from './alarmDetailModal/components/ConfirmPanel';
 import VideoMonitor from './alarmDetailModal/components/VideoMonitor';
 import RecordTabs from './alarmDetailModal/components/RecordTabs';
 
-export default function AlarmDetailModal({ alarm, onClose }: AlarmDetailModalProps) {
+export default function AlarmDetailModal({ alarm, onClose, controlRoomId }: AlarmDetailModalProps) {
   const {
     detail, loading,
     activeTab, setActiveTab,
@@ -28,7 +28,7 @@ export default function AlarmDetailModal({ alarm, onClose }: AlarmDetailModalPro
     unitName, alarmTime, location,
     controlRoom, floorPlan, cameras,
     dutyPhone, crManager, crManagerPhone,
-  } = useAlarmDetail(alarm);
+  } = useAlarmDetail(alarm, controlRoomId);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };

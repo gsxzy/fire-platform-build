@@ -17,5 +17,13 @@ export * from './training.model';
 export * from './inspection.model';
 export * from './system.model';
 export * from './issue.model';
+export * from './todo.model';
+export * from './notice.model';
+export * from './alarmConfig.model';
+export * from './dispatchRecord.model';
+export * from './dutyShift.model';
+export * from './dutyHandover.model';
+export * from './subsystem.model';
+export * from './report.model';
 export * from './associations';
 //# sourceMappingURL=index.d.ts.map

@@ -60,7 +60,7 @@ const PAGE_COMPONENTS: Record<string, LazyExoticComponent<ComponentType<object>>
 
   /* ── 值守中心 duty ── */
   '/duty/dispatch': lazyWithRetry(() => import('@/sections/AlarmDispatchPage')),
-  '/duty/log': lazyWithRetry(() => import('@/sections/SystemLogPage')),
+  '/duty/log': lazyWithRetry(() => import('@/sections/DutyLogPage')),
   '/duty/shift': lazyWithRetry(() => import('@/sections/DutyShiftPage')),
   '/duty/handover': lazyWithRetry(() => import('@/sections/HandoverPage')),
 

@@ -24,6 +24,11 @@ export declare class WebSocketService {
     private static clients;
     private static redisAlarmBridgeBound;
     private static readonly JWT_SECRET;
+    private static readonly MAX_CONNECTIONS;
+    private static readonly MAX_CONNECTIONS_PER_IP;
+    private static ipConnectionCounts;
+    private static readonly MAX_MSG_PER_MINUTE;
+    private static messageCounts;
     static getWss(): WebSocketServer | null;
     /**
      * 初始化WebSocket服务器（全局仅应调用一次）

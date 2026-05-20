@@ -7,7 +7,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { HttpError } from '@/utils/httpError';
 import { SmartAlert, Alarm } from '@/models';
 import { generateAlarmNo } from '@/utils/alarmNo';
@@ -57,7 +57,7 @@ export const SmartAlertController = {
   async alertDelete(req: Request, res: Response) {
     const n = await SmartAlert.destroy({ where: { id: req.params.id } });
     if (!n) throw new HttpError('预警不存在', 404, 404);
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   /** 预警确认 → 同步写入告警中心 */

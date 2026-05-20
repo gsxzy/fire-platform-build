@@ -21,6 +21,13 @@ class WebSocketService {
     static clients = new Map();
     static redisAlarmBridgeBound = false;
     static JWT_SECRET = jwt_1.SECRET;
+    // 连接限制
+    static MAX_CONNECTIONS = parseInt(process.env.WS_MAX_CONNECTIONS || '1000', 10);
+    static MAX_CONNECTIONS_PER_IP = parseInt(process.env.WS_MAX_CONN_PER_IP || '10', 10);
+    static ipConnectionCounts = new Map();
+    // 消息速率限制
+    static MAX_MSG_PER_MINUTE = parseInt(process.env.WS_MAX_MSG_PER_MIN || '60', 10);
+    static messageCounts = new Map();
     static getWss() {
         return this.wss;
     }
@@ -34,7 +41,22 @@ class WebSocketService {
         }
         this.wss = new ws_1.WebSocketServer({ server, path: '/ws' });
         this.wss.on('connection', (ws, req) => {
-            this.handleConnection(ws, req);
+            // 全局连接数限制
+            if (this.clients.size >= this.MAX_CONNECTIONS) {
+                logger_1.default.warn(`[WS] Max connections reached (${this.MAX_CONNECTIONS}), rejecting new connection`);
+                ws.close(1013, 'Server overloaded');
+                return;
+            }
+            // 单IP连接数限制
+            const clientIp = req.socket.remoteAddress || 'unknown';
+            const ipCount = this.ipConnectionCounts.get(clientIp) || 0;
+            if (ipCount >= this.MAX_CONNECTIONS_PER_IP) {
+                logger_1.default.warn(`[WS] Max connections per IP reached for ${clientIp} (${this.MAX_CONNECTIONS_PER_IP})`);
+                ws.close(1013, 'Too many connections');
+                return;
+            }
+            this.ipConnectionCounts.set(clientIp, ipCount + 1);
+            this.handleConnection(ws, req, clientIp);
         });
         this.wss.on('error', (err) => {
             logger_1.default.error(`[WS] Server error: ${err.message}`);
@@ -87,7 +109,7 @@ class WebSocketService {
     /**
      * 处理新连接
      */
-    static async handleConnection(ws, req) {
+    static async handleConnection(ws, req, clientIp) {
         const client = {
             ws,
             subscribedTopics: new Set(),
@@ -146,6 +168,14 @@ class WebSocketService {
         ws.on('close', () => {
             clearInterval(heartbeat);
             this.clients.delete(ws);
+            this.messageCounts.delete(ws);
+            const currentIpCount = this.ipConnectionCounts.get(clientIp) || 0;
+            if (currentIpCount > 1) {
+                this.ipConnectionCounts.set(clientIp, currentIpCount - 1);
+            }
+            else {
+                this.ipConnectionCounts.delete(clientIp);
+            }
             logger_1.default.info(`[WS] Client disconnected: ${client.userName || 'anonymous'}`);
         });
         ws.on('error', (err) => {
@@ -163,6 +193,25 @@ class WebSocketService {
      * 处理客户端消息
      */
     static async handleMessage(ws, message, client) {
+        // 消息速率限制
+        const now = Date.now();
+        const msgCount = this.messageCounts.get(ws);
+        if (msgCount) {
+            if (now - msgCount.windowStart > 60000) {
+                this.messageCounts.set(ws, { count: 1, windowStart: now });
+            }
+            else if (msgCount.count >= this.MAX_MSG_PER_MINUTE) {
+                logger_1.default.warn(`[WS] Message rate limit exceeded for client ${client.userName || 'anonymous'}`);
+                ws.send(JSON.stringify({ type: 'error', data: { message: '消息发送过于频繁' }, timestamp: now }));
+                return;
+            }
+            else {
+                msgCount.count++;
+            }
+        }
+        else {
+            this.messageCounts.set(ws, { count: 1, windowStart: now });
+        }
         try {
             const msg = JSON.parse(message);
             switch (msg.type) {

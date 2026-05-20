@@ -1,7 +1,7 @@
 /**
  * 动态侧边栏 - 基于 ModuleEngine 动态渲染 + 折叠展开功能
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import {
   ChevronDown, ChevronRight,
@@ -36,7 +36,7 @@ function isRouteActive(pathname: string, path: string): boolean {
   return pathname === path || pathname.startsWith(path + '/');
 }
 
-export default function Sidebar() {
+function SidebarComponent() {
   const navigate = useNavigate();
   const location = useLocation();
   const { collapsed, toggleSidebar, mobile } = useSidebar();
@@ -82,25 +82,25 @@ export default function Sidebar() {
   const [hoverExpand, setHoverExpand] = useState(false);
   const isEffectivelyCollapsed = collapsed && !hoverExpand;
 
-  const toggleMenu = (path: string) => {
+  const toggleMenu = useCallback((path: string) => {
     setOpenMenus(prev =>
       prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
     );
-  };
+  }, []);
 
   const pathname = location.pathname;
-  const isActive = (path: string) => isRouteActive(pathname, path);
-  const isParentActive = (mod: PlatformModule) =>
-    mod.menu?.children?.some(c => isRouteActive(pathname, c.path)) ?? false;
+  const isActive = useCallback((path: string) => isRouteActive(pathname, path), [pathname]);
+  const isParentActive = useCallback((mod: PlatformModule) =>
+    mod.menu?.children?.some(c => isRouteActive(pathname, c.path)) ?? false, [pathname]);
 
-  const toggleFavorite = (e: React.MouseEvent, path: string) => {
+  const toggleFavorite = useCallback((e: React.MouseEvent, path: string) => {
     e.stopPropagation();
     const newFavs = favorites.includes(path)
       ? favorites.filter(f => f !== path)
       : [...favorites, path];
     setFavorites(newFavs);
     localStorage.setItem('sfp_sidebar_favorites', JSON.stringify(newFavs));
-  };
+  }, [favorites]);
 
   const allMenuItems: MenuFlatItem[] = useMemo(() => {
     const items: MenuFlatItem[] = [];
@@ -150,7 +150,7 @@ export default function Sidebar() {
 
   if (visibleModules.length === 0) {
     return (
-      <aside className="h-full flex flex-col transition-all duration-300" style={{ background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', borderRight: '1px solid rgba(71,85,105,0.3)', width: collapsed ? 64 : 220, flexShrink: 0 }}>
+      <aside className="h-full flex flex-col transition-all duration-300" style={{ background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)', borderRight: '1px solid rgba(71,85,105,0.22)', width: collapsed ? 64 : 228, flexShrink: 0 }}>
         <div className="h-14 flex items-center justify-center px-2" style={{ borderBottom: '1px solid rgba(71,85,105,0.2)' }}>
           <img src="/logo.png" alt="新致远" className="w-8 h-8 object-contain logo-blend" />
         </div>
@@ -170,14 +170,29 @@ export default function Sidebar() {
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90]" onClick={toggleSidebar} />
             <aside
               className="fixed left-0 top-0 bottom-0 z-[100] flex flex-col transition-all duration-300 ease-in-out shadow-2xl"
-              style={{ background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', borderRight: '1px solid rgba(71,85,105,0.3)', width: 260 }}
+              style={{ background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)', borderRight: '1px solid rgba(71,85,105,0.22)', width: 260 }}
             >
               <div className="h-14 flex items-center justify-between px-4" style={{ borderBottom: '1px solid rgba(71,85,105,0.2)' }}>
                 <div className="flex items-center gap-3">
-                  <img src="/logo.png" alt="新致远" className="w-8 h-8 object-contain logo-blend" />
-                  <div>
-                    <h1 className="text-[13px] font-bold text-slate-100 leading-tight whitespace-nowrap">新致远智慧消防</h1>
-                    <p className="text-[9px] text-slate-500 leading-tight whitespace-nowrap">远程监控中心</p>
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden flex-shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 via-transparent to-orange-500/10 animate-pulse" />
+                    <img src="/logo.png" alt="新致远" className="w-5 h-5 object-contain logo-blend relative z-10" />
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <h1 className="text-[14px] font-bold leading-tight whitespace-nowrap tracking-wider"
+                      style={{
+                        background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 50%, #e2e8f0 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      }}>
+                      新致远智慧消防
+                    </h1>
+                    <div className="flex items-center gap-1">
+                      <span className="inline-block w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[9px] text-slate-400 leading-none whitespace-nowrap tracking-widest font-medium px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/50">
+                        远程监控中心
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <button onClick={toggleSidebar} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all">
@@ -247,8 +262,8 @@ export default function Sidebar() {
     <aside
       className="h-full flex flex-col relative transition-all duration-300 ease-in-out"
       style={{
-        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)',
-        borderRight: '1px solid rgba(71,85,105,0.25)',
+        background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)',
+        borderRight: '1px solid rgba(71,85,105,0.20)',
         width: isEffectivelyCollapsed ? 72 : 228,
         flexShrink: 0,
       }}
@@ -258,25 +273,40 @@ export default function Sidebar() {
       <div
         className="flex items-center justify-center transition-all duration-300 overflow-hidden"
         style={{
-          borderBottom: '1px solid rgba(71,85,105,0.2)',
+          borderBottom: '1px solid rgba(71,85,105,0.15)',
           height: isEffectivelyCollapsed ? 60 : 68,
           padding: isEffectivelyCollapsed ? '0 10px' : '0 14px',
         }}
       >
         {isEffectivelyCollapsed ? (
           <div className="flex items-center justify-center w-full">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center">
-              <img src="/logo.png" alt="新致远" className="w-7 h-7 object-contain flex-shrink-0 logo-blend" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 via-transparent to-orange-500/10 animate-pulse" />
+              <img src="/logo.png" alt="新致远" className="w-7 h-7 object-contain flex-shrink-0 logo-blend relative z-10" />
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-3 w-full justify-center">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-              <img src="/logo.png" alt="新致远" className="w-6 h-6 object-contain logo-blend" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 via-transparent to-orange-500/10 animate-pulse" />
+              <img src="/logo.png" alt="新致远" className="w-6 h-6 object-contain logo-blend relative z-10" />
             </div>
-            <div className="text-center">
-              <h1 className="text-[13px] font-bold text-slate-100 leading-tight whitespace-nowrap tracking-wide">新致远智慧消防</h1>
-              <p className="text-[9px] text-slate-500 leading-tight whitespace-nowrap">远程监控中心</p>
+            <div className="flex flex-col items-start gap-1">
+              <h1 className="text-[14px] font-bold leading-tight whitespace-nowrap tracking-wider"
+                style={{
+                  background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 50%, #e2e8f0 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0 0 4px rgba(148,163,184,0.15))',
+                }}>
+                新致远智慧消防
+              </h1>
+              <div className="flex items-center gap-1">
+                <span className="inline-block w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[9px] text-slate-400 leading-none whitespace-nowrap tracking-widest font-medium px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/50">
+                  远程监控中心
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -315,7 +345,7 @@ export default function Sidebar() {
           </div>
 
           {searchQuery && (
-            <div className="mt-1.5 bg-slate-800/90 border border-slate-700/40 rounded-lg overflow-hidden shadow-xl backdrop-blur-sm">
+            <div className="mt-1.5 bg-slate-800/95 border border-slate-700/40 rounded-lg overflow-hidden shadow-xl backdrop-blur-xl">
               {searchResults.length > 0 ? (
                 searchResults.map(item => (
                   <button
@@ -341,8 +371,8 @@ export default function Sidebar() {
       {!isEffectivelyCollapsed && favItems.length > 0 && !searchQuery && (
         <div className="px-3 pb-2">
           <div className="flex items-center gap-1.5 px-2 mb-1.5">
-            <Star className="w-3 h-3 text-yellow-500" />
-            <span className="text-[9px] text-slate-500 font-medium tracking-wider">收藏</span>
+            <Star className="w-3 h-3 text-amber-400" />
+            <span className="text-[9px] text-slate-500 font-semibold tracking-wider uppercase">收藏</span>
           </div>
           {favItems.map(item => (
             <button
@@ -388,7 +418,7 @@ export default function Sidebar() {
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 hover:shadow-[0_0_8px_rgba(59,130,246,0.05)]'
                   }`}
                 >
-                  <IconRenderer icon={menu.icon || mod.icon} className="w-5 h-5 flex-shrink-0" />
+                  <IconRenderer icon={menu.icon || mod.icon} className={`w-5 h-5 flex-shrink-0 ${active ? 'text-blue-400' : ''}`} />
                 </button>
 
                 <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg shadow-2xl
@@ -403,7 +433,7 @@ export default function Sidebar() {
 
                 {isOpen && hasChildren && menu.children && (
                   <div className="absolute left-full top-0 ml-3 w-48 bg-slate-800 border border-slate-700/50 rounded-xl shadow-2xl z-[100] py-1.5 overflow-hidden">
-                    <div className="px-3 py-1.5 text-[10px] text-slate-500 border-b border-slate-700/30 mb-1 font-medium">
+                    <div className="px-3 py-1.5 text-[10px] text-slate-400 border-b border-slate-700/30 mb-1 font-semibold uppercase tracking-wider">
                       {menu.label || mod.name}
                     </div>
                     {menu.children.map((child: ModuleMenuChild) => (
@@ -503,3 +533,6 @@ export default function Sidebar() {
     </aside>
   );
 }
+
+const Sidebar = memo(SidebarComponent);
+export default Sidebar;

@@ -94,7 +94,7 @@ export const MODULES: PlatformModule[] = [
         { id: 'duty-handover', label: '交接班记录', path: '/duty/handover', icon: ClipboardList },
       ],
     },
-    dbTables: ['duty_schedules', 'duty_logs', 'dispatch_records'],
+    dbTables: ['fire_duty_schedule', 'fire_duty_shift', 'fire_duty_log', 'fire_duty_handover', 'dispatch_record'],
     permissions: [
       { code: 'duty:view', name: '值守查看', actions: ['view'] },
       { code: 'duty:manage', name: '值守管理', actions: ['view', 'create', 'edit', 'delete'] },

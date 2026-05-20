@@ -52,6 +52,8 @@ export interface PageTemplateProps {
   emptyDescription?: string;
   formInitialDefaults?: Record<string, unknown>;
   extraHeaderActions?: React.ReactNode;
+  /** 标题栏下方统计卡片区域 */
+  headerStats?: React.ReactNode;
   showIndex?: boolean;
   /** RBAC：控制新增/编辑/删除按钮可见性 */
   permission?: {

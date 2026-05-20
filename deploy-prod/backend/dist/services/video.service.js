@@ -68,6 +68,17 @@ const CAMERA_ID_MAP = {
 function replaceLocalhost(url) {
     if (!url)
         return url;
+    const zlmPublicUrl = process.env.ZLM_PUBLIC_URL;
+    if (zlmPublicUrl) {
+        // 生产环境：通过 nginx HTTPS 反向代理访问 ZLM
+        // 替换 127.0.0.1 和公网 IP:8081 为统一代理地址
+        return url
+            .replace(/https?:\/\/127\.0\.0\.1:8081\//g, `${zlmPublicUrl}/`)
+            .replace(/https?:\/\/127\.0\.0\.1:443\//g, `${zlmPublicUrl}/`)
+            .replace(/https?:\/\/127\.0\.0\.1:10001\//g, `${zlmPublicUrl}/`)
+            .replace(/https?:\/\/124\.223\.35\.58:8081\//g, `${zlmPublicUrl}/`)
+            .replace(/http:\/\/124\.223\.35\.58:8081\//g, `${zlmPublicUrl}/`);
+    }
     return url
         .replace(/127\.0\.0\.1:8081/g, `${ZLM_PLAY_HOST}:8081`)
         .replace(/127\.0\.0\.1:443/g, `${ZLM_PLAY_HOST}:443`)

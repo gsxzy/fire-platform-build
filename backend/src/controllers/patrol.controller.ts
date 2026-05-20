@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
 import { PatrolPlan, PatrolRecord, Hazard, Alarm } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
 import logger from '@/config/logger';
@@ -36,7 +36,7 @@ export const PatrolController = {
 
   async planDelete(req: Request, res: Response) {
     await PatrolPlan.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async recordList(req: Request, res: Response) {
@@ -67,7 +67,7 @@ export const PatrolController = {
 
   async recordDelete(req: Request, res: Response) {
     await PatrolRecord.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async hazardList(req: Request, res: Response) {
@@ -98,7 +98,7 @@ export const PatrolController = {
 
   async hazardDelete(req: Request, res: Response) {
     await Hazard.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '删除成功');
+    sendDeleted(res, req);
   },
 
   async recordCheckIn(req: Request, res: Response) {

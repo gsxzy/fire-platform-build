@@ -10,8 +10,23 @@ export interface ControlResult {
     commandId?: number;
     message: string;
     result?: any;
+    needConfirm?: boolean;
+    confirmToken?: string;
 }
 export declare class DeviceControlService {
+    /**
+     * 判断是否为高危操作
+     */
+    static isHighRisk(commandType: number): boolean;
+    /**
+     * 高危操作二次确认 Token 管理
+     * - 无 token 时生成并返回 needConfirm=true
+     * - 有 token 时验证，通过后删除 token 返回 needConfirm=false
+     */
+    static requireConfirmToken(commandType: number, confirmToken?: string): Promise<{
+        needConfirm: boolean;
+        token?: string;
+    }>;
     /**
      * 发送控制指令
      */
@@ -41,9 +56,9 @@ export declare class DeviceControlService {
      */
     static silence(deviceId: number, operatorId: number, operatorName: string): Promise<ControlResult>;
     /**
-     * 批量控制
+     * 批量控制（并行执行 + 超时重试）
      */
-    static batchControl(deviceIds: number[], commandType: number, params: any, operatorId: number, operatorName: string): Promise<ControlResult[]>;
+    static batchControl(deviceIds: number[], commandType: number, params: any, operatorId: number, operatorName: string, maxRetries?: number): Promise<ControlResult[]>;
     /**
      * 获取控制历史（分页）
      */

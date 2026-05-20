@@ -1,0 +1,2161 @@
+{
+  "unusedImports": [
+    {
+      "file": "controllers/alarm.controller.ts",
+      "items": [
+        {
+          "name": "Sequelize",
+          "line": 2
+        }
+      ]
+    },
+    {
+      "file": "models/associations.ts",
+      "items": [
+        {
+          "name": "FloorDevicePosition",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "file": "protocols/canet.server.ts",
+      "items": [
+        {
+          "name": "type ParsedCanFrame",
+          "line": 18
+        },
+        {
+          "name": "type FecbusFrame",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "file": "protocols/gb26875.server.ts",
+      "items": [
+        {
+          "name": "type ProtocolEvent",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "file": "routes/modules/system.routes.ts",
+      "items": [
+        {
+          "name": "PermissionGroups",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "file": "routes/stub.routes.ts",
+      "items": [
+        {
+          "name": "type RequestHandler",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "file": "seeders/index.ts",
+      "items": [
+        {
+          "name": "type PermissionCode",
+          "line": 16
+        }
+      ]
+    },
+    {
+      "file": "services/ctwing/ctwing.db.ts",
+      "items": [
+        {
+          "name": "type IsnbParsedFrame",
+          "line": 3
+        }
+      ]
+    }
+  ],
+  "deadExports": [
+    {
+      "file": "app.ts",
+      "name": "app",
+      "kind": "variable",
+      "line": 305
+    },
+    {
+      "file": "app.ts",
+      "name": "app",
+      "kind": "default-export",
+      "line": 305
+    },
+    {
+      "file": "constants/deviceLifecycle.ts",
+      "name": "DeviceLifecycleStatusValue",
+      "kind": "type",
+      "line": 14
+    },
+    {
+      "file": "constants/permissions.ts",
+      "name": "PermissionCode",
+      "kind": "type",
+      "line": 14
+    },
+    {
+      "file": "constants/permissions.ts",
+      "name": "isValidPermissionCode",
+      "kind": "function",
+      "line": 197
+    },
+    {
+      "file": "middleware/rateLimit.ts",
+      "name": "RateLimitOptions",
+      "kind": "interface",
+      "line": 11
+    },
+    {
+      "file": "middleware/rateLimit.ts",
+      "name": "rateLimit",
+      "kind": "function",
+      "line": 68
+    },
+    {
+      "file": "middleware/rateLimit.ts",
+      "name": "userRateLimiter",
+      "kind": "variable",
+      "line": 136
+    },
+    {
+      "file": "middleware/rateLimit.ts",
+      "name": "batchRateLimiter",
+      "kind": "variable",
+      "line": 152
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "BuildingAttributes",
+      "kind": "interface",
+      "line": 10
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "BuildingCreationAttributes",
+      "kind": "interface",
+      "line": 21
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "Building",
+      "kind": "class",
+      "line": 23
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorAttributes",
+      "kind": "interface",
+      "line": 55
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorCreationAttributes",
+      "kind": "interface",
+      "line": 66
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "Floor",
+      "kind": "class",
+      "line": 68
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorDevicePositionAttributes",
+      "kind": "interface",
+      "line": 100
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorDevicePositionCreationAttributes",
+      "kind": "interface",
+      "line": 109
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorCameraBindingAttributes",
+      "kind": "interface",
+      "line": 140
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "name": "FloorCameraBindingCreationAttributes",
+      "kind": "interface",
+      "line": 150
+    },
+    {
+      "file": "protocols/baseProtocol.server.ts",
+      "name": "BaseConnection",
+      "kind": "interface",
+      "line": 16
+    },
+    {
+      "file": "protocols/canet.server.ts",
+      "name": "CanetServer",
+      "kind": "class",
+      "line": 72
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "name": "ParsedCanFrame",
+      "kind": "interface",
+      "line": 14
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "name": "FecbusFrame",
+      "kind": "interface",
+      "line": 28
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "name": "CanfdnetPacket",
+      "kind": "interface",
+      "line": 41
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "name": "CanfdnetCanMessage",
+      "kind": "interface",
+      "line": 53
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "name": "CanfdnetCanfdMessage",
+      "kind": "interface",
+      "line": 63
+    },
+    {
+      "file": "protocols/fscn8001.server.ts",
+      "name": "FSCN8001Server",
+      "kind": "class",
+      "line": 31
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "name": "MSG_TYPES",
+      "kind": "variable",
+      "line": 11
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "MSG_TYPES",
+      "kind": "variable",
+      "line": 22
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "name": "FscnEvent",
+      "kind": "interface",
+      "line": 38
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "name": "encodeBcdTimestamp",
+      "kind": "function",
+      "line": 64
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "name": "calcChecksum",
+      "kind": "function",
+      "line": 75
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "name": "DeviceStatusEvent",
+      "kind": "interface",
+      "line": 260
+    },
+    {
+      "file": "protocols/gb26875.server.ts",
+      "name": "GB26875Server",
+      "kind": "class",
+      "line": 37
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "SYSTEM_TYPES",
+      "kind": "variable",
+      "line": 37
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "ALARM_LEVELS",
+      "kind": "variable",
+      "line": 51
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "RegisterEvent",
+      "kind": "interface",
+      "line": 68
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "HeartbeatEvent",
+      "kind": "interface",
+      "line": 75
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "AlarmEvent",
+      "kind": "interface",
+      "line": 85
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "ProtocolEvent",
+      "kind": "type",
+      "line": 97
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "name": "GB26875ProtocolService",
+      "kind": "class",
+      "line": 102
+    },
+    {
+      "file": "routes/floorPlanApp.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 625
+    },
+    {
+      "file": "routes/floorPlanApp.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 625
+    },
+    {
+      "file": "routes/index.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 139
+    },
+    {
+      "file": "routes/index.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 139
+    },
+    {
+      "file": "routes/modules/ai.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 42
+    },
+    {
+      "file": "routes/modules/ai.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 42
+    },
+    {
+      "file": "routes/modules/alarm.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 45
+    },
+    {
+      "file": "routes/modules/alarm.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 45
+    },
+    {
+      "file": "routes/modules/controlRoom.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 53
+    },
+    {
+      "file": "routes/modules/controlRoom.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 53
+    },
+    {
+      "file": "routes/modules/dashboard.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 40
+    },
+    {
+      "file": "routes/modules/dashboard.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 40
+    },
+    {
+      "file": "routes/modules/device.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/device.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/deviceAllocation.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 19
+    },
+    {
+      "file": "routes/modules/deviceAllocation.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 19
+    },
+    {
+      "file": "routes/modules/deviceControl.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 20
+    },
+    {
+      "file": "routes/modules/deviceControl.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 20
+    },
+    {
+      "file": "routes/modules/deviceMaintenance.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 18
+    },
+    {
+      "file": "routes/modules/deviceMaintenance.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 18
+    },
+    {
+      "file": "routes/modules/dispatch.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 23
+    },
+    {
+      "file": "routes/modules/dispatch.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 23
+    },
+    {
+      "file": "routes/modules/duty.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 54
+    },
+    {
+      "file": "routes/modules/duty.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 54
+    },
+    {
+      "file": "routes/modules/inspection.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 25
+    },
+    {
+      "file": "routes/modules/inspection.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 25
+    },
+    {
+      "file": "routes/modules/iot.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 52
+    },
+    {
+      "file": "routes/modules/iot.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 52
+    },
+    {
+      "file": "routes/modules/knowledge.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 26
+    },
+    {
+      "file": "routes/modules/knowledge.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 26
+    },
+    {
+      "file": "routes/modules/linkage.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/linkage.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/maintenance.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 35
+    },
+    {
+      "file": "routes/modules/maintenance.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 35
+    },
+    {
+      "file": "routes/modules/patrol.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 29
+    },
+    {
+      "file": "routes/modules/patrol.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 29
+    },
+    {
+      "file": "routes/modules/plan.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 25
+    },
+    {
+      "file": "routes/modules/plan.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 25
+    },
+    {
+      "file": "routes/modules/smart.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/smart.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 22
+    },
+    {
+      "file": "routes/modules/subsystem.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 12
+    },
+    {
+      "file": "routes/modules/subsystem.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 12
+    },
+    {
+      "file": "routes/modules/system.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 170
+    },
+    {
+      "file": "routes/modules/system.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 170
+    },
+    {
+      "file": "routes/modules/training.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 29
+    },
+    {
+      "file": "routes/modules/training.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 29
+    },
+    {
+      "file": "routes/modules/unit.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 17
+    },
+    {
+      "file": "routes/modules/unit.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 17
+    },
+    {
+      "file": "routes/modules/video.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 41
+    },
+    {
+      "file": "routes/modules/video.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 41
+    },
+    {
+      "file": "routes/modules/workbench.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 36
+    },
+    {
+      "file": "routes/modules/workbench.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 36
+    },
+    {
+      "file": "routes/stub.routes.ts",
+      "name": "router",
+      "kind": "variable",
+      "line": 308
+    },
+    {
+      "file": "routes/stub.routes.ts",
+      "name": "router",
+      "kind": "default-export",
+      "line": 308
+    },
+    {
+      "file": "services/ai/aiProvider.interface.ts",
+      "name": "RiskAnalysisInput",
+      "kind": "interface",
+      "line": 6
+    },
+    {
+      "file": "services/ai/aiProvider.interface.ts",
+      "name": "RiskAnalysisResult",
+      "kind": "interface",
+      "line": 11
+    },
+    {
+      "file": "services/ai/riskAnalysis.service.ts",
+      "name": "RiskAnalysisResult",
+      "kind": "interface",
+      "line": 10
+    },
+    {
+      "file": "services/ai/aiProvider.interface.ts",
+      "name": "SituationResult",
+      "kind": "interface",
+      "line": 22
+    },
+    {
+      "file": "services/ai/aiProvider.interface.ts",
+      "name": "AIProvider",
+      "kind": "interface",
+      "line": 28
+    },
+    {
+      "file": "services/aiLearning.service.ts",
+      "name": "IssueRecord",
+      "kind": "interface",
+      "line": 6
+    },
+    {
+      "file": "services/aiLearning.service.ts",
+      "name": "DiagnoseResult",
+      "kind": "interface",
+      "line": 18
+    },
+    {
+      "file": "services/ctwing/ctwing.core.ts",
+      "name": "parseThresholds",
+      "kind": "function",
+      "line": 67
+    },
+    {
+      "file": "services/ctwing/ctwing.core.ts",
+      "name": "detectAlarm",
+      "kind": "function",
+      "line": 78
+    },
+    {
+      "file": "services/ctwing/ctwing.core.ts",
+      "name": "resolveIsnbDeviceType",
+      "kind": "function",
+      "line": 240
+    },
+    {
+      "file": "services/deviceControl.service.ts",
+      "name": "ControlRequest",
+      "kind": "interface",
+      "line": 13
+    },
+    {
+      "file": "services/deviceControl.service.ts",
+      "name": "ControlResult",
+      "kind": "interface",
+      "line": 21
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "name": "HEARTBEAT_TIMEOUT",
+      "kind": "variable",
+      "line": 22
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "name": "DeviceOnlineStatus",
+      "kind": "type",
+      "line": 30
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "name": "DeviceHeartbeatAttributes",
+      "kind": "interface",
+      "line": 33
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "name": "DeviceHeartbeatCreationAttributes",
+      "kind": "interface",
+      "line": 48
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "name": "DeviceHeartbeat",
+      "kind": "class",
+      "line": 51
+    },
+    {
+      "file": "services/linkage.service.ts",
+      "name": "LinkageTriggerConditionV2",
+      "kind": "interface",
+      "line": 13
+    },
+    {
+      "file": "services/linkage.service.ts",
+      "name": "LinkageAction",
+      "kind": "interface",
+      "line": 102
+    },
+    {
+      "file": "services/linkage.service.ts",
+      "name": "LinkagePlan",
+      "kind": "interface",
+      "line": 109
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "ALLOWED_TABLES",
+      "kind": "variable",
+      "line": 19
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "assertTable",
+      "kind": "function",
+      "line": 32
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "CAMEL_TO_SNAKE",
+      "kind": "variable",
+      "line": 87
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "toSnakeCase",
+      "kind": "function",
+      "line": 112
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "makeList",
+      "kind": "function",
+      "line": 184
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "makeById",
+      "kind": "function",
+      "line": 191
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "makeCreate",
+      "kind": "function",
+      "line": 198
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "makeUpdate",
+      "kind": "function",
+      "line": 205
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "makeDelete",
+      "kind": "function",
+      "line": 212
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "cameraList",
+      "kind": "variable",
+      "line": 222
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "cameraById",
+      "kind": "variable",
+      "line": 223
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "cameraCreate",
+      "kind": "variable",
+      "line": 224
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "cameraUpdate",
+      "kind": "variable",
+      "line": 225
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "cameraDelete",
+      "kind": "variable",
+      "line": 226
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "workOrderList",
+      "kind": "variable",
+      "line": 250
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "workOrderById",
+      "kind": "variable",
+      "line": 251
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "workOrderCreate",
+      "kind": "variable",
+      "line": 252
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "workOrderUpdate",
+      "kind": "variable",
+      "line": 253
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "workOrderDelete",
+      "kind": "variable",
+      "line": 254
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintRecordList",
+      "kind": "variable",
+      "line": 259
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintRecordById",
+      "kind": "variable",
+      "line": 260
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintRecordCreate",
+      "kind": "variable",
+      "line": 261
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintRecordUpdate",
+      "kind": "variable",
+      "line": 262
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintRecordDelete",
+      "kind": "variable",
+      "line": 263
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintContractList",
+      "kind": "variable",
+      "line": 268
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintContractById",
+      "kind": "variable",
+      "line": 269
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintContractCreate",
+      "kind": "variable",
+      "line": 270
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintContractUpdate",
+      "kind": "variable",
+      "line": 271
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintContractDelete",
+      "kind": "variable",
+      "line": 272
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolPlanListOld",
+      "kind": "variable",
+      "line": 277
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolPlanByIdOld",
+      "kind": "variable",
+      "line": 278
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolPlanCreateOld",
+      "kind": "variable",
+      "line": 279
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolPlanUpdateOld",
+      "kind": "variable",
+      "line": 280
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolPlanDeleteOld",
+      "kind": "variable",
+      "line": 281
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolRecordListOld",
+      "kind": "variable",
+      "line": 283
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolRecordByIdOld",
+      "kind": "variable",
+      "line": 284
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolRecordCreateOld",
+      "kind": "variable",
+      "line": 285
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolRecordUpdateOld",
+      "kind": "variable",
+      "line": 286
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "patrolRecordDeleteOld",
+      "kind": "variable",
+      "line": 287
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "hazardListOld",
+      "kind": "variable",
+      "line": 292
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "hazardByIdOld",
+      "kind": "variable",
+      "line": 293
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "hazardCreateOld",
+      "kind": "variable",
+      "line": 294
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "hazardUpdateOld",
+      "kind": "variable",
+      "line": 295
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "hazardDeleteOld",
+      "kind": "variable",
+      "line": 296
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "planListOld",
+      "kind": "variable",
+      "line": 301
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "planByIdOld",
+      "kind": "variable",
+      "line": 302
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "planCreateOld",
+      "kind": "variable",
+      "line": 303
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "planUpdateOld",
+      "kind": "variable",
+      "line": 304
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "planDeleteOld",
+      "kind": "variable",
+      "line": 305
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "drillListOld",
+      "kind": "variable",
+      "line": 307
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "drillByIdOld",
+      "kind": "variable",
+      "line": 308
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "drillCreateOld",
+      "kind": "variable",
+      "line": 309
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "drillUpdateOld",
+      "kind": "variable",
+      "line": 310
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "drillDeleteOld",
+      "kind": "variable",
+      "line": 311
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "documentListOld",
+      "kind": "variable",
+      "line": 316
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "documentByIdOld",
+      "kind": "variable",
+      "line": 317
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "documentCreateOld",
+      "kind": "variable",
+      "line": 318
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "documentUpdateOld",
+      "kind": "variable",
+      "line": 319
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "documentDeleteOld",
+      "kind": "variable",
+      "line": 320
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "notificationList",
+      "kind": "variable",
+      "line": 325
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "notificationCreate",
+      "kind": "variable",
+      "line": 326
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "notificationUpdate",
+      "kind": "variable",
+      "line": 327
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "notificationDelete",
+      "kind": "variable",
+      "line": 328
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleListOld",
+      "kind": "variable",
+      "line": 355
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleByIdOld",
+      "kind": "variable",
+      "line": 356
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleCreateOld",
+      "kind": "variable",
+      "line": 357
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleUpdateOld",
+      "kind": "variable",
+      "line": 358
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleDeleteOld",
+      "kind": "variable",
+      "line": 359
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyShiftListOld",
+      "kind": "variable",
+      "line": 361
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyShiftByIdOld",
+      "kind": "variable",
+      "line": 362
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyShiftCreateOld",
+      "kind": "variable",
+      "line": 363
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyShiftUpdateOld",
+      "kind": "variable",
+      "line": 364
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyShiftDeleteOld",
+      "kind": "variable",
+      "line": 365
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyHandoverListOld",
+      "kind": "variable",
+      "line": 367
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyHandoverByIdOld",
+      "kind": "variable",
+      "line": 368
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyHandoverCreateOld",
+      "kind": "variable",
+      "line": 369
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyHandoverUpdateOld",
+      "kind": "variable",
+      "line": 370
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyHandoverDeleteOld",
+      "kind": "variable",
+      "line": 371
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "systemLogListOld",
+      "kind": "variable",
+      "line": 376
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "floorPlanListOld",
+      "kind": "variable",
+      "line": 381
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "floorPlanByIdOld",
+      "kind": "variable",
+      "line": 382
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "floorDeviceListOld",
+      "kind": "variable",
+      "line": 383
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "reportListOld",
+      "kind": "variable",
+      "line": 401
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "alarmSnapshotList",
+      "kind": "variable",
+      "line": 406
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "controlRoomConfigList",
+      "kind": "variable",
+      "line": 411
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "sipServerVirtualRunning",
+      "kind": "variable",
+      "line": 416
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "todoList",
+      "kind": "variable",
+      "line": 456
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "todoById",
+      "kind": "variable",
+      "line": 457
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "todoCreate",
+      "kind": "variable",
+      "line": 458
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "todoUpdate",
+      "kind": "variable",
+      "line": 459
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "todoDelete",
+      "kind": "variable",
+      "line": 460
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "iotProtocolListOld",
+      "kind": "variable",
+      "line": 465
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "iotProtocolByIdOld",
+      "kind": "variable",
+      "line": 466
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "iotProtocolCreateOld",
+      "kind": "variable",
+      "line": 467
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "iotProtocolUpdateOld",
+      "kind": "variable",
+      "line": 468
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "iotProtocolDeleteOld",
+      "kind": "variable",
+      "line": 469
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintCompanyListOld",
+      "kind": "variable",
+      "line": 487
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintCompanyByIdOld",
+      "kind": "variable",
+      "line": 488
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintCompanyCreateOld",
+      "kind": "variable",
+      "line": 489
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintCompanyUpdateOld",
+      "kind": "variable",
+      "line": 490
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "maintCompanyDeleteOld",
+      "kind": "variable",
+      "line": 491
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "aiAlertCreateOld",
+      "kind": "variable",
+      "line": 496
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "aiAlertUpdateOld",
+      "kind": "variable",
+      "line": 497
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "aiAlertDeleteOld",
+      "kind": "variable",
+      "line": 498
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "systemConfigListOld",
+      "kind": "variable",
+      "line": 503
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "systemConfigCreateOld",
+      "kind": "variable",
+      "line": 504
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "systemConfigUpdateOld",
+      "kind": "variable",
+      "line": 505
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "systemConfigDeleteOld",
+      "kind": "variable",
+      "line": 506
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyScheduleCompat",
+      "kind": "variable",
+      "line": 511
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "name": "dutyLogCompat",
+      "kind": "variable",
+      "line": 512
+    },
+    {
+      "file": "services/video.service.ts",
+      "name": "UnifiedStreamInfo",
+      "kind": "interface",
+      "line": 51
+    },
+    {
+      "file": "services/workbench.service.ts",
+      "name": "TodoListQuery",
+      "kind": "interface",
+      "line": 10
+    },
+    {
+      "file": "services/workbench.service.ts",
+      "name": "NoticeListQuery",
+      "kind": "interface",
+      "line": 76
+    },
+    {
+      "file": "services/wvp.service.ts",
+      "name": "WVPStreamInfo",
+      "kind": "interface",
+      "line": 152
+    },
+    {
+      "file": "services/wvp.service.ts",
+      "name": "WVPPlaybackInfo",
+      "kind": "interface",
+      "line": 235
+    },
+    {
+      "file": "services/zlm.service.ts",
+      "name": "StreamStatus",
+      "kind": "interface",
+      "line": 26
+    },
+    {
+      "file": "test-utils/index.ts",
+      "name": "TestSuite",
+      "kind": "interface",
+      "line": 7
+    },
+    {
+      "file": "utils/apiDocs.ts",
+      "name": "ApiEndpoint",
+      "kind": "interface",
+      "line": 10
+    },
+    {
+      "file": "utils/isnb.parser.ts",
+      "name": "IsnbParsedFrame",
+      "kind": "interface",
+      "line": 13
+    },
+    {
+      "file": "utils/isnb.parser.ts",
+      "name": "IsnbChannelData",
+      "kind": "interface",
+      "line": 57
+    },
+    {
+      "file": "utils/processMetrics.ts",
+      "name": "ProcessMetricsCollector",
+      "kind": "class",
+      "line": 37
+    },
+    {
+      "file": "utils/response.ts",
+      "name": "ApiJsonEnvelope",
+      "kind": "interface",
+      "line": 4
+    },
+    {
+      "file": "utils/response.ts",
+      "name": "ErrorDetail",
+      "kind": "interface",
+      "line": 15
+    },
+    {
+      "file": "utils/response.ts",
+      "name": "sendValidationFail",
+      "kind": "function",
+      "line": 92
+    },
+    {
+      "file": "utils/response.ts",
+      "name": "sendServerError",
+      "kind": "function",
+      "line": 102
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "pickBody",
+      "kind": "function",
+      "line": 35
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "sanitizeInt",
+      "kind": "function",
+      "line": 47
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "sanitizeDays",
+      "kind": "function",
+      "line": 59
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "truncateString",
+      "kind": "function",
+      "line": 64
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "hasSqlInjection",
+      "kind": "function",
+      "line": 70
+    },
+    {
+      "file": "utils/validator.ts",
+      "name": "sanitizeFilename",
+      "kind": "function",
+      "line": 89
+    },
+    {
+      "file": "websocket/websocket.service.ts",
+      "name": "WSClient",
+      "kind": "interface",
+      "line": 15
+    },
+    {
+      "file": "websocket/websocket.service.ts",
+      "name": "WSMessage",
+      "kind": "interface",
+      "line": 23
+    }
+  ],
+  "commentedBlocks": [
+    {
+      "file": "app.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "config/corsOptions.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 5,
+          "count": 5,
+          "summary": "/** * CORS 配置： "
+        }
+      ]
+    },
+    {
+      "file": "constants/permissions.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 11,
+          "count": 11,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "controllers/device.controller.ts",
+      "blocks": [
+        {
+          "start": 12,
+          "end": 15,
+          "count": 4,
+          "summary": "/* ───────────────────────────────────────────────────────────────── 设备字段映射：前"
+        }
+      ]
+    },
+    {
+      "file": "controllers/gb28181.controller.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * GB28181 国标设备正式控制器"
+        }
+      ]
+    },
+    {
+      "file": "controllers/hikvision4g.controller.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 7,
+          "count": 7,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "controllers/smartAlert.controller.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 8,
+          "count": 8,
+          "summary": "/** * 智能预警控制器"
+        }
+      ]
+    },
+    {
+      "file": "cron/index.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "iot/index.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "middleware/rateLimit.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 5,
+          "count": 5,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "middleware/requestTimeout.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "middleware/requestTracer.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "middleware/slowRequest.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "models/floorPlan.model.ts",
+      "blocks": [
+        {
+          "start": 4,
+          "end": 7,
+          "count": 4,
+          "summary": "// ═══════════════════════════════════════════════════════════════════ // 建筑平面图数"
+        }
+      ]
+    },
+    {
+      "file": "protocols/baseProtocol.server.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "protocols/canet.server.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 11,
+          "count": 11,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        },
+        {
+          "start": 155,
+          "end": 158,
+          "count": 4,
+          "summary": " // 赋安 CAN 报警帧特征： // - 扩展帧，数据长度=8"
+        }
+      ]
+    },
+    {
+      "file": "protocols/canet.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 10,
+          "count": 10,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "protocols/fscn8001.server.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 7,
+          "count": 7,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "protocols/fscn8001.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "protocols/gb26875.server.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 12,
+          "count": 12,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "protocols/gb26875.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 16,
+          "count": 16,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        },
+        {
+          "start": 116,
+          "end": 119,
+          "count": 4,
+          "summary": " /** * 计算校验和"
+        },
+        {
+          "start": 128,
+          "end": 132,
+          "count": 5,
+          "summary": " /** * 解析单个GB26875数据帧"
+        }
+      ]
+    },
+    {
+      "file": "routes/floorPlanApp.routes.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 4,
+          "count": 4,
+          "summary": "/** * 平面图 API — 与 app/backend/routes/floorPlan.js 同路径、同库表（fire_* / units / dev"
+        }
+      ]
+    },
+    {
+      "file": "routes/modules/workbench.routes.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 4,
+          "count": 4,
+          "summary": "/** * workbench.routes.ts — 工作台路由（待办 + 公告）"
+        }
+      ]
+    },
+    {
+      "file": "routes/stub.routes.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 10,
+          "count": 10,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        },
+        {
+          "start": 207,
+          "end": 210,
+          "count": 4,
+          "summary": "/* ═══════════════════════════════════════════════════════════ 26-28. 角色/权限/组"
+        }
+      ]
+    },
+    {
+      "file": "seeders/index.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/ai/aiProvider.interface.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 4,
+          "count": 4,
+          "summary": "/** * AI Provider 抽象接口"
+        }
+      ]
+    },
+    {
+      "file": "services/ai/riskAnalysis.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/ai/ruleEngine.provider.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 4,
+          "count": 4,
+          "summary": "/** * 规则引擎 AI Provider — 基于业务规则的 fallback 实现"
+        }
+      ]
+    },
+    {
+      "file": "services/controlRoom.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 9,
+          "count": 9,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/deviceControl.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        },
+        {
+          "start": 41,
+          "end": 45,
+          "count": 5,
+          "summary": " /** * 高危操作二次确认 Token 管理"
+        }
+      ]
+    },
+    {
+      "file": "services/deviceHeartbeat.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 16,
+          "count": 16,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        },
+        {
+          "start": 291,
+          "end": 294,
+          "count": 4,
+          "summary": " /** * 启动定时检测任务"
+        }
+      ]
+    },
+    {
+      "file": "services/iotProtocol.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/linkage.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/stub.fakeData.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/stub.oldTable.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/video.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/wvp.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "services/zlm.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "test-utils/index.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 5,
+          "count": 5,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/apiDocs.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/cache.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 5,
+          "count": 5,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/isnb.parser.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 10,
+          "count": 10,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/metrics.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 7,
+          "count": 7,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/processMetrics.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "utils/startupLog.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 5,
+          "count": 5,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "websocket/index.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 7,
+          "count": 7,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    },
+    {
+      "file": "websocket/websocket.service.ts",
+      "blocks": [
+        {
+          "start": 1,
+          "end": 6,
+          "count": 6,
+          "summary": "/** * ═══════════════════════════════════════════════════════════════════"
+        }
+      ]
+    }
+  ],
+  "emptyFiles": [
+    {
+      "file": "types/external-shims.d.ts",
+      "lineCount": 2
+    },
+    {
+      "file": "utils/respond.ts",
+      "lineCount": 5
+    }
+  ],
+  "duplicateExports": [
+    {
+      "name1": "CanetServer",
+      "name2": "canetServer",
+      "loc1": "protocols/canet.server.ts",
+      "loc2": "protocols/canet.server.ts, protocols/canet.server.ts, protocols/canet.server.ts"
+    },
+    {
+      "name1": "FSCN8001Server",
+      "name2": "fscn8001Server",
+      "loc1": "protocols/fscn8001.server.ts",
+      "loc2": "protocols/fscn8001.server.ts, protocols/fscn8001.server.ts, protocols/fscn8001.server.ts"
+    },
+    {
+      "name1": "GB26875Server",
+      "name2": "gb26875Server",
+      "loc1": "protocols/gb26875.server.ts",
+      "loc2": "protocols/gb26875.server.ts, protocols/gb26875.server.ts, protocols/gb26875.server.ts"
+    },
+    {
+      "name1": "StartupLog",
+      "name2": "startupLog",
+      "loc1": "utils/startupLog.ts",
+      "loc2": "utils/startupLog.ts"
+    }
+  ]
+}
