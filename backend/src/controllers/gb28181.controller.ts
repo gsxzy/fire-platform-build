@@ -6,7 +6,7 @@
  */
 import type { Request, Response } from 'express';
 import sequelize from '@/config/database';
-import { sendSuccess, sendDeleted } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/response';
 import { page } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { sanitizePagination } from '@/utils/validator';

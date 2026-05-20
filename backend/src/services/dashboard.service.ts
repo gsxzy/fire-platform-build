@@ -4,7 +4,7 @@ import { AlarmService } from './alarm.service';
 import { DutyService } from './duty.service';
 
 export class DashboardService {
-  static async getWorkbenchData(userId: number) {
+  static async getWorkbenchData(_userId: number) {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

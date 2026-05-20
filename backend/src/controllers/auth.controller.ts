@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { signToken, decodeUserIdIgnoreExpiration } from '@/utils/jwt';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { User, Role, Permission } from '@/models';
 import {

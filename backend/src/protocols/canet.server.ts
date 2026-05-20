@@ -15,7 +15,7 @@ import sequelize from '@/config/database';
 import { QueryTypes } from 'sequelize';
 import { AlarmService } from '@/services/alarm.service';
 import { generateAlarmNo } from '@/utils/alarmNo';
-import { CanfdnetParser, type ParsedCanFrame, parseFecbusFrame, type FecbusFrame } from './canet.service';
+import { CanfdnetParser, type ParsedCanFrame, parseFecbusFrame } from './canet.service';
 
 /* ───── 类型定义 ───── */
 interface CanetConnection {
@@ -248,7 +248,7 @@ export class CanetServer {
   }
 
   /* ───── 查找设备绑定 ───── */
-  private async findDeviceBinding(clientIp: string, clientPort: number): Promise<{
+  private async findDeviceBinding(clientIp: string, _clientPort: number): Promise<{
     deviceId: number | null;
     hostName: string | null;
     unitId: number | null;

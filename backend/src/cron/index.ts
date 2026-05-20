@@ -15,7 +15,7 @@ import { NotificationService } from '@/services/notification.service';
 /** 简化 Cron 匹配：检查当前时间是否满足 cron 表达式（仅支持标准 5 段式） */
 function matchCron(expr: string, now: Date): boolean {
   const [min, hour, day, month, dow] = expr.trim().split(/\s+/);
-  const check = (field: string, value: number, max: number) => {
+  const check = (field: string, value: number, _max: number) => {
     if (field === '*') return true;
     if (field === String(value)) return true;
     if (field.includes(',')) return field.split(',').map(Number).includes(value);

@@ -1,71 +1,29 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { MaintenanceCompany, MaintenanceContract, MaintenanceWorkOrder, MaintenanceRecord } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { makeListHandler, makeCreateHandler, makeUpdateHandler, makeDeleteHandler } from '@/utils/controllerFactory';
 import logger from '@/config/logger';
 
-function parsePage(req: Request) {
-  const pageNum = Math.max(1, parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1);
-  const pageSize = Math.min(500, Math.max(1, parseInt(String(req.query.pageSize ?? 10), 10) || 10));
-  return { pageNum, pageSize };
-}
-
 export const MaintenanceController = {
-  async companyList(req: Request, res: Response) {
-    const { pageNum, pageSize } = sanitizePagination(req);
-    const { keyword } = req.query;
-    const where: Record<string, unknown> = {};
-    if (keyword) where.company_name = { [Op.like]: `%${keyword}%` };
-    const { count, rows } = await MaintenanceCompany.findAndCountAll({
-      where,
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
+  companyList: makeListHandler(MaintenanceCompany, {
+    whereBuilder: (req) => {
+      const { keyword } = req.query;
+      return keyword ? { company_name: { [Op.like]: `%${keyword}%` } } : {};
+    },
+  }),
+  companyCreate: makeCreateHandler(MaintenanceCompany),
+  companyUpdate: makeUpdateHandler(MaintenanceCompany),
+  companyDelete: makeDeleteHandler(MaintenanceCompany),
 
-  async companyCreate(req: Request, res: Response) {
-    const c = await MaintenanceCompany.create(sanitizeBody(req.body) as any);
-    sendSuccess(res, req, { id: (c as any).id }, '创建成功');
-  },
-
-  async companyUpdate(req: Request, res: Response) {
-    await MaintenanceCompany.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async companyDelete(req: Request, res: Response) {
-    await MaintenanceCompany.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
-
-  async contractList(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
-    const { count, rows } = await MaintenanceContract.findAndCountAll({
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
-
-  async contractCreate(req: Request, res: Response) {
-    const c = await MaintenanceContract.create(sanitizeBody(req.body) as any);
-    sendSuccess(res, req, { id: (c as any).id }, '创建成功');
-  },
-
-  async contractUpdate(req: Request, res: Response) {
-    await MaintenanceContract.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async contractDelete(req: Request, res: Response) {
-    await MaintenanceContract.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
+  contractList: makeListHandler(MaintenanceContract),
+  contractCreate: makeCreateHandler(MaintenanceContract),
+  contractUpdate: makeUpdateHandler(MaintenanceContract),
+  contractDelete: makeDeleteHandler(MaintenanceContract),
 
   async workOrderList(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
+    const { pageNum, pageSize } = sanitizePagination(req);
     const { status, orderType, priority, keyword } = req.query;
     const where: Record<string, unknown> = {};
     if (status !== undefined) where.status = status;
@@ -162,42 +120,27 @@ export const MaintenanceController = {
     sendSuccess(res, req, null, '工单已完成');
   },
 
-  async recordList(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
-    const { keyword, recordType, status } = req.query;
-    const where: Record<string, unknown> = {};
-    if (recordType) where.record_type = recordType;
-    if (status !== undefined) where.status = status;
-    if (keyword) {
-      (where as { [Op.or]?: unknown })[Op.or] = [
-        { record_no: { [Op.like]: `%${keyword}%` } },
-        { device_name: { [Op.like]: `%${keyword}%` } },
-      ];
-    }
-    const { count, rows } = await MaintenanceRecord.findAndCountAll({
-      where,
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-      order: [['record_date', 'DESC']],
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
-
-  async recordCreate(req: Request, res: Response) {
-    const recordNo = `MR${Date.now()}${Math.floor(Math.random() * 100)}`;
-    const r = await MaintenanceRecord.create({ ...sanitizeBody(req.body), record_no: recordNo } as any);
-    sendSuccess(res, req, { id: (r as any).id }, '创建成功');
-  },
-
-  async recordUpdate(req: Request, res: Response) {
-    await MaintenanceRecord.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async recordDelete(req: Request, res: Response) {
-    await MaintenanceRecord.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
+  recordList: makeListHandler(MaintenanceRecord, {
+    whereBuilder: (req) => {
+      const { keyword, recordType, status } = req.query;
+      const where: Record<string, unknown> = {};
+      if (recordType) where.record_type = recordType;
+      if (status !== undefined) where.status = status;
+      if (keyword) {
+        (where as { [Op.or]?: unknown })[Op.or] = [
+          { record_no: { [Op.like]: `%${keyword}%` } },
+          { device_name: { [Op.like]: `%${keyword}%` } },
+        ];
+      }
+      return where;
+    },
+    order: [['record_date', 'DESC']],
+  }),
+  recordCreate: makeCreateHandler(MaintenanceRecord, {
+    defaults: () => ({ record_no: `MR${Date.now()}${Math.floor(Math.random() * 100)}` }),
+  }),
+  recordUpdate: makeUpdateHandler(MaintenanceRecord),
+  recordDelete: makeDeleteHandler(MaintenanceRecord),
 
   async stats(req: Request, res: Response) {
     const [total, pending, processing, completed, todayCount] = await Promise.all([

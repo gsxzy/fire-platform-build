@@ -7,12 +7,12 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, file, cb) => {
     const subDir = path.join(UPLOAD_DIR, file.fieldname || 'general');
     if (!fs.existsSync(subDir)) fs.mkdirSync(subDir, { recursive: true });
     cb(null, subDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${Date.now()}-${uuidv4().slice(0, 8)}${ext}`);
   },
@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
 export const upload = multer({
   storage,
   limits: { fileSize: parseInt(process.env.UPLOAD_MAX_SIZE || '10485760') },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.xls', '.xlsx'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) cb(null, true);

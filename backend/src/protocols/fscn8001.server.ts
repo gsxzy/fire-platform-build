@@ -267,7 +267,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
     logger.warn(`[FSCN8001][ALARM] ▼ 故障确认 seq=${frame.seq}`);
   }
 
-  private async handleAck(socket: Socket, frame: ParsedFrame) {
+  private async handleAck(_socket: Socket, frame: ParsedFrame) {
     const deviceId = frame.deviceId;
     logger.info(`[FSCN8001][ACK] ▲ 设备应答/监管 seq=${frame.seq} deviceId=${deviceId}`);
     if (frame.dataLen > 0) {
@@ -469,7 +469,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
       let deviceId: number | null = null;
       let unitId: number | null = null;
       let unitName: string | null = null;
-      let gatewayDeviceId: number | null = null;
+
       let gatewayDeviceName: string | null = null;
       let hostDeviceName: string | null = null;
 
@@ -479,7 +479,7 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
         if (txDevice) {
           deviceId = txDevice.id ?? null;
           unitId = txDevice.unit_id ?? null;
-          gatewayDeviceId = txDevice.id ?? null;
+
           gatewayDeviceName = txDevice.device_name ?? deviceSn;
 
           // 2. 若传输装置有关联主机(gateway_id)，查主机档案

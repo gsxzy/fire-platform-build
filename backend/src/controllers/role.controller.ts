@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/response';
 import { Role, Permission } from '@/models';
 
 export const RoleController = {

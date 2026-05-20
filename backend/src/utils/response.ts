@@ -61,7 +61,6 @@ export function sendPage(
   total: number,
   pageNum: number,
   pageSize: number,
-  msg = '查询成功'
 ) {
   return res.json(page(list, total, pageNum, pageSize, req.reqId));
 }

@@ -57,6 +57,7 @@
     "@types/nodemailer": "^6.4.14",
     "@types/uuid": "^9.0.8",
     "@types/ws": "^8.5.10",
+    "madge": "^8.0.0",
     "tsx": "^4.7.1",
     "typescript": "^5.4.3"
   },

@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import sequelize from '@/config/database';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { Unit, Device } from '@/models';
 import { sanitizePagination } from '@/utils/validator';

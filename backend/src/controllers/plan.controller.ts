@@ -1,14 +1,9 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/response';
 import { EmergencyPlan, EmergencyDrill, DrillParticipant } from '@/models';
-import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { makeListHandler, makeCreateHandler, makeUpdateHandler, makeDeleteHandler } from '@/utils/controllerFactory';
 
-
-function parsePage(req: Request) {
-  const pageNum = Math.max(1, parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1);
-  const pageSize = Math.min(500, Math.max(1, parseInt(String(req.query.pageSize ?? 10), 10) || 10));
-  return { pageNum, pageSize };
-}
 
 function mapPlanBody(body: Record<string, unknown>): Record<string, unknown> {
   const m: Record<string, unknown> = {};
@@ -46,55 +41,18 @@ function mapDrillBody(body: Record<string, unknown>): Record<string, unknown> {
 }
 
 export const PlanController = {
-  async planList(req: Request, res: Response) {
-    const { pageNum, pageSize } = sanitizePagination(req);
-    const { count, rows } = await EmergencyPlan.findAndCountAll({
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
+  planList: makeListHandler(EmergencyPlan),
+  planCreate: makeCreateHandler(EmergencyPlan, { bodyMapper: mapPlanBody }),
+  planUpdate: makeUpdateHandler(EmergencyPlan, { bodyMapper: mapPlanBody }),
+  planDelete: makeDeleteHandler(EmergencyPlan),
 
-  async planCreate(req: Request, res: Response) {
-    const p = await EmergencyPlan.create(mapPlanBody(req.body) as any);
-    sendSuccess(res, req, { id: (p as any).id }, '创建成功');
-  },
-
-  async planUpdate(req: Request, res: Response) {
-    await EmergencyPlan.update(mapPlanBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async planDelete(req: Request, res: Response) {
-    await EmergencyPlan.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
-
-  async drillList(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
-    const { count, rows } = await EmergencyDrill.findAndCountAll({
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-      order: [['created_at', 'DESC']],
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
-
-  async drillCreate(req: Request, res: Response) {
-    const drillNo = `DR${Date.now()}${Math.floor(Math.random() * 100)}`;
-    const d = await EmergencyDrill.create({ ...mapDrillBody(req.body), drill_no: drillNo } as any);
-    sendSuccess(res, req, { id: (d as any).id }, '创建成功');
-  },
-
-  async drillUpdate(req: Request, res: Response) {
-    await EmergencyDrill.update(mapDrillBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async drillDelete(req: Request, res: Response) {
-    await EmergencyDrill.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
+  drillList: makeListHandler(EmergencyDrill, { order: [['created_at', 'DESC']] }),
+  drillCreate: makeCreateHandler(EmergencyDrill, {
+    bodyMapper: mapDrillBody,
+    defaults: () => ({ drill_no: `DR${Date.now()}${Math.floor(Math.random() * 100)}` }),
+  }),
+  drillUpdate: makeUpdateHandler(EmergencyDrill, { bodyMapper: mapDrillBody }),
+  drillDelete: makeDeleteHandler(EmergencyDrill),
 
   async participantList(req: Request, res: Response) {
     const drillId = parseIdStrict(req.params.id);

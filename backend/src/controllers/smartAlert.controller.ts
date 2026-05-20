@@ -7,7 +7,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { SmartAlert, Alarm } from '@/models';
 import { generateAlarmNo } from '@/utils/alarmNo';

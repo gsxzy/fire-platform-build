@@ -5,7 +5,7 @@
  * ═══════════════════════════════════════════════════════════════════
  */
 
-import type { Application, Router } from 'express';
+import type { Application } from 'express';
 
 export interface ApiEndpoint {
   method: string;

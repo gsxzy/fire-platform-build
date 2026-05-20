@@ -9,7 +9,7 @@ type ControllerFn = (req: Request, res: Response) => Promise<unknown> | void;
  * 包装控制器：统一捕获异常并输出标准信封（配合 sendSuccess / sendFail）
  */
 export function handleController(label: string, fn: ControllerFn): RequestHandler {
-  return async (req, res, next) => {
+  return async (req, res, _next) => {
     try {
       await fn(req, res);
     } catch (err: unknown) {

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { AIService } from '@/services/ai.service';
 
 export const AIDecisionController = {

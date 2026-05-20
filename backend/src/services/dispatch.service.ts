@@ -111,7 +111,7 @@ export class DispatchService {
   }
 
   /** 标记完成 */
-  static async resolve(id: string, result: string, note?: string) {
+  static async resolve(id: string, _result: string, note?: string) {
     const record = await DispatchRecord.findByPk(id) as any;
     if (!record) throw new Error('处置记录不存在');
     if (record.status !== 'handling' && record.status !== 'dispatched') {

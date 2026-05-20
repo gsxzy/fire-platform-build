@@ -1,21 +1,16 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { FireInspection, InspectionTemplate, Hazard } from '@/models';
-import { parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { makeListHandler, makeCreateHandler, makeUpdateHandler, makeDeleteHandler } from '@/utils/controllerFactory';
 import { HttpError } from '@/utils/httpError';
 import logger from '@/config/logger';
-
-function parsePage(req: Request) {
-  const pageNum = Math.max(1, parseInt(String(req.query.pageNum ?? req.query.page ?? 1), 10) || 1);
-  const pageSize = Math.min(500, Math.max(1, parseInt(String(req.query.pageSize ?? 10), 10) || 10));
-  return { pageNum, pageSize };
-}
 
 export const InspectionController = {
   /* ── 检查记录 ── */
   async list(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
+    const { pageNum, pageSize } = sanitizePagination(req);
     const { inspectType, status, keyword } = req.query;
     const where: Record<string, unknown> = {};
     if (inspectType) where.inspect_type = inspectType;
@@ -81,30 +76,10 @@ export const InspectionController = {
   },
 
   /* ── 检查项模板 ── */
-  async templateList(req: Request, res: Response) {
-    const { pageNum, pageSize } = parsePage(req);
-    const { count, rows } = await InspectionTemplate.findAndCountAll({
-      limit: pageSize,
-      offset: (pageNum - 1) * pageSize,
-      order: [['created_at', 'DESC']],
-    });
-    sendPage(res, req, rows, count, pageNum, pageSize);
-  },
-
-  async templateCreate(req: Request, res: Response) {
-    const t = await InspectionTemplate.create(sanitizeBody(req.body) as any);
-    sendSuccess(res, req, { id: (t as any).id }, '创建成功');
-  },
-
-  async templateUpdate(req: Request, res: Response) {
-    await InspectionTemplate.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async templateDelete(req: Request, res: Response) {
-    await InspectionTemplate.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
+  templateList: makeListHandler(InspectionTemplate, { order: [['created_at', 'DESC']] }),
+  templateCreate: makeCreateHandler(InspectionTemplate),
+  templateUpdate: makeUpdateHandler(InspectionTemplate),
+  templateDelete: makeDeleteHandler(InspectionTemplate),
 };
 
 /** 不合格/限期整改时自动创建隐患记录 */

@@ -1,6 +1,6 @@
 ﻿import type { Request, Response } from 'express';
 import { Op, Sequelize } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { Alarm, Device, Unit, DispatchRecord } from '@/models';
 import sequelize from '@/config/database';

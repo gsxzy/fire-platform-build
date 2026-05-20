@@ -18,12 +18,12 @@ function notImplemented(_req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    19. SIP 服务器控制（虚拟状态）
    ═══════════════════════════════════════════════════════════ */
-export async function sipServerStart(req: Request, res: Response) {
+export async function sipServerStart(_req: Request, res: Response) {
   setSipServerRunning(true);
   res.json(ok({ running: true }, 'SIP服务已标记为运行'));
 }
 
-export async function sipServerStop(req: Request, res: Response) {
+export async function sipServerStop(_req: Request, res: Response) {
   setSipServerRunning(false);
   res.json(ok({ running: false }, 'SIP服务已标记为停止'));
 }
@@ -31,7 +31,7 @@ export async function sipServerStop(req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    21. 子系统 /subsystems
    ═══════════════════════════════════════════════════════════ */
-export async function subsystems(req: Request, res: Response) {
+export async function subsystems(_req: Request, res: Response) {
   try {
     const [[stats]] = await sequelize.query(`
       SELECT

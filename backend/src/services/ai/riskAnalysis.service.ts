@@ -159,7 +159,7 @@ export class AIAriskAnalysisService {
   /**
    * 火情等级判定
    */
-  private static async assessFireLevel(alarm: any, device: any, history: any[]): Promise<number> {
+  private static async assessFireLevel(alarm: any, _device: any, history: any[]): Promise<number> {
     let level = 1; // 默认1级
 
     // 1. 告警数量
@@ -191,7 +191,7 @@ export class AIAriskAnalysisService {
   /**
    * 火势蔓延预测
    */
-  private static async predictSpread(alarm: any, device: any, history: any[]): Promise<any[]> {
+  private static async predictSpread(_alarm: any, device: any, _history: any[]): Promise<any[]> {
     const predictions = [];
 
     // 简化版蔓延预测（实际应结合GIS、风向、建筑结构）
@@ -226,7 +226,7 @@ export class AIAriskAnalysisService {
   /**
    * 最优联动策略推荐
    */
-  private static async recommendActions(alarm: any, device: any, fireLevel: number): Promise<string[]> {
+  private static async recommendActions(_alarm: any, _device: any, fireLevel: number): Promise<string[]> {
     const actions: string[] = [];
 
     // 基础动作（所有等级）

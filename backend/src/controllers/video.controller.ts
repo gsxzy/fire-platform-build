@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { fail } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { VideoService } from '@/services/video.service';

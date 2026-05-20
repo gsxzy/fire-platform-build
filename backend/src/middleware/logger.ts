@@ -29,7 +29,7 @@ function sanitizeBody(body: any): any {
   return sanitized;
 }
 
-export function errorLogger(err: Error, req: Request, res: Response, next: NextFunction) {
+export function errorLogger(err: Error, req: Request, _res: Response, next: NextFunction) {
   logger.error(`${req.method} ${req.path} - ${err.message}`, {
     stack: err.stack, body: sanitizeBody(req.body), query: req.query, params: req.params,
     ip: req.ip, reqId: req.reqId, userId: (req as { user?: { userId?: number } }).user?.userId,

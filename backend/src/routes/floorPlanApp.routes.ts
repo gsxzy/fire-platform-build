@@ -64,7 +64,7 @@ function mapDeviceStatus(row: { status?: string; online_status?: string }) {
 }
 
 /* ═══════ 单位（平面图下拉） ═══════ */
-router.get('/units', async (req, res) => {
+router.get('/units', async (_req, res) => {
   try {
     const rows = (await sequelize.query(
       'SELECT id, name, type, address, contact_name AS contactName, contact_phone AS contactPhone, status FROM units WHERE status = 1 ORDER BY created_at DESC',

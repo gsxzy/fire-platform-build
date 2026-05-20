@@ -2,7 +2,7 @@
  * workbench.controller.ts — 工作台控制器（待办 + 公告）
  */
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { WorkbenchTodoService, WorkbenchNoticeService } from '@/services/workbench.service';
 
 /* ── 待办 ── */

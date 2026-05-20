@@ -83,7 +83,7 @@ export class AILearningService {
   /**
    * 智能诊断：查询某设备的历史故障并生成建议
    */
-  static async diagnose(deviceId: string, symptoms?: string): Promise<DiagnoseResult> {
+  static async diagnose(deviceId: string, _symptoms?: string): Promise<DiagnoseResult> {
     const where: any = {};
     if (deviceId && deviceId !== '*') {
       where.device_id = deviceId;

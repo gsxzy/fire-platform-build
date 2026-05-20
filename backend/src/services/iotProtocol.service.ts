@@ -110,7 +110,7 @@ export class IoTProtocolService {
   }
 
   // Modbus TCP协议读取（水压、液位等模拟量设备）
-  static async readModbusDevice(ip: string, port: number, slaveId: number, registerAddr: number, quantity: number = 1) {
+  static async readModbusDevice(ip: string, port: number, _slaveId: number, registerAddr: number, quantity: number = 1) {
     return iotGateway.readModbus(ip, port, registerAddr, quantity);
   }
 

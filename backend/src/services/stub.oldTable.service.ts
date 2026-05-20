@@ -228,7 +228,7 @@ export const cameraDelete = makeDelete('cameras');
 /* ═══════════════════════════════════════════════════════════
    2. IoT 设备统计
    ═══════════════════════════════════════════════════════════ */
-export async function iotDeviceStats(req: Request, res: Response) {
+export async function iotDeviceStats(_req: Request, res: Response) {
   try {
     const [rows] = await sequelize.query(`SELECT 
       COUNT(*) as total,
@@ -327,7 +327,7 @@ export const notificationCreate = makeCreate('notifications');
 export const notificationUpdate = makeUpdate('notifications');
 export const notificationDelete = makeDelete('notifications');
 
-export async function notificationUnread(req: Request, res: Response) {
+export async function notificationUnread(_req: Request, res: Response) {
   try {
     const [rows] = await sequelize.query(
       'SELECT * FROM notifications WHERE is_read = 0 ORDER BY created_at DESC LIMIT 20'
@@ -419,7 +419,7 @@ export function setSipServerRunning(value: boolean) {
   sipServerVirtualRunning = value;
 }
 
-export async function sipServerStatus(req: Request, res: Response) {
+export async function sipServerStatus(_req: Request, res: Response) {
   let registered = 0;
   try {
     const [rows] = await sequelize.query(
@@ -436,7 +436,7 @@ export async function sipServerStatus(req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    20. 数据库统计 /db/stats
    ═══════════════════════════════════════════════════════════ */
-export async function dbStats(req: Request, res: Response) {
+export async function dbStats(_req: Request, res: Response) {
   try {
     const [rows] = await sequelize.query(
       `SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema='fire_platform'`
@@ -471,7 +471,7 @@ export const iotProtocolDeleteOld = makeDelete('iot_protocols');
 /* ═══════════════════════════════════════════════════════════
    29. 维保单位旧兼容 /maintenance/companies → departments
    ═══════════════════════════════════════════════════════════ */
-export async function maintenanceStatsOld(req: Request, res: Response) {
+export async function maintenanceStatsOld(_req: Request, res: Response) {
   try {
     const [[r]] = await sequelize.query(`SELECT 
       COUNT(*) as total,
@@ -514,7 +514,7 @@ export const dutyLogCompat = makeList('duty_logs');
 /* ═══════════════════════════════════════════════════════════
    33. 大屏数据 /bigscreen/data
    ═══════════════════════════════════════════════════════════ */
-export async function bigScreenOld(req: Request, res: Response) {
+export async function bigScreenOld(_req: Request, res: Response) {
   try {
     const [[units]] = await sequelize.query('SELECT COUNT(*) as c FROM units') as any;
     const [[devices]] = await sequelize.query('SELECT COUNT(*) as c FROM device_archive') as any;
@@ -545,7 +545,7 @@ export async function bigScreenOld(req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    34. 监控中心概览旧兼容 /monitor/overview
    ═══════════════════════════════════════════════════════════ */
-export async function monitorOverviewOld(req: Request, res: Response) {
+export async function monitorOverviewOld(_req: Request, res: Response) {
   try {
     const [[dev]] = await sequelize.query(`SELECT 
       COUNT(*) as total,
@@ -578,7 +578,7 @@ export async function monitorOverviewOld(req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    35. GIS 富数据 /gis/points-rich
    ═══════════════════════════════════════════════════════════ */
-export async function gisPointsRich(req: Request, res: Response) {
+export async function gisPointsRich(_req: Request, res: Response) {
   try {
     const [rows] = await sequelize.query(`SELECT 
       u.id, u.name, u.type, u.address, u.lng, u.lat,
@@ -613,7 +613,7 @@ export async function gisPointsRich(req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    36. 数据分析旧兼容路径
    ═══════════════════════════════════════════════════════════ */
-export async function analysisDeviceOld(req: Request, res: Response) {
+export async function analysisDeviceOld(_req: Request, res: Response) {
   try {
     const [byType] = await sequelize.query(`SELECT category as device_type, COUNT(*) as count FROM device_archive GROUP BY category`);
     const [byStatus] = await sequelize.query(`SELECT 
@@ -626,7 +626,7 @@ export async function analysisDeviceOld(req: Request, res: Response) {
   }
 }
 
-export async function analysisAlarmOld(req: Request, res: Response) {
+export async function analysisAlarmOld(_req: Request, res: Response) {
   try {
     const [byType] = await sequelize.query(`SELECT alarm_type, COUNT(*) as count FROM fire_alarm GROUP BY alarm_type`);
     const [byLevel] = await sequelize.query(`SELECT alarm_level, COUNT(*) as count FROM fire_alarm GROUP BY alarm_level`);
@@ -637,7 +637,7 @@ export async function analysisAlarmOld(req: Request, res: Response) {
   }
 }
 
-export async function analysisMaintenanceOld(req: Request, res: Response) {
+export async function analysisMaintenanceOld(_req: Request, res: Response) {
   try {
     const [byStatus] = await sequelize.query('SELECT status, COUNT(*) as count FROM work_orders GROUP BY status');
     const [byType] = await sequelize.query('SELECT order_type, COUNT(*) as count FROM work_orders GROUP BY order_type');
@@ -648,7 +648,7 @@ export async function analysisMaintenanceOld(req: Request, res: Response) {
   }
 }
 
-export async function analysisHazardOld(req: Request, res: Response) {
+export async function analysisHazardOld(_req: Request, res: Response) {
   try {
     const [byType] = await sequelize.query('SELECT level as hazard_type, COUNT(*) as count FROM hazards GROUP BY level');
     const [byLevel] = await sequelize.query('SELECT level, COUNT(*) as count FROM hazards GROUP BY level');
@@ -659,7 +659,7 @@ export async function analysisHazardOld(req: Request, res: Response) {
   }
 }
 
-export async function analysisPatrolOld(req: Request, res: Response) {
+export async function analysisPatrolOld(_req: Request, res: Response) {
   try {
     const [[r]] = await sequelize.query('SELECT COUNT(*) as total FROM patrol_records') as any;
     res.json(ok({ total: r?.total || 0, normal: 0, abnormal: 0, rate: '0.0' }));

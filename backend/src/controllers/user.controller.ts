@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { User, Role } from '@/models';
 import logger from '@/config/logger';

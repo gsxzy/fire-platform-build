@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { DashboardService } from '@/services/dashboard.service';
 import { AnalysisService } from '@/services/analysis.service';
 import { GISService } from '@/services/gis.service';

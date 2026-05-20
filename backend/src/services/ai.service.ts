@@ -226,7 +226,7 @@ export class AIService {
   }
 
   /* ── 执行 AI 决策建议（回写到工单/告警处置）── */
-  static async executeDecision(decisionId: number, operatorId?: number, operatorName?: string) {
+  static async executeDecision(decisionId: number, _operatorId?: number, _operatorName?: string) {
     const decision = await AIDecision.findByPk(decisionId) as any;
     if (!decision) throw new Error('决策记录不存在');
 

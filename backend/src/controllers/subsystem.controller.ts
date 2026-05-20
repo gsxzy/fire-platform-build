@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { Subsystem } from '@/models';
 import sequelize from '@/config/database';
 

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { AILearningService } from '@/services/aiLearning.service';
 import { sanitizePagination } from '@/utils/validator';
 

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { fail } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { sanitizePagination } from '@/utils/validator';
@@ -48,7 +48,7 @@ async function logAllocation(params: {
       { replacements: params }
     );
   } catch (e) {
-    console.warn('[AllocationLog] write failed', e);
+    logger.warn('[AllocationLog] write failed', e);
   }
 }
 

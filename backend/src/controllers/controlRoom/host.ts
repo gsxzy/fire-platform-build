@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted } from '@/utils/respond';
+import { sendSuccess, sendDeleted } from '@/utils/response';
 import { fail } from '@/utils/response';
 import { ControlRoomHost } from '@/models';
 import { ControlRoomService } from '@/services/controlRoom.service';

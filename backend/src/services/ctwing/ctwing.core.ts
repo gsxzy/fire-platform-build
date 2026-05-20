@@ -9,7 +9,6 @@ import {
   isnbToPlatformData,
   extractIsnbHexFromCtwing,
   isIsnbHexFrame,
-  type IsnbParsedFrame,
 } from '@/utils/isnb.parser';
 import { saveIsnbTelemetry } from './ctwing.db';
 

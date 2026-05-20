@@ -5,7 +5,7 @@ import { SystemController } from '@/controllers/system.controller';
 import { AuthController } from '@/controllers/auth.controller';
 import { requirePermission } from '@/middleware/permission';
 import { handleController } from '@/utils/handleController';
-import { PermissionGroups } from '@/constants/permissions';
+
 
 const router = Router();
 

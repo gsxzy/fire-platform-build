@@ -1,8 +1,9 @@
 import type { Request, Response } from 'express';
 import { Op } from 'sequelize';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { KnowledgeDoc, DocCategory } from '@/models';
 import { sanitizePagination, parseIdStrict, sanitizeBody } from '@/utils/validator';
+import { makeListHandler, makeCreateHandler, makeUpdateHandler, makeDeleteHandler } from '@/utils/controllerFactory';
 import logger from '@/config/logger';
 
 export const KnowledgeController = {
@@ -86,30 +87,10 @@ export const KnowledgeController = {
     sendSuccess(res, req, docCats.map((c: any) => c.category));
   },
 
-  async categoryList(req: Request, res: Response) {
-    const { pageNum, pageSize } = sanitizePagination(req);
-    const { count, rows } = await DocCategory.findAndCountAll({
-      order: [['sort_order', 'ASC'], ['id', 'ASC']],
-      limit: +pageSize,
-      offset: (+pageNum - 1) * +pageSize,
-    });
-    sendPage(res, req, rows, count, +pageNum, +pageSize);
-  },
-
-  async categoryCreate(req: Request, res: Response) {
-    const c = await DocCategory.create(sanitizeBody(req.body) as any);
-    sendSuccess(res, req, { id: (c as any).id }, '创建成功');
-  },
-
-  async categoryUpdate(req: Request, res: Response) {
-    await DocCategory.update(sanitizeBody(req.body), { where: { id: parseIdStrict(req.params.id) } });
-    sendSuccess(res, req, null, '更新成功');
-  },
-
-  async categoryDelete(req: Request, res: Response) {
-    await DocCategory.destroy({ where: { id: parseIdStrict(req.params.id) } });
-    sendDeleted(res, req);
-  },
+  categoryList: makeListHandler(DocCategory, { order: [['sort_order', 'ASC'], ['id', 'ASC']] }),
+  categoryCreate: makeCreateHandler(DocCategory),
+  categoryUpdate: makeUpdateHandler(DocCategory),
+  categoryDelete: makeDeleteHandler(DocCategory),
 
   async upload(req: Request, res: Response) {
     const file = (req as any).file;

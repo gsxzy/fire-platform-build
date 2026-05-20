@@ -7,17 +7,17 @@
  */
 import type { Request, Response } from 'express';
 import { success, fail } from '@/utils/response';
+import logger from '@/config/logger';
 import { IoTDevice, Device, Alarm, Unit } from '@/models';
 
 import { DeviceHeartbeatService } from '@/services/deviceHeartbeat.service';
 import sequelize from '@/config/database';
-import logger from '@/config/logger';
 import redis from '@/config/redis';
 import { generateAlarmNo } from '@/utils/alarmNo';
 import { WebSocketService } from '@/websocket/websocket.service';
 
 if (!process.env.HIKVISION_4G_API_KEY) {
-  console.error('[Hik4G] 错误：未设置 HIKVISION_4G_API_KEY 环境变量');
+  logger.error('[Hik4G] 错误：未设置 HIKVISION_4G_API_KEY 环境变量');
   process.exit(1);
 }
 const HIKVISION_API_KEY = process.env.HIKVISION_4G_API_KEY;
@@ -298,7 +298,7 @@ async function updateDeviceOnline(deviceSn: string, ip: string | null) {
 
 /** 同步设备到统一设备模型 */
 /** 同步海康4G设备到 fire_device 档案表，并返回档案ID */
-async function syncUnifiedDevice(deviceSn: string, ip: string | null, deviceType: string, state: 'online' | 'offline'): Promise<number | null> {
+async function syncUnifiedDevice(deviceSn: string, _ip: string | null, deviceType: string, state: 'online' | 'offline'): Promise<number | null> {
   const lockName = `sync_unified_device:${deviceSn}`;
   try {
     const status = state === 'online' ? 1 : 3;

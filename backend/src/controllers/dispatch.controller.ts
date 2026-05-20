@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { DispatchRecord } from '@/models';
 import { Op } from 'sequelize';
 import { sanitizePagination } from '@/utils/validator';

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendDeleted, sendPage } from '@/utils/respond';
+import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { AlarmThreshold, AlarmNotifyPolicy } from '@/models';
 import { Op } from 'sequelize';
 

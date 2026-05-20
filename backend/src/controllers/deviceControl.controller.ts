@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { sanitizePagination } from '@/utils/validator';
 import { DeviceControlService } from '@/services/deviceControl.service';
 

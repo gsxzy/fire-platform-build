@@ -102,7 +102,7 @@ export abstract class BaseProtocolServer<T extends BaseConnection> extends Event
   protected onSocketConnected(_socket: Socket, _clientAddress: string, _clientIp: string): void { /* 子类可覆盖 */ }
 
   /* ───── 统一设备模型同步（通用）──── */
-  protected async syncUnifiedDevice(deviceSn: string, ip: string | null, state: 'online' | 'offline') {
+  protected async syncUnifiedDevice(deviceSn: string, _ip: string | null, state: 'online' | 'offline') {
     try {
       const status = state === 'online' ? 1 : 3;
       await sequelize.query(

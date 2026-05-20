@@ -1,5 +1,3 @@
-import type { Request, Response } from 'express';
-
 import * as room from './controlRoom/room';
 import * as host from './controlRoom/host';
 import * as point from './controlRoom/point';

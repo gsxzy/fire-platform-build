@@ -13,7 +13,7 @@ export class RuleEngineProvider implements AIProvider {
     return true; // 规则引擎永远在线
   }
 
-  async analyzeRisk(input: RiskAnalysisInput): Promise<RiskAnalysisResult> {
+  async analyzeRisk(_input: RiskAnalysisInput): Promise<RiskAnalysisResult> {
     const recentAlarms = await Alarm.findAll({
       where: { created_at: { [Op.gte]: new Date(Date.now() - 7 * 86400000) } },
       order: [['created_at', 'DESC']], limit: 50, raw: true,

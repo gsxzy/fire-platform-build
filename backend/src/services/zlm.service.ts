@@ -8,7 +8,7 @@ import logger from '@/config/logger';
 
 const ZLM_API_URL = process.env.ZLM_API_URL || 'http://localhost:8081';
 if (!process.env.ZLM_SECRET) {
-  console.error('[ZLM] 错误：未设置 ZLM_SECRET 环境变量，系统无法启动');
+  logger.error('[ZLM] 错误：未设置 ZLM_SECRET 环境变量，系统无法启动');
   process.exit(1);
 }
 const ZLM_SECRET = process.env.ZLM_SECRET;

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess } from '@/utils/respond';
+import { sendSuccess } from '@/utils/response';
 import { HttpError } from '@/utils/httpError';
 import { LinkageRule } from '@/models';
 import { LinkageService } from '@/services/linkage.service';

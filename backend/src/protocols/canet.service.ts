@@ -78,9 +78,9 @@ const FI_LEN_MASK = 0x0F;
 const CANFDNET_INFO_ERR = 0x80;   // bit7: 1=错误帧
 const CANFDNET_INFO_EXT = 0x40;   // bit6: 1=扩展帧
 const CANFDNET_INFO_RTR = 0x20;   // bit5: 1=远程帧
-const CANFDNET_INFO_FD  = 0x10;   // bit4: 1=CANFD
+// const CANFDNET_INFO_FD  = 0x10;   // bit4: 1=CANFD
 const CANFDNET_INFO_ECHO = 0x08;  // bit3: 1=发送回显
-const CANFDNET_INFO_TX  = 0x04;   // bit2: 1=发送报文
+// const CANFDNET_INFO_TX  = 0x04;   // bit2: 1=发送报文
 
 /* ───── BCC 异或校验 ───── */
 function calcBCC(buf: Buffer): number {

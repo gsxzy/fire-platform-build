@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage } from '@/utils/respond';
+import { sendSuccess, sendPage } from '@/utils/response';
 import { fail } from '@/utils/response';
 import { MultilinePanel, BusPoint } from '@/models';
 import { ControlRoomService } from '@/services/controlRoom.service';

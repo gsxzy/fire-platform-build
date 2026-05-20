@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { sendSuccess, sendPage, sendFail } from '@/utils/respond';
+import { sendSuccess, sendPage, sendFail } from '@/utils/response';
 import { AIService } from '@/services/ai.service';
 
 export const AIController = {
