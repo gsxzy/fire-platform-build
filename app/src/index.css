@@ -1,13 +1,17 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * 新致远智慧消防平台 - 全局样式入口 v4
- * Tailwind 基础框架 + 专业消防行业设计系统
+ * 新致远智慧消防平台 - 全局样式入口 v5
+ * Tailwind 基础框架 + 专业消防行业设计系统 (Enhanced)
  * ═══════════════════════════════════════════════════════════════
  */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 响应式与大屏专用样式 - 必须在其他规则之前导入 */
+@import './styles/responsive.css';
+@import './styles/bigscreen.css';
 
 @layer base {
   html, body, #root {
@@ -19,6 +23,27 @@
   ::selection {
     background: rgba(59, 130, 246, 0.30);
     color: #f1f5f9;
+  }
+
+  /* Enhanced scrollbar for webkit browsers */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.35);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.5);
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -121,140 +146,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   全局科技感增强样式 v4
-   ═══════════════════════════════════════════════════════════════ */
-
-/* 玻璃态卡片统一 */
-.glass {
-  background: rgba(26, 35, 53, 0.60);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-.glass-strong {
-  background: rgba(15, 23, 42, 0.80);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-/* 自定义滚动条 - 暗色科技风 */
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
-  border-radius: 2px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.5);
-}
-
-/* 火警脉冲动画 */
-@keyframes alarm-pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
-}
-
-@keyframes alarm-pulse-yellow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); }
-}
-
-.alarm-pulse-red {
-  animation: alarm-pulse-red 1.5s ease-out infinite;
-}
-.alarm-pulse-yellow {
-  animation: alarm-pulse-yellow 1.5s ease-out infinite;
-}
-
-/* 扫描线效果 */
-.scan-line-overlay {
-  position: relative;
-  overflow: hidden;
-}
-.scan-line-overlay::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.15), transparent);
-  animation: scan-line 4s linear infinite;
-  pointer-events: none;
-}
-
-/* 输入框焦点光晕 */
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-}
-
-/* 表格行悬停增强 */
-tr.hover-glow:hover {
-  background: rgba(56, 189, 248, 0.05);
-  box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.03);
-}
-
-/* 状态指示点 */
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-.status-dot-online {
-  background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
-}
-.status-dot-offline {
-  background: #64748b;
-}
-.status-dot-fault {
-  background: #ef4444;
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
-}
-.status-dot-warning {
-  background: #eab308;
-  box-shadow: 0 0 6px rgba(234, 179, 8, 0.6);
-}
-
-/* 科技边框 */
-.tech-border {
-  position: relative;
-  border: 1px solid rgba(56, 189, 248, 0.15);
-}
-.tech-border::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: 20px;
-  width: 40px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
-}
-.tech-border::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  right: 20px;
-  width: 40px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   新增：响应式与大屏专用样式
-   ═══════════════════════════════════════════════════════════════ */
-@import './styles/responsive.css';
-@import './styles/bigscreen.css';
-
-/* ═══════════════════════════════════════════════════════════════
-   商业级视觉增强样式 v5
+   商业级视觉增强样式 v6
    ═══════════════════════════════════════════════════════════════ */
 
 /* 页面元素淡入动画 */
@@ -275,7 +167,7 @@ tr.hover-glow:hover {
 
 /* 卡片悬停光晕 */
 .card-hover-glow {
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover-glow:hover {
   transform: translateY(-2px);
@@ -334,18 +226,31 @@ tr.hover-glow:hover {
   border-spacing: 0;
 }
 .table-modern th {
-  background: rgba(15, 23, 42, 0.6);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(21, 29, 46, 0.6) 100%);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 11px;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.25);
+  position: relative;
+}
+.table-modern th::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 1rem;
+  right: 1rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
 }
 .table-modern td {
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+  padding: 0.875rem 1rem;
+  transition: all 0.2s ease;
 }
 .table-modern tr:hover td {
-  background: rgba(56, 189, 248, 0.04);
+  background: rgba(56, 189, 248, 0.03);
 }
 
 /* 标签徽章发光 */
@@ -410,6 +315,10 @@ tr.hover-glow:hover {
   border-left: 2px solid rgba(56, 189, 248, 0.4);
   border-radius: 4px 0 0 0;
   pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.corner-accent:hover::before {
+  border-color: rgba(56, 189, 248, 0.6);
 }
 
 /* 滚动数字效果容器 */
@@ -435,18 +344,19 @@ tr.hover-glow:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   新增：专业消防行业 UI 组件样式
+   新增：专业消防行业 UI 组件样式 v2
    ═══════════════════════════════════════════════════════════════ */
 
 /* 仪表盘数据卡片 */
 .stat-card {
   background: linear-gradient(135deg, rgba(21, 29, 46, 0.95) 0%, rgba(15, 23, 42, 0.90) 100%);
   border: 1px solid rgba(71, 85, 105, 0.25);
-  border-radius: 12px;
+  border-radius: 1rem;
   padding: 1.25rem;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.03);
 }
 .stat-card::before {
   content: '';
@@ -461,7 +371,7 @@ tr.hover-glow:hover {
 .stat-card:hover {
   border-color: rgba(59, 130, 246, 0.3);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 16px rgba(59, 130, 246, 0.08);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 .stat-card.danger::before {
   background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.6), transparent);
@@ -519,16 +429,16 @@ tr.hover-glow:hover {
 .search-input {
   background: rgba(15, 23, 42, 0.60);
   border: 1px solid rgba(71, 85, 105, 0.35);
-  border-radius: 8px;
+  border-radius: 0.75rem;
   padding: 0.5rem 0.75rem 0.5rem 2rem;
   font-size: 0.8125rem;
   color: var(--fp-text-secondary);
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .search-input:focus {
   border-color: rgba(59, 130, 246, 0.5);
   background: rgba(15, 23, 42, 0.80);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08), 0 0 12px rgba(59, 130, 246, 0.06);
 }
 .search-input::placeholder {
   color: var(--fp-text-quaternary);
@@ -538,7 +448,7 @@ tr.hover-glow:hover {
 .form-input-enhanced {
   background: rgba(15, 23, 42, 0.50);
   border: 1px solid rgba(71, 85, 105, 0.35);
-  border-radius: 8px;
+  border-radius: 0.625rem;
   padding: 0.625rem 0.875rem;
   font-size: 0.8125rem;
   color: var(--fp-text-primary);
@@ -559,14 +469,14 @@ tr.hover-glow:hover {
   color: white;
   font-weight: 500;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.625rem;
   border: none;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
 }
 .btn-primary:hover {
   background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35), 0 0 16px rgba(59, 130, 246, 0.12);
   transform: translateY(-1px);
 }
 .btn-primary:active {
@@ -579,14 +489,18 @@ tr.hover-glow:hover {
   color: white;
   font-weight: 500;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.625rem;
   border: none;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
 }
 .btn-danger:hover {
   background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35), 0 0 16px rgba(239, 68, 68, 0.12);
+  transform: translateY(-1px);
+}
+.btn-danger:active {
+  transform: translateY(0);
 }
 
 .btn-ghost {
@@ -594,7 +508,7 @@ tr.hover-glow:hover {
   color: var(--fp-text-secondary);
   font-weight: 500;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 0.625rem;
   border: 1px solid rgba(71, 85, 105, 0.35);
   transition: all 0.2s ease;
 }

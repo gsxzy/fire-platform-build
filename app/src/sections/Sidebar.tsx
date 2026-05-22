@@ -315,7 +315,7 @@ function SidebarComponent() {
       <button
         onClick={toggleSidebar}
         className="absolute -right-3 top-[74px] z-50 w-6 h-6 rounded-full flex items-center justify-center
-                   bg-slate-700 border border-slate-600 hover:bg-blue-600 hover:border-blue-500
+                   bg-slate-800 border border-slate-700 hover:bg-blue-600 hover:border-blue-500
                    transition-all duration-200 shadow-lg group"
         title={collapsed ? '展开菜单' : '折叠菜单'}
         style={{ opacity: isEffectivelyCollapsed ? 0 : 1, transition: 'opacity 0.2s' }}
@@ -421,18 +421,18 @@ function SidebarComponent() {
                   <IconRenderer icon={menu.icon || mod.icon} className={`w-5 h-5 flex-shrink-0 ${active ? 'text-blue-400' : ''}`} />
                 </button>
 
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-800 border border-slate-700/50 rounded-lg shadow-2xl
+                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 border border-slate-700/50 rounded-lg shadow-2xl
                               text-[11px] text-slate-200 whitespace-nowrap z-[100] opacity-0 group-hover:opacity-100 pointer-events-none
                               transition-all duration-150 translate-x-1 group-hover:translate-x-0 max-w-[min(280px,calc(100vw-100px))]">
                   <span className="block font-medium">{menu.label || mod.name}</span>
                   {topHint && topHint !== menu.label && (
                     <span className="block mt-0.5 text-[10px] text-slate-400 font-normal whitespace-normal">{topHint}</span>
                   )}
-                  <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-slate-800 border-l border-b border-slate-700/50 rotate-45" />
+                  <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-slate-900 border-l border-b border-slate-700/50 rotate-45" />
                 </div>
 
                 {isOpen && hasChildren && menu.children && (
-                  <div className="absolute left-full top-0 ml-3 w-48 bg-slate-800 border border-slate-700/50 rounded-xl shadow-2xl z-[100] py-1.5 overflow-hidden">
+                  <div className="absolute left-full top-0 ml-3 w-48 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl z-[100] py-1.5 overflow-hidden">
                     <div className="px-3 py-1.5 text-[10px] text-slate-400 border-b border-slate-700/30 mb-1 font-semibold uppercase tracking-wider">
                       {menu.label || mod.name}
                     </div>

@@ -20,14 +20,14 @@ export default function MainLayout() {
         {/* 多层背景效果：渐变光晕 + 网格 */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* 顶部蓝色光晕 */}
-          <div className="absolute -top-1/4 left-1/4 w-[800px] h-[800px] bg-blue-500/[0.012] rounded-full blur-3xl" />
+          <div className="absolute -top-1/4 left-1/4 w-[800px] h-[800px] bg-blue-500/[0.015] rounded-full blur-3xl" />
           {/* 底部青色光晕 */}
           <div className="absolute -bottom-1/4 right-1/4 w-[800px] h-[800px] bg-cyan-500/[0.012] rounded-full blur-3xl" />
           {/* 右上角紫色微光 */}
           <div className="absolute -top-20 -right-20 w-[400px] h-[400px] bg-purple-500/[0.008] rounded-full blur-3xl" />
           {/* 微妙网格 */}
           <div 
-            className="absolute inset-0 opacity-20"
+            className="absolute inset-0 opacity-15"
             style={{
               backgroundImage: `
                 linear-gradient(rgba(59,130,246,0.02) 1px, transparent 1px),
@@ -37,6 +37,8 @@ export default function MainLayout() {
               maskImage: 'radial-gradient(ellipse at center, black 15%, transparent 75%)'
             }}
           />
+          {/* 底部渐变遮罩 */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950/30 to-transparent" />
         </div>
         <Header />
         <LayoutBody />

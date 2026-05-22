@@ -12,7 +12,7 @@ const notifications: Array<{ id: number; type: string; title: string; content: s
 const notifIcon = (type: string) => {
   switch (type) {
     case 'fire': return <Flame className="w-3.5 h-3.5 text-red-400" />;
-    case 'fault': return <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />;
+    case 'fault': return <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />;
     case 'pre': return <Shield className="w-3.5 h-3.5 text-purple-400" />;
     case 'system': return <RefreshCw className="w-3.5 h-3.5 text-blue-400" />;
     default: return <CheckCircle className="w-3.5 h-3.5 text-blue-400" />;
@@ -22,7 +22,7 @@ const notifIcon = (type: string) => {
 const notifBg = (type: string) => {
   switch (type) {
     case 'fire': return 'bg-red-500/10 border-red-500/20';
-    case 'fault': return 'bg-yellow-500/10 border-yellow-500/20';
+    case 'fault': return 'bg-amber-500/10 border-amber-500/20';
     case 'pre': return 'bg-purple-500/10 border-purple-500/20';
     default: return 'bg-blue-500/5 border-slate-700/20';
   }
@@ -116,19 +116,19 @@ function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () => void 
   ];
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center" onClick={onClose}>
-      <div className="bg-slate-800 border border-slate-700/50 rounded-xl shadow-2xl w-80 overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
+      <div className="bg-slate-900/95 border border-slate-700/40 rounded-xl shadow-2xl w-80 overflow-hidden backdrop-blur-xl" onClick={e => e.stopPropagation()}>
+        <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Keyboard className="w-4 h-4 text-blue-400" />
             <span className="text-sm font-medium text-slate-200">键盘快捷键</span>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors" aria-label="关闭"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-800" aria-label="关闭"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-3 space-y-1 max-h-72 overflow-y-auto scrollbar-thin">
           {shortcuts.map((s: any, i: number) => (
-            <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-700/30 transition-colors">
+            <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-slate-800/60 transition-colors">
               <span className="text-[11px] text-slate-400">{s.action}</span>
-              <kbd className="text-[10px] px-2 py-0.5 bg-slate-700/50 rounded text-slate-300 font-mono border border-slate-600/30">{s.key}</kbd>
+              <kbd className="text-[10px] px-2 py-0.5 bg-slate-800 rounded text-slate-300 font-mono border border-slate-700/40">{s.key}</kbd>
             </div>
           ))}
         </div>
@@ -176,9 +176,9 @@ function HeaderComponent() {
   return (
     <>
       <header className="flex-shrink-0 relative z-20">
-        <div className="h-14 flex items-center justify-between px-4 border-b border-slate-700/20 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/90 backdrop-blur-xl z-40 relative top-accent-line">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-slate-700/20 bg-gradient-to-r from-slate-900/95 via-slate-900/90 to-slate-900/95 backdrop-blur-2xl z-40 relative top-accent-line">
           <div className="flex items-center gap-2">
-            <button onClick={toggleSidebar} className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95 touch-target" title={collapsed ? '展开侧边栏' : '折叠侧边栏'} aria-label="展开侧边栏">
+            <button onClick={toggleSidebar} className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all duration-200 border border-transparent hover:border-slate-600/20 active:scale-95 touch-target" title={collapsed ? '展开侧边栏' : '折叠侧边栏'} aria-label="展开侧边栏">
               {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
           </div>
@@ -197,25 +197,25 @@ function HeaderComponent() {
           </div>
 
           <div className="flex items-center gap-2 relative z-10">
-            <button onClick={() => setShowSearch(true)} className="flex items-center gap-2 px-3 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-slate-700/20 hover:border-slate-600/30 active:scale-95">
+            <button onClick={() => setShowSearch(true)} className="flex items-center gap-2 px-3 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all duration-200 border border-slate-700/20 hover:border-slate-600/30 active:scale-95">
               <Search className="w-4 h-4" />
               <span className="text-[11px] hidden md:inline">搜索...</span>
               <span className="text-[9px] px-1.5 py-0.5 bg-slate-800/80 rounded text-slate-500 hidden md:inline border border-slate-600/30 font-mono">Ctrl+K</span>
             </button>
 
-            <button onClick={() => setShowShortcuts(true)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 hidden md:flex active:scale-95" title="快捷键" aria-label="快捷键">
+            <button onClick={() => setShowShortcuts(true)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all duration-200 border border-transparent hover:border-slate-600/20 hidden md:flex active:scale-95" title="快捷键" aria-label="快捷键">
               <Keyboard className="w-4 h-4" />
             </button>
 
             <div className="h-5 w-px bg-slate-700/30" />
 
             <div className="relative" ref={notifRef}>
-              <button onClick={() => setShowNotif(!showNotif)} aria-label="通知" className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95">
+              <button onClick={() => setShowNotif(!showNotif)} aria-label="通知" className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all duration-200 border border-transparent hover:border-slate-600/20 active:scale-95">
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-white text-[9px] flex items-center justify-center font-bold animate-pulse shadow-lg shadow-red-500/25">{unreadCount}</span>}
               </button>
               {showNotif && (
-                <div className="absolute right-0 top-full mt-2 w-84 max-w-[calc(100vw-2rem)] bg-slate-800/95 border border-slate-700/40 rounded-xl shadow-2xl z-[150] overflow-hidden backdrop-blur-xl animate-fade-in-up duration-200">
+                <div className="absolute right-0 top-full mt-2 w-84 max-w-[calc(100vw-2rem)] bg-slate-900/95 border border-slate-700/40 rounded-xl shadow-2xl z-[150] overflow-hidden backdrop-blur-2xl animate-fade-in-up duration-200">
                   <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent" />
                   <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -225,14 +225,14 @@ function HeaderComponent() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={markAllRead} className="text-[9px] text-blue-400 hover:text-blue-300 transition-colors">全部已读</button>
-                      <button onClick={() => setShowNotif(false)} aria-label="关闭通知" className="text-slate-500 hover:text-slate-300 transition-colors"><X className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setShowNotif(false)} aria-label="关闭通知" className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-800"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                   <div className="max-h-80 overflow-y-auto scrollbar-thin">
                     {notifList.map(n => (
-                      <div key={n.id} onClick={() => markRead(n.id)} className={`p-3 border-b border-slate-700/20 cursor-pointer transition-all duration-200 hover:bg-slate-700/20 ${!n.read ? 'bg-blue-500/[0.03]' : ''} ${notifBg(n.type)}`}>
+                      <div key={n.id} onClick={() => markRead(n.id)} className={`p-3 border-b border-slate-700/20 cursor-pointer transition-all duration-200 hover:bg-slate-800/60 ${!n.read ? 'bg-blue-500/[0.03]' : ''} ${notifBg(n.type)}`}>
                         <div className="flex items-start gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center flex-shrink-0 mt-0.5 border border-slate-600/30">{notifIcon(n.type)}</div>
+                          <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0 mt-0.5 border border-slate-700/30">{notifIcon(n.type)}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] text-slate-200 font-medium">{n.title}</span>
@@ -259,7 +259,7 @@ function HeaderComponent() {
             <div className="h-5 w-px bg-slate-700/30" />
 
             <div className="relative" ref={profileRef}>
-              <button onClick={() => setShowProfile(!showProfile)} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95">
+              <button onClick={() => setShowProfile(!showProfile)} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/40 transition-all duration-200 border border-transparent hover:border-slate-600/20 active:scale-95">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
                   <User className="w-4 h-4 text-white" />
                 </div>
@@ -270,7 +270,7 @@ function HeaderComponent() {
                 <ChevronDown className="w-3 h-3 text-slate-500 hidden md:block" />
               </button>
               {showProfile && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800/95 border border-slate-700/40 rounded-xl shadow-2xl z-[150] overflow-hidden backdrop-blur-xl animate-fade-in-up duration-200">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900/95 border border-slate-700/40 rounded-xl shadow-2xl z-[150] overflow-hidden backdrop-blur-2xl animate-fade-in-up duration-200">
                   <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
                   <div className="p-3 border-b border-slate-700/30">
                     <div className="flex items-center gap-2.5">
