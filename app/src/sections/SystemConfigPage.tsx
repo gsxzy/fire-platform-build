@@ -22,7 +22,7 @@ const COLUMNS = [
     label: '参数类型',
     width: '90px',
     render: (v: unknown) => {
-      const type = String(v);
+      const type = v == null ? '' : String(v);
       const label = typeMap[type] || type || '-';
       const style = typeColorMap[type] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
@@ -33,7 +33,7 @@ const COLUMNS = [
     label: '状态',
     width: '80px',
     render: (v: unknown) => {
-      const status = String(v);
+      const status = v == null ? '' : String(v);
       const isActive = status === '1' || status === 'active';
       const label = isActive ? '正常' : '停用';
       const style = isActive

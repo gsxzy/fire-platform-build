@@ -37,10 +37,11 @@ const statusColorMap: Record<string, string> = {
 const COLUMNS = [
   { key: 'id', label: '工单编号', width: '120px' },
   { key: 'type', label: '工单类型', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
+    const label = typeMap[s] || s || '-';
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {typeMap[s] || s}
+        {label}
       </span>
     );
   }},
@@ -52,10 +53,11 @@ const COLUMNS = [
   { key: 'staff', label: '指派人员', width: '100px' },
   { key: 'planDate', label: '计划日期', width: '110px' },
   { key: 'status', label: '状态', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
+    const label = statusMap[s] || s || '-';
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {label}
       </span>
     );
   }},

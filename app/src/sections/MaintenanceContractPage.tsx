@@ -28,10 +28,10 @@ const COLUMNS = [
   { key: 'startDate', label: '开始日期', width: '110px' },
   { key: 'endDate', label: '结束日期', width: '110px' },
   { key: 'status', label: '状态', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {statusMap[s] || s || '-'}
       </span>
     );
   }},

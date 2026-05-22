@@ -28,7 +28,7 @@ const COLUMNS = [
     label: '状态',
     width: '90px',
     render: (v: unknown) => {
-      const status = String(v);
+      const status = v == null ? '' : String(v);
       const label = statusMap[status] || status;
       const style = statusColorMap[status] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;

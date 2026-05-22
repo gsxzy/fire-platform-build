@@ -41,10 +41,10 @@ const COLUMNS = [
   { key: 'name', label: '计划名称', width: '180px' },
   { key: 'unitName', label: '负责单位', width: '160px' },
   { key: 'cycle', label: '巡检周期', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${cycleColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {cycleMap[s] || s}
+        {cycleMap[s] || s || '-'}
       </span>
     );
   }},
@@ -52,10 +52,10 @@ const COLUMNS = [
   { key: 'nextDate', label: '下次巡检', width: '110px' },
   { key: 'staff', label: '责任人', width: '100px' },
   { key: 'status', label: '状态', width: '90px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {statusMap[s] || s || '-'}
       </span>
     );
   }},

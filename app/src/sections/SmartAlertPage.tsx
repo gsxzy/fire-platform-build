@@ -60,8 +60,8 @@ const normalizeAlert = (data: any) => {
 /** 后端字段 → 前端展示映射（PageTemplate 消费） */
 const mapAlertToFrontend = (row: any) => ({
   ...row,
-  alert_type: TYPE_LABEL_MAP[String(row.alert_type)] || String(row.alert_type),
-  status: STATUS_LABEL_MAP[String(row.status)] || String(row.status),
+  alert_type: (() => { const s = row.alert_type == null ? '' : String(row.alert_type); return TYPE_LABEL_MAP[s] || s || '-'; })(),
+  status: (() => { const s = row.status == null ? '' : String(row.status); return STATUS_LABEL_MAP[s] || s || '-'; })(),
   predict_time: row.predict_time
     ? new Date(row.predict_time).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
     : '--',

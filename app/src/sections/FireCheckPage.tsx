@@ -39,7 +39,7 @@ const COLUMNS = [
     label: '结果',
     width: '90px',
     render: (v: unknown) => {
-      const key = String(v);
+      const key = v == null ? '' : String(v);
       const label = resultMap[key] || key;
       const style = resultColorMap[key] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
@@ -50,7 +50,7 @@ const COLUMNS = [
     label: '整改状态',
     width: '90px',
     render: (v: unknown) => {
-      const key = String(v);
+      const key = v == null ? '' : String(v);
       const label = statusMap[key] || key;
       const style = statusColorMap[key] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;

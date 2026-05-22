@@ -36,10 +36,11 @@ const COLUMNS = [
     );
   }},
   { key: 'status', label: '巡检结果', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
+    const label = statusMap[s] || s || '-';
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {label}
       </span>
     );
   }},

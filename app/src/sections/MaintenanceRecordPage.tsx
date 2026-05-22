@@ -47,10 +47,10 @@ const COLUMNS = [
   { key: 'id', label: '记录编号', width: '120px' },
   { key: 'deviceName', label: '设备名称', width: '150px' },
   { key: 'type', label: '维保类型', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${typeColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {typeMap[s] || s}
+        {typeMap[s] || s || '-'}
       </span>
     );
   }},
@@ -62,7 +62,7 @@ const COLUMNS = [
     const s = result ? 'completed' : 'pending';
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {statusMap[s] || s || '-'}
       </span>
     );
   }},

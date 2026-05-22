@@ -24,7 +24,7 @@ const COLUMNS = [
     label: '结果',
     width: '70px',
     render: (v: unknown) => {
-      const result = String(v);
+      const result = v == null ? '' : String(v);
       const label = resultMap[result] || result;
       const style = resultColorMap[result] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;

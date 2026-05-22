@@ -65,7 +65,7 @@ export default function DeviceArchivePage() {
               <div className="flex flex-col min-w-0">
                 <span className="text-caption text-slate-400 truncate">{card.label}</span>
                 <span className={`text-subhead font-bold ${card.color} truncate`}>
-                  {isNumber ? value.toLocaleString() : String(value)}
+                  {isNumber ? (value as number).toLocaleString() : (value ?? '-')}
                 </span>
               </div>
             </div>

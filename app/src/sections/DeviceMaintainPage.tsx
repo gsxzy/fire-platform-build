@@ -17,12 +17,12 @@ const COLUMNS = [
   { key: 'device_code', label: '设备编码', width: '110px' },
   { key: 'device_name', label: '设备名称', width: '150px' },
   { key: 'unit_name', label: '所属单位', width: '140px' },
-  { key: 'type', label: '维护类型', width: '80px', render: (v: unknown) => typeMap[String(v)] || String(v) },
+  { key: 'type', label: '维护类型', width: '80px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return typeMap[s] || s || '-'; })() },
   { key: 'plan_date', label: '计划日期', width: '100px' },
   { key: 'actual_date', label: '实际日期', width: '100px' },
   { key: 'executor', label: '执行人', width: '90px' },
   { key: 'status', label: '状态', width: '80px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     const label = statusMap[s] || s;
     const color = s === 'completed' ? 'text-emerald-400' : s === 'overdue' ? 'text-red-400' : s === 'in_progress' ? 'text-blue-400' : 'text-slate-400';
     return <span className={`text-[10px] ${color}`}>{label}</span>;

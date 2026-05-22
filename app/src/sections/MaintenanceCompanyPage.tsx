@@ -64,18 +64,18 @@ const COLUMNS = [
   { key: 'contact', label: '联系人', width: '100px' },
   { key: 'phone', label: '联系电话', width: '120px' },
   { key: 'level', label: '资质等级', width: '100px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${levelColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {levelMap[s] || s}
+        {levelMap[s] || s || '-'}
       </span>
     );
   }},
   { key: 'status', label: '状态', width: '90px', render: (v: unknown) => {
-    const s = String(v);
+    const s = v == null ? '' : String(v);
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20'}`}>
-        {statusMap[s] || s}
+        {statusMap[s] || s || '-'}
       </span>
     );
   }},

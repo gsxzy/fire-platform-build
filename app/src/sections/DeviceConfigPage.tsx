@@ -81,8 +81,8 @@ const deviceConfigListService = {
 const COLUMNS = [
   { key: 'device_code', label: '设备编码', width: '120px' },
   { key: 'device_name', label: '设备名称', width: '160px' },
-  { key: 'category', label: '设备类别', width: '100px', render: (v: unknown) => typeMap[String(v)] || String(v) },
-  { key: 'protocol_type', label: '协议类型', width: '100px', render: (v: unknown) => protocolMap[String(v)] || String(v) || '-' },
+  { key: 'category', label: '设备类别', width: '100px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return typeMap[s] || s || '-'; })() },
+  { key: 'protocol_type', label: '协议类型', width: '100px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return protocolMap[s] || s || '-'; })() },
   { key: 'heartbeat_interval', label: '心跳间隔(s)', width: '90px' },
   { key: 'remote_control_enabled', label: '远程控制', width: '80px', render: (v: unknown) =>
     v ? <span className="text-[10px] text-emerald-400">已启用</span> : <span className="text-[10px] text-slate-500">未启用</span>

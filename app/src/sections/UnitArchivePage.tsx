@@ -22,12 +22,12 @@ const statusMap: Record<number | string, string> = {
 const COLUMNS = [
   { key: 'unit_code', label: '单位编码', width: '120px' },
   { key: 'name', label: '单位名称', width: '180px' },
-  { key: 'type', label: '单位类型', width: '100px', render: (v: unknown) => typeMap[String(v)] || String(v) },
+  { key: 'type', label: '单位类型', width: '100px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return typeMap[s] || s || '-'; })() },
   { key: 'address', label: '地址', width: '200px' },
   { key: 'contact_name', label: '联系人', width: '90px' },
   { key: 'contact_phone', label: '联系电话', width: '120px' },
-  { key: 'risk_level', label: '风险等级', width: '90px', render: (v: unknown) => riskMap[String(v)] || String(v) },
-  { key: 'status', label: '状态', width: '70px', render: (v: unknown) => statusMap[String(v)] || String(v) },
+  { key: 'risk_level', label: '风险等级', width: '90px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return riskMap[s] || s || '-'; })() },
+  { key: 'status', label: '状态', width: '70px', render: (v: unknown) => (() => { const s = v == null ? '' : String(v); return statusMap[s] || s || '-'; })() },
 ];
 
 const FIELDS = [

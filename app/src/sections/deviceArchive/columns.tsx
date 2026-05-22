@@ -16,8 +16,8 @@ export const COLUMNS = [
     label: '设备类型',
     width: '110px',
     render: (v: unknown) => {
-      const type = String(v);
-      const label = typeMap[type] || type;
+      const type = v == null ? '' : String(v);
+      const label = typeMap[type] || type || '-';
       const style = typeColorMap[type] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
     },
@@ -27,8 +27,8 @@ export const COLUMNS = [
     label: '档案状态',
     width: '84px',
     render: (v: unknown) => {
-      const status = String(v);
-      const label = archiveStatusMap[status] || status;
+      const status = v == null ? '' : String(v);
+      const label = archiveStatusMap[status] || status || '-';
       const style = archiveStatusColorMap[status] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
     },
@@ -101,8 +101,8 @@ export const COLUMNS = [
     label: '在线',
     width: '64px',
     render: (v: unknown) => {
-      const s = String(v);
-      const label = onlineStatusMap[s] || s;
+      const s = v == null ? '' : String(v);
+      const label = onlineStatusMap[s] || s || '-';
       const style = onlineStatusColorMap[s] || 'text-slate-300 bg-slate-500/10 border-slate-500/20';
       return <span className={`text-[10px] px-1.5 py-0.5 rounded border ${style}`}>{label}</span>;
     },
