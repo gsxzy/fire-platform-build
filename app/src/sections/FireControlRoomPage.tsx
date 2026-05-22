@@ -462,7 +462,7 @@ export default function FireControlRoomPage() {
         {/* ═══════════════════════════════════════════════════════════════
             HEADER
            ═══════════════════════════════════════════════════════════════ */}
-        <div className="flex-shrink-0 tech-card-v2 rounded-xl px-3 py-2 flex items-center justify-between corner-accent-v2 relative overflow-hidden">
+        <div className="flex-shrink-0 tech-card-v2 rounded-xl px-3 py-2 flex items-center justify-between corner-accent-v2 relative overflow-hidden data-flow-decoration">
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20">
               <Monitor className="w-4 h-4 text-blue-400" />
@@ -524,25 +524,25 @@ export default function FireControlRoomPage() {
 
           {/* ─── Left: Status Stat Panels ─── */}
           <div className="grid grid-cols-4 xl:grid-cols-1 gap-2 flex-shrink-0 xl:w-[56px]">
-            <button onClick={() => setAlarmTab('fire')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fire' ? 'ring-1 ring-red-500/40 bg-red-500/5 border-t-red-500' : realtime.fire_count > 0 ? 'border-t-red-500 hover:bg-red-500/5 led-pulse-red' : 'border-t-red-500/30 hover:bg-slate-800/30'}`}>
+            <button onClick={() => setAlarmTab('fire')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fire' ? 'hmi-stat-active-red ring-1 ring-red-500/40 bg-red-500/5 border-t-red-500' : realtime.fire_count > 0 ? 'border-t-red-500 hover:bg-red-500/5 led-pulse-red' : 'border-t-red-500/30 hover:bg-slate-800/30'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500/60 to-red-400/10" />
               <Flame className="w-4 h-4 text-red-400" />
               <span className={`text-base font-bold leading-none ${realtime.fire_count > 0 ? "text-red-400 glow-text-red-v2 animate-value-pop-v2" : "text-red-400/40"}`}>{realtime.fire_count}</span>
               <span className="text-[9px] text-red-300/60 font-medium tracking-wide">火警</span>
             </button>
-            <button onClick={() => setAlarmTab('fault')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fault' ? 'ring-1 ring-yellow-500/40 bg-yellow-500/5 border-t-yellow-500' : realtime.fault_count > 0 ? 'border-t-yellow-500 hover:bg-yellow-500/5 led-pulse-yellow' : 'border-t-yellow-500/30 hover:bg-slate-800/30'}`}>
+            <button onClick={() => setAlarmTab('fault')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'fault' ? 'hmi-stat-active-amber ring-1 ring-yellow-500/40 bg-yellow-500/5 border-t-yellow-500' : realtime.fault_count > 0 ? 'border-t-yellow-500 hover:bg-yellow-500/5 led-pulse-yellow' : 'border-t-yellow-500/30 hover:bg-slate-800/30'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-500/60 to-yellow-400/10" />
               <AlertTriangle className="w-4 h-4 text-yellow-400" />
               <span className={`text-base font-bold leading-none ${realtime.fault_count > 0 ? "text-yellow-400 glow-text-yellow-v2 animate-value-pop-v2" : "text-yellow-400/40"}`}>{realtime.fault_count}</span>
               <span className="text-[9px] text-yellow-300/60 font-medium tracking-wide">故障</span>
             </button>
-            <button onClick={() => setAlarmTab('shield')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'shield' ? 'ring-1 ring-purple-500/40 bg-purple-500/5 border-t-purple-500' : 'border-t-purple-500/30 hover:bg-purple-500/5'}`}>
+            <button onClick={() => setAlarmTab('shield')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'shield' ? 'hmi-stat-active-purple ring-1 ring-purple-500/40 bg-purple-500/5 border-t-purple-500' : 'border-t-purple-500/30 hover:bg-purple-500/5'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500/60 to-purple-400/10" />
               <Shield className="w-4 h-4 text-purple-400" />
               <span className={`text-base font-bold leading-none ${realtime.shield_count > 0 ? "text-purple-400 animate-value-pop-v2" : "text-purple-400/40"}`}>{realtime.shield_count}</span>
               <span className="text-[9px] text-purple-300/60 font-medium tracking-wide">屏蔽</span>
             </button>
-            <button onClick={() => setAlarmTab('feedback')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'feedback' ? 'ring-1 ring-blue-500/40 bg-blue-500/5 border-t-blue-500' : 'border-t-blue-500/30 hover:bg-blue-500/5'}`}>
+            <button onClick={() => setAlarmTab('feedback')} className={`hmi-stat-v2 flex-1 flex flex-col items-center justify-center gap-1 p-1 relative overflow-hidden border-t-2 transition-all cursor-pointer corner-accent-v2 ${alarmTab === 'feedback' ? 'hmi-stat-active-blue ring-1 ring-blue-500/40 bg-blue-500/5 border-t-blue-500' : 'border-t-blue-500/30 hover:bg-blue-500/5'}`}>
               <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500/60 to-blue-400/10" />
               <CheckCircle className="w-4 h-4 text-blue-400" />
               <span className={`text-base font-bold leading-none ${realtime.feedback_count > 0 ? "text-blue-400 animate-value-pop-v2" : "text-blue-400/40"}`}>{realtime.feedback_count}</span>
@@ -581,32 +581,32 @@ export default function FireControlRoomPage() {
 
           {/* ─── Control Buttons ─── */}
           <div className="grid grid-cols-5 xl:grid-cols-1 gap-2 flex-shrink-0 xl:w-[92px] order-2 xl:order-none">
-            <Button onClick={() => setSilenceDialog(true)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 transition-all shadow-lg rounded-xl backdrop-blur-sm active-press ${silencePressed ? 'bg-emerald-500/25 text-emerald-100 ring-2 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${silencePressed ? 'bg-emerald-500/30 ring-2 ring-emerald-400/50' : 'bg-emerald-500/15 ring-1 ring-emerald-500/30'}`}>
+            <Button onClick={() => setSilenceDialog(true)} className={`hmi-btn-v3 flex-1 flex flex-col items-center justify-center gap-2 border-0 transition-all shadow-lg rounded-xl backdrop-blur-sm active-press ${silencePressed ? 'bg-emerald-500/25 text-emerald-100 ring-2 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-glow ${silencePressed ? 'bg-emerald-500/30 ring-2 ring-emerald-400/50' : 'bg-emerald-500/15 ring-1 ring-emerald-500/30'}`}>
                 <VolumeX className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">{silencePressed ? '已消音' : '消音'}</span>
             </Button>
-            <Button onClick={() => setResetPwdOpen(true)} className="hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-blue-500/30">
-              <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30 shadow-inner btn-icon-ring">
+            <Button onClick={() => setResetPwdOpen(true)} className="hmi-btn-v3 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-blue-500/30">
+              <div className="w-10 h-10 rounded-full bg-blue-500/15 flex items-center justify-center ring-1 ring-blue-500/30 shadow-inner btn-icon-glow">
                 <RotateCcw className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">复位</span>
             </Button>
-            <Button onClick={() => openModeDialog(1)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 1 ? 'bg-amber-500/25 text-amber-100 ring-2 ring-amber-500/50' : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${currentMode.currentMode === 1 ? 'bg-amber-500/30 ring-2 ring-amber-400/50' : 'bg-amber-500/15 ring-1 ring-amber-500/30'}`}>
+            <Button onClick={() => openModeDialog(1)} className={`hmi-btn-v3 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 1 ? 'bg-amber-500/25 text-amber-100 ring-2 ring-amber-500/50' : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 border border-amber-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-glow ${currentMode.currentMode === 1 ? 'bg-amber-500/30 ring-2 ring-amber-400/50' : 'bg-amber-500/15 ring-1 ring-amber-500/30'}`}>
                 <Hand className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">手动</span>
             </Button>
-            <Button onClick={() => openModeDialog(2)} className={`hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 2 ? 'bg-blue-500/25 text-blue-100 ring-2 ring-blue-500/50' : 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30'}`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-ring ${currentMode.currentMode === 2 ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/15 ring-1 ring-blue-500/30'}`}>
+            <Button onClick={() => openModeDialog(2)} className={`hmi-btn-v3 flex-1 flex flex-col items-center justify-center gap-2 border-0 shadow-lg rounded-xl transition-all backdrop-blur-sm active-press ${currentMode.currentMode === 2 ? 'bg-blue-500/25 text-blue-100 ring-2 ring-blue-500/50' : 'bg-blue-500/10 text-blue-300 hover:bg-blue-500/20 border border-blue-500/30'}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner btn-icon-glow ${currentMode.currentMode === 2 ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/15 ring-1 ring-blue-500/30'}`}>
                 <CheckCircle className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">自动</span>
             </Button>
-            <Button onClick={() => setShieldDialog(true)} className="hmi-btn-v2 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-purple-500/30">
-              <div className="w-10 h-10 rounded-full bg-purple-500/15 flex items-center justify-center ring-1 ring-purple-500/30 shadow-inner btn-icon-ring">
+            <Button onClick={() => setShieldDialog(true)} className="hmi-btn-v3 flex-1 flex flex-col items-center justify-center gap-2 border-0 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 shadow-lg transition-all rounded-xl backdrop-blur-sm active-press border border-purple-500/30">
+              <div className="w-10 h-10 rounded-full bg-purple-500/15 flex items-center justify-center ring-1 ring-purple-500/30 shadow-inner btn-icon-glow">
                 <Shield className="w-5 h-5" />
               </div>
               <span className="text-xs font-bold tracking-wide">屏蔽</span>
@@ -636,19 +636,19 @@ export default function FireControlRoomPage() {
             {/* Unit info card */}
             <div className="tech-card-v2 p-2.5 flex flex-col gap-1.5 corner-accent-v2">
               <div className="flex items-center gap-1.5">
-                <div className="info-icon-v2">
+                <div className="info-icon-v3">
                   <MapPin className="w-3 h-3 text-blue-400" />
                 </div>
                 <span className="text-[11px] text-slate-200 font-semibold truncate">{roomName}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="info-icon-v2">
+                <div className="info-icon-v3">
                   <Phone className="w-3 h-3 text-emerald-400" />
                 </div>
                 <span className="text-[10px] text-slate-400">消控室电话: <span className="text-slate-300">{selectedHost?.duty_phone || '-'}</span></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="info-icon-v2">
+                <div className="info-icon-v3">
                   <User className="w-3 h-3 text-amber-400" />
                 </div>
                 <span className="text-[10px] text-slate-400">负责人: <span className="text-slate-300">{selectedHost?.duty_person || '-'}</span></span>
@@ -659,7 +659,7 @@ export default function FireControlRoomPage() {
             {personnelInfo && (
               <div className="tech-card-v2 p-2.5 flex flex-col gap-2 corner-accent-v2">
                 <div className="flex items-center gap-1.5">
-                  <div className="info-icon-v2">
+                  <div className="info-icon-v3">
                     <Users className="w-3 h-3 text-cyan-400" />
                   </div>
                   <span className="text-[11px] text-cyan-400 font-semibold">值班人员信息</span>
@@ -787,9 +787,9 @@ export default function FireControlRoomPage() {
           {/* Multiline Panel */}
           <div className="tech-card-v2 flex flex-col flex-[2.3] overflow-hidden corner-accent-v2 relative">
             <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
-            <div className="px-3 py-1.5 hmi-panel-header-v2 border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
+            <div className="px-3 py-1.5 hmi-panel-header-v3 border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="info-icon-v2">
+                <div className="info-icon-v3">
                   <Zap className="w-3 h-3 text-amber-400" />
                 </div>
                 <span className="text-xs text-slate-200 font-semibold">多线盘</span>
@@ -815,7 +815,7 @@ export default function FireControlRoomPage() {
             <div className="cb-tl" /><div className="cb-tr" /><div className="cb-bl" /><div className="cb-br" />
             <div className="px-3 py-1.5 hmi-panel-header-v2 border-b border-slate-700/30 rounded-t-xl flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className="info-icon-v2">
+                <div className="info-icon-v3">
                   <Activity className="w-3 h-3 text-blue-400" />
                 </div>
                 <span className="text-xs text-slate-200 font-semibold">总线盘</span>
@@ -845,7 +845,7 @@ export default function FireControlRoomPage() {
             COMMAND LOGS
            ═══════════════════════════════════════════════════════════════ */}
         <div className="h-24 flex-shrink-0 tech-card-v2 flex flex-col overflow-hidden corner-accent-v2">
-          <div className="px-3 py-1 border-b border-slate-700/30 flex items-center gap-1.5 flex-shrink-0 hmi-panel-header-v2">
+          <div className="px-3 py-1 border-b border-slate-700/30 flex items-center gap-1.5 flex-shrink-0 hmi-panel-header-v3">
             <LogIn className="w-3 h-3 text-slate-500" />
             <span className="text-[10px] text-slate-400 font-semibold">操作日志</span>
           </div>
@@ -854,9 +854,9 @@ export default function FireControlRoomPage() {
             <div className="absolute left-[52px] top-2 bottom-2 w-px bg-slate-700/30" />
             {commandLogs.length === 0 && <div className="text-[10px] text-slate-600 text-center py-2">暂无操作记录</div>}
             {commandLogs.map((log, idx) => (
-              <div key={log.id} className="flex items-center gap-3 text-[10px] animate-slide-in-right relative" style={{ animationDelay: `${Math.min(idx * 50, 300)}ms` }}>
+              <div key={log.id} className="log-entry-v3 flex items-center gap-3 text-[10px] animate-slide-in-right relative" style={{ animationDelay: `${Math.min(idx * 50, 300)}ms` }}>
                 <span className="text-slate-600 font-mono w-11 text-right flex-shrink-0">{fmtTime(log.command_time)}</span>
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0 z-10 relative" style={{ backgroundColor: log.result === 1 ? '#34d399' : '#f87171', boxShadow: log.result === 1 ? '0 0 4px rgba(52,211,153,0.5)' : '0 0 4px rgba(248,113,113,0.5)' }} />
+                <div className="log-dot w-1.5 h-1.5 rounded-full flex-shrink-0 z-10 relative" style={{ backgroundColor: log.result === 1 ? '#34d399' : '#f87171', boxShadow: log.result === 1 ? '0 0 4px rgba(52,211,153,0.5)' : '0 0 4px rgba(248,113,113,0.5)' }} />
                 <Badge className={`text-[9px] px-1 py-0 ${log.result === 1 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>{log.result === 1 ? '成功' : '失败'}</Badge>
                 <span className="text-slate-400">{log.command_by}</span>
                 <span className="text-slate-300">{log.command_type}</span>

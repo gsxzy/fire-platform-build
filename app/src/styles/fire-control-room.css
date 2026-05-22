@@ -245,3 +245,227 @@
   border: 1px solid;
   backdrop-filter: blur(4px);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   消控室详情页 v6 深度美化增强
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── HMI统计卡片 v3 深度增强 ─── */
+.hmi-stat-v3 {
+  position: relative;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.7) 100%);
+  border: 1px solid rgba(100, 116, 139, 0.12);
+  border-radius: 0.875rem;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+.hmi-stat-v3::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+.hmi-stat-v3::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hmi-stat-v3:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(56, 189, 248, 0.06);
+}
+.hmi-stat-v3:hover::before {
+  opacity: 0.7;
+}
+
+/* 统计卡片选中态发光 */
+.hmi-stat-active {
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.15), 0 0 24px rgba(56, 189, 248, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.hmi-stat-active-red {
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2), 0 0 24px rgba(239, 68, 68, 0.1), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.hmi-stat-active-amber {
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2), 0 0 24px rgba(245, 158, 11, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.hmi-stat-active-purple {
+  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.2), 0 0 24px rgba(168, 85, 247, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.hmi-stat-active-blue {
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 0 0 24px rgba(59, 130, 246, 0.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* ─── 控制按钮 v3 深度增强 ─── */
+.hmi-btn-v3 {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0.875rem;
+  backdrop-filter: blur(8px);
+}
+.hmi-btn-v3::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  opacity: 0.5;
+}
+.hmi-btn-v3::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.05) 0%, transparent 60%);
+  pointer-events: none;
+}
+.hmi-btn-v3:active {
+  transform: scale(0.95);
+}
+.hmi-btn-v3 .btn-icon-glow {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.05),
+    0 2px 8px rgba(0,0,0,0.2);
+}
+.hmi-btn-v3:hover .btn-icon-glow {
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.08),
+    0 4px 16px rgba(0,0,0,0.3),
+    0 0 16px rgba(56, 189, 248, 0.12);
+  transform: scale(1.05);
+}
+
+/* ─── 信息图标 v3 增强 ─── */
+.info-icon-v3 {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(59, 130, 246, 0.06) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: all 0.25s ease;
+}
+.info-icon-v3:hover {
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 8px rgba(56, 189, 248, 0.1), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ─── 面板头部 v3 增强 ─── */
+.hmi-panel-header-v3 {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.85) 0%, rgba(30, 41, 59, 0.6) 40%, rgba(15, 23, 42, 0.85) 100%);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.1);
+  position: relative;
+}
+.hmi-panel-header-v3::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 12px;
+  width: 40px; height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.5), transparent);
+  border-radius: 0 0 2px 2px;
+}
+
+/* ─── 告警标签增强 ─── */
+.alarm-tag {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+.alarm-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── 迷你按钮增强 ─── */
+.btn-mini {
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.btn-mini:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.btn-mini:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ─── 操作日志条目增强 ─── */
+.log-entry-v3 {
+  position: relative;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.log-entry-v3:hover {
+  background: rgba(56, 189, 248, 0.03);
+}
+.log-entry-v3 .log-dot {
+  position: relative;
+  z-index: 2;
+}
+.log-entry-v3 .log-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.3;
+  filter: blur(2px);
+}
+
+/* ─── 数据流动画装饰 ─── */
+.data-flow-decoration {
+  position: relative;
+  overflow: hidden;
+}
+.data-flow-decoration::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.04), transparent);
+  animation: data-flow-sweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ─── 顶部扫描线装饰 ─── */
+.scan-line-top {
+  position: relative;
+}
+.scan-line-top::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.3), transparent);
+  animation: scan-line-h 3s linear infinite;
+  pointer-events: none;
+}
+@keyframes scan-line-h {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
