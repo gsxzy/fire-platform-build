@@ -16,23 +16,25 @@ const KeyboardShortcuts = lazy(() => import('./KeyboardShortcuts'));
 export default function MainLayout() {
   return (
     <SidebarProvider>
-      <div className="h-screen flex flex-col fire-dark relative overflow-hidden">
+      <div className="h-screen flex flex-col fire-dark relative overflow-hidden bigscreen-root">
         {/* 多层背景效果：渐变光晕 + 网格 */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* 顶部蓝色光晕 */}
-          <div className="absolute -top-1/4 left-1/4 w-[600px] h-[600px] bg-blue-500/[0.015] rounded-full blur-3xl" />
+          <div className="absolute -top-1/4 left-1/4 w-[800px] h-[800px] bg-blue-500/[0.012] rounded-full blur-3xl" />
           {/* 底部青色光晕 */}
-          <div className="absolute -bottom-1/4 right-1/4 w-[600px] h-[600px] bg-cyan-500/[0.015] rounded-full blur-3xl" />
+          <div className="absolute -bottom-1/4 right-1/4 w-[800px] h-[800px] bg-cyan-500/[0.012] rounded-full blur-3xl" />
+          {/* 右上角紫色微光 */}
+          <div className="absolute -top-20 -right-20 w-[400px] h-[400px] bg-purple-500/[0.008] rounded-full blur-3xl" />
           {/* 微妙网格 */}
           <div 
-            className="absolute inset-0 opacity-30"
+            className="absolute inset-0 opacity-20"
             style={{
               backgroundImage: `
-                linear-gradient(rgba(59,130,246,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59,130,246,0.025) 1px, transparent 1px)
+                linear-gradient(rgba(59,130,246,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.02) 1px, transparent 1px)
               `,
-              backgroundSize: '48px 48px',
-              maskImage: 'radial-gradient(ellipse at center, black 20%, transparent 70%)'
+              backgroundSize: '64px 64px',
+              maskImage: 'radial-gradient(ellipse at center, black 15%, transparent 75%)'
             }}
           />
         </div>

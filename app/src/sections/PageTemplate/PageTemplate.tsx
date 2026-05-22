@@ -317,18 +317,18 @@ export default function PageTemplate({
   const selectedCount = selectedIds.size;
 
   return (
-    <div className="h-[calc(100vh-7rem)] flex flex-col gap-3">
+    <div className="h-[calc(100vh-7rem)] flex flex-col gap-3 page-content-mobile">
       {/* Header */}
       {showHeader && (
-      <div className="flex items-center justify-between flex-shrink-0 glass rounded-xl px-4 py-3">
+      <div className="flex items-center justify-between flex-shrink-0 glass rounded-xl px-4 py-3 fire-card-mobile">
         <div className="flex items-center gap-2.5">
-          {Icon && <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center ring-1 ring-blue-500/20">
-            <Icon className="w-4 h-4 text-blue-400" />
+          {Icon && <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500/15 to-cyan-500/10 flex items-center justify-center ring-1 ring-blue-500/20 shadow-lg shadow-blue-500/5">
+            <Icon className="w-5 h-5 text-blue-400" />
           </div>}
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              {title && <h2 className="text-subhead font-bold text-slate-100">{title}</h2>}
-              {badge && <Badge variant="outline" className={`text-caption ${badgeColor}`}>{badge}</Badge>}
+              {title && <h2 className="text-headline font-bold text-slate-100 tracking-tight">{title}</h2>}
+              {badge && <Badge variant="outline" className={`text-caption ${badgeColor} border-opacity-30`}>{badge}</Badge>}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-caption text-slate-500">共 <span className="text-slate-300 font-medium">{total}</span> 条记录</span>
@@ -338,13 +338,13 @@ export default function PageTemplate({
         </div>
         <div className="flex items-center gap-1.5">
           {searchable && (
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <Input value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1); }} placeholder="搜索关键词..." className="pl-8 h-8 w-52 text-body-sm bg-slate-700/50 border-slate-600/40 text-slate-200 rounded-lg focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20" />
+            <div className="relative search-mobile-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Input value={keyword} onChange={e => { setKeyword(e.target.value); setPage(1); }} placeholder="搜索关键词..." className="pl-9 h-8 w-52 text-body-sm bg-slate-800/60 border-slate-600/30 text-slate-200 rounded-xl focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/10 focus:bg-slate-800/80 transition-all" />
             </div>
           )}
           {refreshable && (
-            <button onClick={doRefresh} className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-slate-600/30" title="刷新" aria-label="刷新">
+            <button onClick={doRefresh} className="h-8 w-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all border border-slate-600/20 hover:border-blue-500/30 active:scale-95" title="刷新" aria-label="刷新">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           )}
@@ -354,18 +354,18 @@ export default function PageTemplate({
             </button>
           )}
           {exportable && (
-            <button onClick={exportCSV} disabled={exporting} className="h-8 px-2.5 rounded-lg flex items-center gap-1 text-body-sm text-slate-400 hover:text-emerald-400 hover:bg-slate-700/50 transition-all border border-slate-600/30 disabled:opacity-50" title="导出CSV">
+            <button onClick={exportCSV} disabled={exporting} className="h-8 px-2.5 rounded-xl flex items-center gap-1 text-body-sm text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all border border-slate-600/20 hover:border-emerald-500/30 disabled:opacity-50 active:scale-95" title="导出CSV">
               <FileSpreadsheet className="w-3.5 h-3.5" /><span className="hidden sm:inline">导出</span>
             </button>
           )}
           {printable && (
-            <button onClick={printTable} className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-slate-600/30" title="打印">
+            <button onClick={printTable} className="h-8 w-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 transition-all border border-slate-600/20 active:scale-95" title="打印">
               <Printer className="w-3.5 h-3.5" />
             </button>
           )}
           {extraHeaderActions}
           {allowAdd && (
-            <Button size="sm" className="h-8 text-body-sm bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-900/20" onClick={() => setShowAdd(true)}>
+            <Button size="sm" className="h-8 text-body-sm bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 rounded-xl shadow-lg shadow-blue-900/20 hover:shadow-blue-900/30 transition-all active:scale-95" onClick={() => setShowAdd(true)}>
               <Plus className="w-3.5 h-3.5 mr-1" />新增
             </Button>
           )}
@@ -410,7 +410,7 @@ export default function PageTemplate({
 
       {/* Batch Action Bar */}
       {allowDelete && showBatchBar && selectedCount > 0 && (
-        <div className="glass rounded-xl px-3 py-2 flex items-center justify-between border-blue-500/20 shadow-sm shadow-blue-500/5 animate-fade-in-up">
+        <div className="glass rounded-xl px-3 py-2 flex items-center justify-between border-blue-500/20 shadow-[0_0_16px_rgba(59,130,246,0.06)] animate-fade-in-up">
           <div className="flex items-center gap-2">
             <CheckSquare className="w-4 h-4 text-blue-400" />
             <span className="text-[11px] text-blue-400">已选择 <span className="font-bold">{selectedCount}</span> 条记录</span>
@@ -425,33 +425,33 @@ export default function PageTemplate({
       )}
 
       {/* Table */}
-      <div className="flex-1 fire-card min-h-0 flex flex-col">
+      <div className="flex-1 fire-card min-h-0 flex flex-col table-scroll-mobile">
         <CardContent className="p-0 flex flex-col h-full">
           {/* Table Header */}
-          <div className="p-2 border-b border-slate-700/50 flex-shrink-0">
-            <div className="flex gap-1 text-[9px] text-slate-500 px-2 items-center">
+          <div className="p-2.5 border-b border-slate-700/40 flex-shrink-0 bg-slate-800/40">
+            <div className="flex gap-1 text-[10px] font-semibold text-slate-400 px-2 items-center tracking-wide uppercase">
               {showIndex && <span style={{ width: '42px' }} className="truncate text-center flex-shrink-0">序号</span>}
               {batchable && (
-                <span style={{ width: '28px' }} className="flex-shrink-0">
-                  <button onClick={toggleSelectAll} className="text-slate-500 hover:text-blue-400 transition-colors">
-                    {paged.length > 0 && paged.every((r: any) => selectedIds.has(getRowId(r))) ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                <span style={{ width: '32px' }} className="flex-shrink-0">
+                  <button onClick={toggleSelectAll} className="text-slate-500 hover:text-blue-400 transition-colors p-0.5 rounded hover:bg-slate-700/30">
+                    {paged.length > 0 && paged.every((r: any) => selectedIds.has(getRowId(r))) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                   </button>
                 </span>
               )}
               {columns.map(col => (
-                <span key={col.key} style={{ width: getWidth(col) }} className={`truncate flex items-center gap-1 ${col.sortable !== false ? 'cursor-pointer hover:text-slate-300 select-none' : ''}`} onClick={() => col.sortable !== false && toggleSort(col.key)}>
+                <span key={col.key} style={{ width: getWidth(col) }} className={`truncate flex items-center gap-1.5 ${col.sortable !== false ? 'cursor-pointer hover:text-slate-200 select-none transition-colors' : ''}`} onClick={() => col.sortable !== false && toggleSort(col.key)}>
                   {col.label}
                   {col.sortable !== false && sortKey === col.key && (
-                    sortDir === 'asc' ? <ArrowUp className="w-2.5 h-2.5 text-blue-400" /> : <ArrowDown className="w-2.5 h-2.5 text-blue-400" />
+                    sortDir === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-400" /> : <ArrowDown className="w-3 h-3 text-blue-400" />
                   )}
-                  {col.sortable !== false && sortKey !== col.key && <ArrowUpDown className="w-2.5 h-2.5 opacity-30" />}
+                  {col.sortable !== false && sortKey !== col.key && <ArrowUpDown className="w-3 h-3 opacity-20" />}
                 </span>
               ))}
-              {actions && <span style={{ width: '80px' }} className="text-right">操作</span>}
+              {actions && <span style={{ width: '90px' }} className="text-right pr-2">操作</span>}
             </div>
           </div>
           {/* Table Body */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin p-1.5 space-y-1 relative">
+          <div className="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1.5 relative">
             {loading && (
               <TableSkeleton
                 rows={Math.min(pageSize, 6)}
@@ -498,10 +498,10 @@ export default function PageTemplate({
           </div>
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="p-2.5 border-t border-slate-700/40 flex items-center justify-between flex-shrink-0">
-              <span className="text-caption text-slate-500">共 <span className="text-slate-300 font-medium">{total}</span> 条记录</span>
+            <div className="p-2.5 border-t border-slate-700/30 flex items-center justify-between flex-shrink-0 bg-slate-800/20 pagination-mobile">
+              <span className="text-caption text-slate-500">共 <span className="text-slate-300 font-medium">{total}</span> 条</span>
               <div className="flex items-center gap-1">
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-caption text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 rounded-md" aria-label="上一页" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}><ChevronLeft className="w-3.5 h-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="h-8 w-8 text-caption text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 rounded-xl transition-all active:scale-95" aria-label="上一页" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}><ChevronLeft className="w-4 h-4" /></Button>
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pg: number;
                   if (totalPages <= 5) pg = i + 1;
@@ -509,10 +509,10 @@ export default function PageTemplate({
                   else if (page >= totalPages - 2) pg = totalPages - 4 + i;
                   else pg = page - 2 + i;
                   return (
-                    <Button key={pg} size="sm" variant="ghost" className={`h-7 w-7 text-caption rounded-md transition-all ${page === pg ? 'text-blue-400 bg-blue-500/10 font-medium ring-1 ring-blue-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'}`} onClick={() => setPage(pg)}>{pg}</Button>
+                    <Button key={pg} size="sm" variant="ghost" className={`h-8 w-8 text-caption rounded-xl transition-all ${page === pg ? 'text-blue-400 bg-blue-500/10 font-medium ring-1 ring-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.06)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'}`} onClick={() => setPage(pg)}>{pg}</Button>
                   );
                 })}
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-caption text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 rounded-md" aria-label="下一页" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}><ChevronRight className="w-3.5 h-3.5" /></Button>
+                <Button size="sm" variant="ghost" className="h-8 w-8 text-caption text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 rounded-xl transition-all active:scale-95" aria-label="下一页" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}><ChevronRight className="w-4 h-4" /></Button>
               </div>
               <span className="text-caption text-slate-500">第 <span className="text-slate-300 font-medium">{page}</span> / {totalPages} 页</span>
             </div>
@@ -546,7 +546,7 @@ export default function PageTemplate({
 
       {/* Batch Delete Confirm Dialog */}
       <Dialog open={showBatchConfirm} onOpenChange={setShowBatchConfirm}>
-        <DialogContent className="bg-slate-800/95 backdrop-blur-md border-slate-700/50 text-slate-100 max-w-sm rounded-xl">
+        <DialogContent className="bg-slate-800/95 backdrop-blur-xl border-slate-700/40 text-slate-100 max-w-sm rounded-2xl shadow-2xl shadow-black/40">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -604,33 +604,33 @@ const TableRow = memo(function TableRow({
   const handleDelete = useCallback(() => onDelete(row), [onDelete, row]);
 
   return (
-    <div className={`flex gap-1 p-2.5 rounded-lg border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press group ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.06)]' : 'border-slate-600/20 bg-slate-700/20 hover:border-blue-500/25 hover:bg-slate-600/15 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.04)]'}`} style={{ animationDelay: `${index * 0.02}s` }}>
+    <div className={`flex gap-1 p-2.5 rounded-xl border transition-all duration-200 items-center animate-fade-in-up row-indicator active-press group ${isSelected ? 'border-blue-500/30 bg-blue-500/8 ring-1 ring-blue-500/10 shadow-[0_0_12px_rgba(59,130,246,0.06)]' : 'border-slate-600/15 bg-slate-800/30 hover:border-blue-500/25 hover:bg-slate-700/20 hover:shadow-[inset_0_0_20px_rgba(56,189,248,0.04)]'}`} style={{ animationDelay: `${index * 0.02}s` }}>
       {showIndex && (
         <span style={{ width: '42px' }} className="text-caption text-slate-400 truncate text-center flex-shrink-0">
           {(page - 1) * pageSize + index + 1}
         </span>
       )}
       {batchable && (
-        <span style={{ width: '28px' }} className="flex-shrink-0">
-          <button onClick={handleToggle} className="text-slate-500 hover:text-blue-400 transition-colors">
-            {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-blue-400" /> : <Square className="w-3.5 h-3.5" />}
+        <span style={{ width: '32px' }} className="flex-shrink-0">
+          <button onClick={handleToggle} className="text-slate-500 hover:text-blue-400 transition-colors p-0.5 rounded hover:bg-slate-700/30">
+            {isSelected ? <CheckSquare className="w-4 h-4 text-blue-400" /> : <Square className="w-4 h-4" />}
           </button>
         </span>
       )}
       {columns.map(col => (
-        <span key={col.key} style={{ width: getWidth(col) }} className="text-caption text-slate-300 truncate">
+        <span key={col.key} style={{ width: getWidth(col) }} className="text-caption text-slate-300 truncate table-cell-nowrap">
           {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '-')}
         </span>
       ))}
       {showRowActions && (
-        <div style={{ width: '80px' }} className="flex items-center justify-end gap-0.5">
+        <div style={{ width: '90px' }} className="flex items-center justify-end gap-0.5">
           {renderExtraActions?.(row)}
-          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="查看" onClick={handleView}><Eye className="w-3 h-3" /></Button>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-all opacity-60 group-hover:opacity-100 hover:scale-105" aria-label="查看" onClick={handleView}><Eye className="w-3.5 h-3.5" /></Button>
           {allowEdit && (
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="编辑" onClick={handleEdit}><Edit className="w-3 h-3" /></Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all opacity-60 group-hover:opacity-100 hover:scale-105" aria-label="编辑" onClick={handleEdit}><Edit className="w-3.5 h-3.5" /></Button>
           )}
           {allowDelete && (
-            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all opacity-70 group-hover:opacity-100" aria-label="删除" onClick={handleDelete}><Trash2 className="w-3 h-3" /></Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all opacity-60 group-hover:opacity-100 hover:scale-105" aria-label="删除" onClick={handleDelete}><Trash2 className="w-3.5 h-3.5" /></Button>
           )}
         </div>
       )}

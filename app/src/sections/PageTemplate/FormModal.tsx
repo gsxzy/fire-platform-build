@@ -76,26 +76,26 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center animate-fade-in-smooth" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
-      <div className="relative w-full max-w-md bg-slate-800/95 border border-slate-600/40 rounded-xl shadow-2xl shadow-black/30 overflow-hidden animate-scale-in-smooth" onClick={e => e.stopPropagation()} style={{ animationDuration: '0.25s' }}>
-        <div className="p-4 border-b border-slate-600/20 flex items-center justify-between bg-slate-800/80">
-          <h3 className="text-sm font-semibold text-slate-100 tracking-wide">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700/60 transition-all" aria-label="关闭"><X className="w-4 h-4" /></button>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity" />
+      <div className="relative w-full max-w-lg bg-slate-900/95 border border-slate-600/30 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden animate-scale-in-smooth modal-mobile-full" onClick={e => e.stopPropagation()} style={{ animationDuration: '0.25s' }}>
+        <div className="p-5 border-b border-slate-700/30 flex items-center justify-between bg-gradient-to-r from-slate-800/90 to-slate-900/90">
+          <h3 className="text-base font-semibold text-slate-100 tracking-tight">{title}</h3>
+          <button onClick={onClose} className="p-1.5 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-700/50 transition-all active:scale-95" aria-label="关闭"><X className="w-4 h-4" /></button>
         </div>
-        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto scrollbar-thin">
+        <div className="p-5 space-y-5 max-h-[65vh] overflow-y-auto scrollbar-thin">
           {fields.map(field => {
             const hasErr = touched.has(field.key) && !!errors[field.key];
             return (
             <div key={field.key}>
-              <label className="text-[11px] text-slate-300 mb-1.5 block font-medium flex items-center gap-1">
+              <label className="text-xs text-slate-300 mb-2 block font-medium flex items-center gap-1">
                 {field.label}{field.required && <span className="text-red-400">*</span>}
               </label>
               {field.disabled || field.type === 'readonly' ? (
-                <div className="w-full bg-slate-800/60 border border-slate-600/20 rounded-lg px-3 py-2.5 text-xs text-slate-400 select-none">
+                <div className="w-full bg-slate-800/50 border border-slate-600/20 rounded-xl px-3 py-2.5 text-xs text-slate-400 select-none">
                   {String(values[field.key] ?? '-')}
                 </div>
               ) : field.type === 'checkbox' ? (
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2.5 cursor-pointer p-2 rounded-xl hover:bg-slate-800/50 transition-colors">
                   <input
                     type="checkbox"
                     checked={!!values[field.key]}
@@ -110,13 +110,13 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
                   onChange={e => handleChange(field.key, e.target.value)}
                   placeholder={field.placeholder || `输入${field.label}`}
                   rows={3}
-                  className={`w-full bg-slate-700/40 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500/50 resize-none transition-colors focus:bg-slate-700/60 ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30'}`}
+                  className={`w-full bg-slate-800/50 border rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-blue-500/50 resize-none transition-all focus:bg-slate-800/70 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/25'}`}
                 />
               ) : field.type === 'select' ? (
                 <select
                   value={String(values[field.key] ?? '')}
                   onChange={e => handleChange(field.key, e.target.value)}
-                  className={`w-full bg-slate-700/30 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none transition-all duration-200 focus:bg-slate-700/50 focus:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30 focus:border-blue-500/50'}`}
+                  className={`w-full bg-slate-800/50 border rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none transition-all duration-200 focus:bg-slate-800/70 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/25 focus:border-blue-500/50'}`}
                 >
                   <option value="">请选择</option>
                   {field.options?.map(opt => {
@@ -127,7 +127,7 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
                   })}
                 </select>
               ) : field.type === 'date' ? (
-                <input type="date" value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} className={`w-full bg-slate-700/40 border rounded-lg px-3 py-2 text-xs text-slate-200 outline-none transition-colors focus:bg-slate-700/60 ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/30 focus:border-blue-500/50'}`} />
+                <input type="date" value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} className={`w-full bg-slate-800/50 border rounded-xl px-3 py-2.5 text-xs text-slate-200 outline-none transition-all focus:bg-slate-800/70 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus:border-red-500' : 'border-slate-600/25 focus:border-blue-500/50'}`} />
               ) : field.type === 'number' ? (
                 <div className="flex gap-2">
                   <input
@@ -151,23 +151,23 @@ export function FormModal({ title, fields, initialValues, onSave, onClose }: For
                     <button
                       type="button"
                       onClick={() => setMapPickerOpen(true)}
-                      className="flex-shrink-0 px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs rounded-md border border-blue-600/30 flex items-center gap-1 transition-colors"
+                      className="flex-shrink-0 px-3 py-2 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 text-xs rounded-xl border border-blue-600/25 flex items-center gap-1.5 transition-all active:scale-95"
                     >
-                      <MapPin className="w-3 h-3" /> 地图选点
+                      <MapPin className="w-3.5 h-3.5" /> 地图选点
                     </button>
                   )}
                 </div>
               ) : (
-                <Input value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} placeholder={field.placeholder || `输入${field.label}`} className={`h-8 text-xs bg-slate-700/30 text-slate-200 transition-colors ${hasErr ? 'border-red-500/50 focus-visible:ring-red-500/30' : 'border-slate-600/30'}`} />
+                <Input value={String(values[field.key] ?? '')} onChange={e => handleChange(field.key, e.target.value)} placeholder={field.placeholder || `输入${field.label}`} className={`h-9 text-xs bg-slate-800/50 text-slate-200 transition-all rounded-xl border-slate-600/25 focus:border-blue-500/50 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.08)] ${hasErr ? 'border-red-500/50 focus-visible:ring-red-500/30' : ''}`} />
               )}
-              {hasErr && <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />{errors[field.key]}</p>}
+              {hasErr && <p className="text-[11px] text-red-400 mt-1.5 flex items-center gap-1.5 px-1"><AlertTriangle className="w-3 h-3 flex-shrink-0" />{errors[field.key]}</p>}
             </div>
           );})}
         </div>
-        <div className="p-4 border-t border-slate-600/30 flex justify-end gap-2.5 bg-slate-800/60">
-          <Button variant="outline" size="sm" className="h-8 text-xs border-slate-600 text-slate-300 hover:bg-slate-700/60 hover:text-slate-200 rounded-lg transition-colors" onClick={onClose} disabled={saving}>取消</Button>
-          <Button size="sm" className={`h-8 text-xs flex items-center gap-1.5 rounded-lg transition-all ${isValid && !saving ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`} onClick={handleSubmit} disabled={!isValid || saving}>
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}{saving ? '保存中…' : '保存'}
+        <div className="p-5 border-t border-slate-700/30 flex justify-end gap-3 bg-gradient-to-r from-slate-800/60 to-slate-900/60">
+          <Button variant="outline" size="sm" className="h-9 text-xs border-slate-600/50 text-slate-300 hover:bg-slate-700/50 hover:text-slate-200 rounded-xl transition-all active:scale-95" onClick={onClose} disabled={saving}>取消</Button>
+          <Button size="sm" className={`h-9 text-xs flex items-center gap-2 rounded-xl transition-all ${isValid && !saving ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-lg shadow-blue-900/20 hover:shadow-blue-900/30 active:scale-95' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`} onClick={handleSubmit} disabled={!isValid || saving}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{saving ? '保存中…' : '保存'}
           </Button>
         </div>
       </div>

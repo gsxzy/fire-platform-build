@@ -75,7 +75,7 @@ function AlarmTicker() {
   const displayItems = tickerItems.length > 0 ? tickerItems : [{ type: 'info', text: '暂无实时告警', time: '' }];
 
   return (
-    <div className="h-7 bg-gradient-to-r from-red-950/40 via-slate-900/80 to-orange-950/30 border-y border-slate-700/20 flex items-center overflow-hidden relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+    <div className="h-8 bg-gradient-to-r from-red-950/30 via-slate-900/80 to-orange-950/20 border-y border-slate-700/15 flex items-center overflow-hidden relative" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="flex-shrink-0 flex items-center gap-1.5 px-3 border-r border-slate-700/20 z-10 bg-slate-800/90 backdrop-blur-sm">
         <Flame className="w-3 h-3 text-red-400 animate-pulse" />
         <span className="text-[10px] font-bold text-red-400 tracking-wider uppercase">实时告警</span>
@@ -176,9 +176,9 @@ function HeaderComponent() {
   return (
     <>
       <header className="flex-shrink-0 relative z-20">
-        <div className="h-14 flex items-center justify-between px-3 border-b border-slate-700/25 bg-slate-900/80 backdrop-blur-xl z-40 relative top-accent-line">
+        <div className="h-14 flex items-center justify-between px-4 border-b border-slate-700/20 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/90 backdrop-blur-xl z-40 relative top-accent-line">
           <div className="flex items-center gap-2">
-            <button onClick={toggleSidebar} className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-transparent hover:border-slate-600/30 active:scale-95" title={collapsed ? '展开侧边栏' : '折叠侧边栏'} aria-label="展开侧边栏">
+            <button onClick={toggleSidebar} className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95 touch-target" title={collapsed ? '展开侧边栏' : '折叠侧边栏'} aria-label="展开侧边栏">
               {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
             </button>
           </div>
@@ -191,26 +191,26 @@ function HeaderComponent() {
                 </div>
               </div>
               <div className="text-center hidden sm:block">
-                <h1 className="text-[15px] md:text-[17px] font-bold text-slate-100 leading-tight tracking-wider" style={{ textShadow: '0 0 20px rgba(59,130,246,0.20), 0 2px 4px rgba(0,0,0,0.5)' }}>新致远智慧消防远程监控中心</h1>
+                <h1 className="text-[15px] md:text-[17px] font-bold text-slate-100 leading-tight tracking-wider header-title-mobile" style={{ textShadow: '0 0 24px rgba(59,130,246,0.15), 0 2px 4px rgba(0,0,0,0.5)' }}>新致远智慧消防远程监控中心</h1>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 relative z-10">
-            <button onClick={() => setShowSearch(true)} className="flex items-center gap-2 px-3 h-8 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-slate-700/30 hover:border-slate-600/40 active:scale-95">
+            <button onClick={() => setShowSearch(true)} className="flex items-center gap-2 px-3 h-9 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-slate-700/20 hover:border-slate-600/30 active:scale-95">
               <Search className="w-4 h-4" />
               <span className="text-[11px] hidden md:inline">搜索...</span>
               <span className="text-[9px] px-1.5 py-0.5 bg-slate-800/80 rounded text-slate-500 hidden md:inline border border-slate-600/30 font-mono">Ctrl+K</span>
             </button>
 
-            <button onClick={() => setShowShortcuts(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-transparent hover:border-slate-600/30 hidden md:flex active:scale-95" title="快捷键" aria-label="快捷键">
+            <button onClick={() => setShowShortcuts(true)} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 hidden md:flex active:scale-95" title="快捷键" aria-label="快捷键">
               <Keyboard className="w-4 h-4" />
             </button>
 
             <div className="h-5 w-px bg-slate-700/30" />
 
             <div className="relative" ref={notifRef}>
-              <button onClick={() => setShowNotif(!showNotif)} aria-label="通知" className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all border border-transparent hover:border-slate-600/30 active:scale-95">
+              <button onClick={() => setShowNotif(!showNotif)} aria-label="通知" className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95">
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-white text-[9px] flex items-center justify-center font-bold animate-pulse shadow-lg shadow-red-500/25">{unreadCount}</span>}
               </button>
@@ -259,7 +259,7 @@ function HeaderComponent() {
             <div className="h-5 w-px bg-slate-700/30" />
 
             <div className="relative" ref={profileRef}>
-              <button onClick={() => setShowProfile(!showProfile)} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-700/50 transition-all border border-transparent hover:border-slate-600/30 active:scale-95">
+              <button onClick={() => setShowProfile(!showProfile)} className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-700/40 transition-all border border-transparent hover:border-slate-600/20 active:scale-95">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
                   <User className="w-4 h-4 text-white" />
                 </div>

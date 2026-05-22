@@ -150,8 +150,8 @@ function SidebarComponent() {
 
   if (visibleModules.length === 0) {
     return (
-      <aside className="h-full flex flex-col transition-all duration-300" style={{ background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)', borderRight: '1px solid rgba(71,85,105,0.22)', width: collapsed ? 64 : 228, flexShrink: 0 }}>
-        <div className="h-14 flex items-center justify-center px-2" style={{ borderBottom: '1px solid rgba(71,85,105,0.2)' }}>
+      <aside className="h-full flex flex-col transition-all duration-300" style={{ background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)', borderRight: '1px solid rgba(71,85,105,0.18)', width: collapsed ? 72 : 228, flexShrink: 0 }}>
+        <div className="h-14 flex items-center justify-center px-2" style={{ borderBottom: '1px solid rgba(71,85,105,0.15)' }}>
           <img src="/logo.png" alt="新致远" className="w-8 h-8 object-contain logo-blend" />
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-slate-500">
@@ -263,7 +263,7 @@ function SidebarComponent() {
       className="h-full flex flex-col relative transition-all duration-300 ease-in-out"
       style={{
         background: 'linear-gradient(180deg, #151d2e 0%, #0a0e1a 100%)',
-        borderRight: '1px solid rgba(71,85,105,0.20)',
+        borderRight: '1px solid rgba(71,85,105,0.15)',
         width: isEffectivelyCollapsed ? 72 : 228,
         flexShrink: 0,
       }}
@@ -273,26 +273,26 @@ function SidebarComponent() {
       <div
         className="flex items-center justify-center transition-all duration-300 overflow-hidden"
         style={{
-          borderBottom: '1px solid rgba(71,85,105,0.15)',
-          height: isEffectivelyCollapsed ? 60 : 68,
+          borderBottom: '1px solid rgba(71,85,105,0.12)',
+          height: isEffectivelyCollapsed ? 64 : 72,
           padding: isEffectivelyCollapsed ? '0 10px' : '0 14px',
         }}
       >
         {isEffectivelyCollapsed ? (
           <div className="flex items-center justify-center w-full">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 via-transparent to-orange-500/10 animate-pulse" />
               <img src="/logo.png" alt="新致远" className="w-7 h-7 object-contain flex-shrink-0 logo-blend relative z-10" />
             </div>
           </div>
         ) : (
           <div className="flex items-center gap-3 w-full justify-center">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-red-500/25 flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/10 ring-1 ring-red-500/10 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-tr from-red-500/10 via-transparent to-orange-500/10 animate-pulse" />
-              <img src="/logo.png" alt="新致远" className="w-6 h-6 object-contain logo-blend relative z-10" />
+              <img src="/logo.png" alt="新致远" className="w-7 h-7 object-contain logo-blend relative z-10" />
             </div>
             <div className="flex flex-col items-start gap-1">
-              <h1 className="text-[14px] font-bold leading-tight whitespace-nowrap tracking-wider"
+              <h1 className="text-[15px] font-bold leading-tight whitespace-nowrap tracking-wider"
                 style={{
                   background: 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 50%, #e2e8f0 100%)',
                   WebkitBackgroundClip: 'text',
@@ -301,9 +301,9 @@ function SidebarComponent() {
                 }}>
                 新致远智慧消防
               </h1>
-              <div className="flex items-center gap-1">
-                <span className="inline-block w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[9px] text-slate-400 leading-none whitespace-nowrap tracking-widest font-medium px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/50">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] text-slate-400 leading-none whitespace-nowrap tracking-widest font-medium px-1.5 py-0.5 rounded-lg bg-slate-800/80 border border-slate-700/50">
                   远程监控中心
                 </span>
               </div>
@@ -412,10 +412,10 @@ function SidebarComponent() {
                     else toggleMenu(modPath);
                   }}
                   title={topHint ?? menu.label ?? mod.name}
-                  className={`w-full flex items-center justify-center py-2.5 rounded-xl transition-all duration-200 ${
+                  className={`w-full flex items-center justify-center py-3 rounded-2xl transition-all duration-200 ${
                     active
-                      ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-[0_0_12px_rgba(59,130,246,0.08)]'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 hover:shadow-[0_0_8px_rgba(59,130,246,0.05)]'
+                      ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-[0_0_16px_rgba(59,130,246,0.08)]'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/25 hover:shadow-[0_0_8px_rgba(59,130,246,0.04)]'
                   }`}
                 >
                   <IconRenderer icon={menu.icon || mod.icon} className={`w-5 h-5 flex-shrink-0 ${active ? 'text-blue-400' : ''}`} />
@@ -467,10 +467,10 @@ function SidebarComponent() {
                   if (!hasChildren && modPath) navigate(modPath);
                   else toggleMenu(modPath);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-200 rounded-xl ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-sm transition-all duration-200 rounded-2xl ${
                   active || isActive(modPath)
-                    ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-[0_0_12px_rgba(59,130,246,0.08)]'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/30'
+                    ? 'text-blue-400 bg-blue-500/10 border border-blue-500/20 shadow-[0_0_16px_rgba(59,130,246,0.08)]'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/25'
                 }`}
               >
                 <IconRenderer icon={menu.icon || mod.icon} className={`w-4 h-4 flex-shrink-0 ${active ? 'text-blue-400' : ''}`} />
@@ -512,20 +512,20 @@ function SidebarComponent() {
       </nav>
 
       {!isEffectivelyCollapsed ? (
-        <div className="px-4 py-3 border-t border-slate-700/20 flex items-center justify-between text-[9px] text-slate-600">
+        <div className="px-4 py-3 border-t border-slate-700/15 flex items-center justify-between text-[10px] text-slate-500">
           <span className="font-mono tracking-wider">V2.0.0</span>
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/15">
             <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
             </span>
             <span className="text-emerald-400 font-medium">在线</span>
           </span>
         </div>
       ) : (
-        <div className="py-3 border-t border-slate-700/20 flex items-center justify-center">
+        <div className="py-3 border-t border-slate-700/15 flex items-center justify-center">
           <span className="relative flex h-2 w-2" title="在线">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
           </span>
         </div>
