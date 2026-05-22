@@ -152,6 +152,42 @@
   border-bottom-right-radius: 4px;
 }
 
+/* 四角装饰（独立元素版） */
+.bs-corner-tl,
+.bs-corner-tr,
+.bs-corner-bl,
+.bs-corner-br {
+  position: absolute;
+  width: calc(10px * var(--bs-scale));
+  height: calc(10px * var(--bs-scale));
+  pointer-events: none;
+  z-index: 5;
+}
+.bs-corner-tl {
+  top: 0; left: 0;
+  border-top: 2px solid rgba(56, 189, 248, 0.35);
+  border-left: 2px solid rgba(56, 189, 248, 0.35);
+  border-top-left-radius: 4px;
+}
+.bs-corner-tr {
+  top: 0; right: 0;
+  border-top: 2px solid rgba(56, 189, 248, 0.35);
+  border-right: 2px solid rgba(56, 189, 248, 0.35);
+  border-top-right-radius: 4px;
+}
+.bs-corner-bl {
+  bottom: 0; left: 0;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.35);
+  border-left: 2px solid rgba(56, 189, 248, 0.35);
+  border-bottom-left-radius: 4px;
+}
+.bs-corner-br {
+  bottom: 0; right: 0;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.35);
+  border-right: 2px solid rgba(56, 189, 248, 0.35);
+  border-bottom-right-radius: 4px;
+}
+
 /* ── 大屏图表容器 ── */
 .bs-chart-container {
   background: rgba(15, 23, 42, 0.6);
@@ -246,4 +282,231 @@
   .bs-grid-4 { grid-template-columns: repeat(4, 1fr); }
   .bs-grid-5 { grid-template-columns: repeat(5, 1fr); }
   .bs-grid-6 { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   大屏美化增强样式 v2 — 2026-05-22
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 大屏头部 ── */
+.bs-header {
+  background: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(10,14,26,0.90) 100%);
+  border: 1px solid rgba(59,130,246,0.20);
+  border-radius: calc(0.75rem * var(--bs-scale));
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.03);
+}
+.bs-header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.5) 20%, rgba(6,182,212,0.5) 50%, rgba(59,130,246,0.5) 80%, transparent 100%);
+}
+.bs-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 10%, rgba(59,130,246,0.15) 50%, transparent 90%);
+}
+
+/* ── 扫描线动画 ── */
+.bs-scan-line {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6,182,212,0.4), transparent);
+  animation: bs-scan-move 4s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+@keyframes bs-scan-move {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(300px); opacity: 0; }
+}
+
+/* ── 地图面板 ── */
+.bs-map-panel {
+  background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(2,6,23,0.98) 100%);
+  border: 1px solid rgba(6,182,212,0.12);
+  border-radius: calc(0.75rem * var(--bs-scale));
+  position: relative;
+  overflow: hidden;
+}
+.bs-map-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6,182,212,0.4), transparent);
+  z-index: 5;
+}
+
+/* ── 紧急告警脉冲边框 ── */
+.bs-alarm-urgent {
+  position: relative;
+  background: linear-gradient(135deg, rgba(69,10,10,0.25) 0%, rgba(15,23,42,0.3) 100%);
+  border: 1px solid rgba(239,68,68,0.35);
+  border-radius: 0.5rem;
+  animation: bs-alarm-urgent-pulse 2s ease-in-out infinite;
+}
+.bs-alarm-urgent::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid rgba(239,68,68,0.2);
+  animation: bs-alarm-border-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bs-alarm-urgent-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(239,68,68,0.1), inset 0 0 8px rgba(239,68,68,0.03); }
+  50% { box-shadow: 0 0 16px rgba(239,68,68,0.25), inset 0 0 12px rgba(239,68,68,0.06); }
+}
+@keyframes bs-alarm-border-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* ── 告警重要级别 ── */
+.bs-alarm-important {
+  background: linear-gradient(135deg, rgba(124,45,18,0.15) 0%, rgba(15,23,42,0.2) 100%);
+  border: 1px solid rgba(249,115,22,0.25);
+  border-radius: 0.5rem;
+}
+.bs-alarm-normal {
+  background: rgba(15,23,42,0.2);
+  border: 1px solid rgba(71,85,105,0.15);
+  border-radius: 0.5rem;
+}
+
+/* ── 数据流背景 ── */
+.bs-data-flow {
+  position: relative;
+  overflow: hidden;
+}
+.bs-data-flow::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(96,165,250,0.05), transparent);
+  animation: bs-data-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bs-data-sweep {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+/* ── 图表标题装饰 ── */
+.bs-chart-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.75rem;
+}
+.bs-chart-title::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  transform: translateY(-50%);
+  width: 3px; height: 14px;
+  background: linear-gradient(180deg, rgba(59,130,246,0.8), rgba(6,182,212,0.6));
+  border-radius: 2px;
+}
+
+/* ── 统计卡片专用色条 ── */
+.bs-stat-bar-blue::before   { background: linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent) !important; }
+.bs-stat-bar-green::before  { background: linear-gradient(90deg, transparent, rgba(16,185,129,0.7), transparent) !important; }
+.bs-stat-bar-purple::before { background: linear-gradient(90deg, transparent, rgba(139,92,246,0.7), transparent) !important; }
+.bs-stat-bar-red::before    { background: linear-gradient(90deg, transparent, rgba(239,68,68,0.7), transparent) !important; }
+.bs-stat-bar-cyan::before   { background: linear-gradient(90deg, transparent, rgba(6,182,212,0.7), transparent) !important; }
+.bs-stat-bar-amber::before  { background: linear-gradient(90deg, transparent, rgba(245,158,11,0.7), transparent) !important; }
+
+/* ── 数值渐变文字 ── */
+.bs-text-gradient {
+  background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.bs-text-gradient-red {
+  background: linear-gradient(135deg, #fca5a5 0%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.bs-text-gradient-green {
+  background: linear-gradient(135deg, #6ee7b7 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.bs-text-gradient-blue {
+  background: linear-gradient(135deg, #93c5fd 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.bs-text-gradient-purple {
+  background: linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── 科技边框面板（全角装饰版） ── */
+.bs-tech-panel {
+  background: linear-gradient(145deg, rgba(21,29,46,0.90) 0%, rgba(11,15,26,0.85) 100%);
+  border: 1px solid rgba(71,85,105,0.20);
+  border-radius: calc(0.75rem * var(--bs-scale));
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.bs-tech-panel:hover {
+  border-color: rgba(59,130,246,0.25);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px rgba(59,130,246,0.05);
+}
+
+/* ── 子系统状态条 ── */
+.bs-subsystem-item {
+  position: relative;
+  transition: all 0.3s ease;
+  border-radius: 0.5rem;
+}
+.bs-subsystem-item.active {
+  background: linear-gradient(90deg, rgba(59,130,246,0.08) 0%, rgba(6,182,212,0.04) 100%);
+  border: 1px solid rgba(59,130,246,0.15);
+}
+.bs-subsystem-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(59,130,246,0.6), rgba(6,182,212,0.4));
+  border-radius: 2px;
+}
+
+/* ── 底部指标卡片 ── */
+.bs-metric-card {
+  background: linear-gradient(135deg, rgba(15,23,42,0.6) 0%, rgba(10,14,26,0.5) 100%);
+  border: 1px solid rgba(71,85,105,0.15);
+  border-radius: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.bs-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent);
+  opacity: 0.5;
+}
+.bs-metric-card:hover {
+  border-color: rgba(59,130,246,0.2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }

@@ -12,6 +12,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend
 } from 'recharts';
+import ScreenMapPanel from './screenDashboard/ScreenMapPanel';
 
 const systemsInit: any[] = [];
 
@@ -21,10 +22,10 @@ const typeColors: Record<string, string> = {
   '监管': '#3b82f6',
 };
 
-const levelColors: Record<string, string> = {
-  '紧急': 'text-red-400 bg-red-500/10',
-  '重要': 'text-orange-400 bg-orange-500/10',
-  '一般': 'text-blue-400 bg-blue-500/10',
+const levelConfig: Record<string, { text: string; bg: string; cls: string }> = {
+  '紧急': { text: 'text-red-400', bg: 'bg-red-500/10', cls: 'bs-alarm-urgent' },
+  '重要': { text: 'text-orange-400', bg: 'bg-orange-500/10', cls: 'bs-alarm-important' },
+  '一般': { text: 'text-blue-400', bg: 'bg-blue-500/10', cls: 'bs-alarm-normal' },
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -98,79 +99,88 @@ export default function ScreenDashboardPage() {
   const stats = useMemo(() => {
     const s = screenData || {};
     return [
-      { label: '联网单位', value: String(s.unitCount ?? '--'), unit: '家', icon: MapPin, color: '#3b82f6', sub: `在线 ${s.onlineCount ?? '--'}家` },
-      { label: '在线设备', value: String(s.onlineCount ?? '--'), unit: '台', icon: Cpu, color: '#10b981', sub: `离线 ${(s.deviceCount ?? 0) - (s.onlineCount ?? 0)}台` },
-      { label: '设备总数', value: String(s.deviceCount ?? '--'), unit: '台', icon: Video, color: '#8b5cf6', sub: `在线率 ${s.onlineRate ?? '--'}%` },
-      { label: '今日告警', value: String(s.alarmToday ?? '--'), unit: '条', icon: Bell, color: '#ef4444', sub: `累计 ${s.alarmTotal ?? '--'}条` },
+      { label: '联网单位', value: String(s.unitCount ?? '--'), unit: '家', icon: MapPin, color: '#3b82f6', bar: 'bs-stat-bar-blue', sub: `在线 ${s.onlineCount ?? '--'}家` },
+      { label: '在线设备', value: String(s.onlineCount ?? '--'), unit: '台', icon: Cpu, color: '#10b981', bar: 'bs-stat-bar-green', sub: `离线 ${(s.deviceCount ?? 0) - (s.onlineCount ?? 0)}台` },
+      { label: '设备总数', value: String(s.deviceCount ?? '--'), unit: '台', icon: Video, color: '#8b5cf6', bar: 'bs-stat-bar-purple', sub: `在线率 ${s.onlineRate ?? '--'}%` },
+      { label: '今日告警', value: String(s.alarmToday ?? '--'), unit: '条', icon: Bell, color: '#ef4444', bar: 'bs-stat-bar-red', sub: `累计 ${s.alarmTotal ?? '--'}条` },
     ];
   }, [screenData]);
 
   return (
     <DataContainer loading={loading} error={error} data={screenData} onRetry={loadData} emptyText="暂无数据" allowEmptyChildren>
-    <div className="h-full flex flex-col gap-3" style={{ minHeight: 'calc(100vh - 7rem)' }}>
-      {/* Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0 px-3 md:px-5 py-2.5 md:py-3 border border-blue-500/20 rounded-xl glass animate-fade-in-up">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center ring-1 ring-blue-500/10 flex-shrink-0">
-            <Monitor className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+    <div className="h-full flex flex-col gap-3 bigscreen-root" style={{ minHeight: 'calc(100vh - 7rem)' }}>
+      {/* ═══════ Header Bar ═══════ */}
+      <div className="bs-header flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0 px-4 md:px-6 py-3 animate-fade-in-up">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-gradient-to-br from-blue-500/15 to-cyan-500/10 border border-blue-500/25 flex items-center justify-center shadow-lg shadow-blue-500/10 flex-shrink-0">
+            <Monitor className="w-5 h-5 md:w-5 md:h-5 text-blue-400" />
           </div>
-          <h1 className="text-sm md:text-title font-bold text-slate-100 tracking-wider truncate">智慧消防监控大屏</h1>
-          <span className="hidden sm:inline text-caption text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-lg bg-blue-500/10">实时数据</span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm md:text-base font-bold text-slate-100 tracking-wider truncate">智慧消防监控大屏</h1>
+            <span className="hidden sm:inline text-[10px] text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded bg-cyan-500/8 tracking-widest">实时数据</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-5 flex-wrap">
+        <div className="flex items-center gap-3 md:gap-5 flex-wrap">
           <div className="flex items-center gap-1.5 md:gap-2">
             <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-400" />
-            <span className="text-[10px] md:text-body font-mono text-slate-300 tracking-wider">
+            <span className="text-[10px] md:text-xs font-mono text-slate-300 tracking-wider">
               {time.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-caption text-emerald-400">系统运行正常</span>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/8 border border-emerald-500/20">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+            <span className="text-[10px] text-emerald-400 tracking-wide">系统运行正常</span>
           </div>
-          <button onClick={() => navigate(-1)} className="text-[10px] md:text-caption px-2 md:px-3 py-1 md:py-1.5 bg-slate-800/60 border border-slate-700/40 text-slate-400 rounded-lg hover:text-slate-200 hover:bg-slate-700/40 transition-all">
+          <button onClick={() => navigate(-1)} className="text-[10px] md:text-xs px-3 py-1.5 bg-slate-800/60 border border-slate-700/40 text-slate-400 rounded-lg hover:text-slate-200 hover:bg-slate-700/40 hover:border-slate-600/40 transition-all">
             退出大屏
           </button>
         </div>
       </div>
 
-      {/* Main Grid */}
+      {/* ═══════ Main Grid ═══════ */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
-        {/* Left Column */}
+        {/* ═══════ Left Column ═══════ */}
         <div className="lg:col-span-3 flex flex-col gap-3">
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 lg:gap-3">
+          {/* 统计卡片 */}
+          <div className="grid grid-cols-2 gap-2">
             {(stats as any).map((s: any, i: number) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="p-2.5 md:p-3.5 rounded-xl border border-slate-700/30 flex items-center gap-2 md:gap-3 glass hover:border-slate-600/30 transition-all animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                  <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center flex-shrink-0 ring-1 ring-white/5" style={{ backgroundColor: `${s.color}15` }}>
-                    <Icon className="w-4 h-4 md:w-5 md:h-5" style={{ color: s.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] md:text-caption text-slate-400">{s.label}</div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-sm md:text-headline font-bold text-slate-100 tracking-tight">{s.value}</span>
-                      <span className="text-[10px] md:text-caption text-slate-500">{s.unit}</span>
+                <div key={i} className={`bs-stat-card ${s.bar} bs-data-flow hover-lift animate-fade-in-up`} style={{ animationDelay: `${i * 0.06}s`, padding: '0.875rem 1rem' }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${s.color}12` }}>
+                      <Icon className="w-4 h-4" style={{ color: s.color }} />
                     </div>
-                    <div className="hidden md:block text-label text-slate-500">{s.sub}</div>
+                    <span className="text-[10px] text-slate-400">{s.label}</span>
                   </div>
+                  <div className="flex items-baseline gap-1 mb-0.5">
+                    <span className="text-xl md:text-2xl font-extrabold bs-text-gradient tracking-tight" style={{ color: s.color }}>{s.value}</span>
+                    <span className="text-[10px] text-slate-500">{s.unit}</span>
+                  </div>
+                  <div className="text-[9px] text-slate-500">{s.sub}</div>
                 </div>
               );
             })}
           </div>
 
-          {/* Subsystem Status */}
-          <div className="flex-1 p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
-            <div className="text-xs font-medium text-slate-200 mb-3">子系统状态</div>
-            <div className="space-y-2">
+          {/* 子系统状态 */}
+          <div className="bs-tech-panel flex-1 flex flex-col p-3 bs-corner-accent">
+            <div className="flex items-center gap-1.5 mb-3">
+              <div className="w-1 h-3.5 rounded-sm bg-gradient-to-b from-blue-500 to-cyan-400" />
+              <span className="text-xs font-semibold text-slate-200 tracking-wide">子系统状态</span>
+              <div className="flex-1 h-px bg-gradient-to-r from-slate-700/50 to-transparent ml-2" />
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5">
               {systems.map((sys: any, i: number) => {
                 const SysIcon = sys.icon || Activity;
                 const isActive = pulseIndex === i;
                 return (
-                  <div key={sys.name} className={`flex items-center gap-2 p-2 rounded-lg transition-all ${isActive ? 'bg-slate-700/30 border border-blue-500/20' : ''}`}>
-                    <SysIcon className="w-4 h-4" style={{ color: sys.color }} />
-                    <span className="text-[10px] text-slate-300 flex-1">{sys.name}</span>
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded ${sys.status === '正常' ? 'text-emerald-400 bg-emerald-500/10' : 'text-yellow-400 bg-yellow-500/10'}`}>{sys.status}</span>
+                  <div key={sys.name} className={`bs-subsystem-item flex items-center gap-2 p-2 ${isActive ? 'active' : ''}`}>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${sys.color}12` }}>
+                      <SysIcon className="w-3.5 h-3.5" style={{ color: sys.color }} />
+                    </div>
+                    <span className="text-[11px] text-slate-300 flex-1 truncate">{sys.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${sys.status === '正常' ? 'text-emerald-400 bg-emerald-500/8 border-emerald-500/20' : 'text-amber-400 bg-amber-500/8 border-amber-500/20'}`}>{sys.status}</span>
                   </div>
                 );
               })}
@@ -178,33 +188,44 @@ export default function ScreenDashboardPage() {
           </div>
         </div>
 
-        {/* Center Column */}
+        {/* ═══════ Center Column ═══════ */}
         <div className="lg:col-span-6 flex flex-col gap-3">
-          <div className="p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
+          {/* 地图面板 */}
+          <div className="h-[220px] md:h-[240px] flex-shrink-0">
+            <ScreenMapPanel />
+          </div>
+
+          {/* 今日告警时序 */}
+          <div className="bs-tech-panel p-3 bs-corner-accent bs-data-flow flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-200">今日告警时序</span>
-              <span className="text-[9px] text-slate-500">24小时</span>
+              <div className="bs-chart-title">
+                <span className="text-xs font-semibold text-slate-200">今日告警时序</span>
+              </div>
+              <span className="text-[9px] text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded">24小时</span>
             </div>
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={130}>
               <AreaChart data={hourlyData}>
                 <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
-                  <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.35}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="hour" tick={{ fontSize: 8, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 8, fill: '#64748b' }} axisLine={false} tickLine={false} width={18} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="alarm" name="火警" stroke="#ef4444" fill="url(#g1)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="fault" name="故障" stroke="#f59e0b" fill="url(#g2)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="alarm" name="火警" stroke="#ef4444" fill="url(#g1)" strokeWidth={2} />
+                <Area type="monotone" dataKey="fault" name="故障" stroke="#f59e0b" fill="url(#g2)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex-1 p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
+          {/* 单位告警排行 */}
+          <div className="bs-tech-panel p-3 bs-corner-accent bs-data-flow flex-1 min-h-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-200">单位告警排行</span>
-              <span className="text-[9px] text-slate-500">本月</span>
+              <div className="bs-chart-title">
+                <span className="text-xs font-semibold text-slate-200">单位告警排行</span>
+              </div>
+              <span className="text-[9px] text-slate-500 bg-slate-800/60 px-2 py-0.5 rounded">本月</span>
             </div>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={unitAlarmData} layout="vertical">
@@ -212,61 +233,76 @@ export default function ScreenDashboardPage() {
                 <XAxis type="number" tick={{ fontSize: 8, fill: '#64748b' }} axisLine={false} tickLine={false} />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={60} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="告警数" fill="#ef4444" radius={[0, 3, 3, 0]} barSize={14} />
+                <Bar dataKey="value" name="告警数" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Right Column */}
+        {/* ═══════ Right Column ═══════ */}
         <div className="lg:col-span-3 flex flex-col gap-3">
-          <div className="p-3 rounded-lg border border-slate-700/30" style={{ background: 'rgba(30,41,59,0.4)' }}>
-            <div className="text-xs font-medium text-slate-200 mb-2">设备类型分布</div>
-            <ResponsiveContainer width="100%" height={150}>
+          {/* 设备类型分布 */}
+          <div className="bs-tech-panel p-3 bs-corner-accent bs-data-flow">
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className="w-1 h-3.5 rounded-sm bg-gradient-to-b from-blue-500 to-cyan-400" />
+              <span className="text-xs font-semibold text-slate-200">设备类型分布</span>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
               <PieChart>
-                <Pie data={deviceTypeDist} cx="50%" cy="50%" innerRadius={30} outerRadius={50} paddingAngle={2} dataKey="value">
+                <Pie data={deviceTypeDist} cx="50%" cy="50%" innerRadius={28} outerRadius={48} paddingAngle={3} dataKey="value">
                   {deviceTypeDist.map((entry: any, i: number) => (
-                    <Cell key={i} fill={entry.color} />
+                    <Cell key={i} fill={entry.color} stroke="rgba(15,23,42,0.8)" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: '8px', color: '#94a3b8' }} iconSize={6} />
+                <Legend wrapperStyle={{ fontSize: '9px', color: '#94a3b8' }} iconSize={6} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex-1 p-3 rounded-lg border border-slate-700/30 flex flex-col" style={{ background: 'rgba(30,41,59,0.4)' }}>
+          {/* 最近告警 */}
+          <div className="bs-tech-panel flex-1 flex flex-col p-3 bs-corner-accent min-h-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-200">最近告警</span>
-              <span className="text-[9px] text-red-400 animate-pulse">实时</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1 h-3.5 rounded-sm bg-gradient-to-b from-red-500 to-orange-400" />
+                <span className="text-xs font-semibold text-slate-200">最近告警</span>
+              </div>
+              <span className="text-[9px] text-red-400 animate-pulse flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                实时
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5">
-              {recentAlarms.map((a: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-slate-700/20" style={{ background: 'rgba(15,23,42,0.3)' }}>
-                  <div className="w-1 h-8 rounded-full" style={{ backgroundColor: typeColors[a.type] }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[9px] text-slate-300 font-medium truncate">{a.device}</span>
+            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5 pr-0.5">
+              {recentAlarms.map((a: any, i: number) => {
+                const cfg = levelConfig[a.level] || levelConfig['一般'];
+                return (
+                  <div key={i} className={`flex items-center gap-2 p-2 ${cfg.cls}`}>
+                    <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: typeColors[a.type] || '#64748b' }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-300 font-medium truncate">{a.device}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[9px] text-slate-500 truncate">{a.unit}</span>
+                        <span className="text-[9px] text-slate-600 flex-shrink-0">{a.time}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[8px] text-slate-500">{a.unit}</span>
-                      <span className="text-[8px] text-slate-600">{a.time}</span>
-                    </div>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${cfg.text} ${cfg.bg} border-current/20`}>{a.level}</span>
                   </div>
-                  <span className={`text-[8px] px-1.5 py-0.5 rounded ${levelColors[a.level]}`}>{a.level}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          <div className="p-3 rounded-lg border border-slate-700/30 grid grid-cols-2 gap-2" style={{ background: 'rgba(30,41,59,0.4)' }}>
-            <div className="text-center p-2 rounded" style={{ background: 'rgba(15,23,42,0.3)' }}>
-              <div className="text-sm font-bold text-emerald-400">93.2%</div>
-              <div className="text-[8px] text-slate-500">告警处理率</div>
+          {/* 底部指标 */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bs-metric-card text-center p-2.5">
+              <div className="text-base font-bold bs-text-gradient-green">93.2%</div>
+              <div className="text-[9px] text-slate-500 mt-0.5">告警处理率</div>
             </div>
-            <div className="text-center p-2 rounded" style={{ background: 'rgba(15,23,42,0.3)' }}>
-              <div className="text-sm font-bold text-blue-400">3.2min</div>
-              <div className="text-[8px] text-slate-500">平均响应</div>
+            <div className="bs-metric-card text-center p-2.5">
+              <div className="text-base font-bold bs-text-gradient-blue">3.2min</div>
+              <div className="text-[9px] text-slate-500 mt-0.5">平均响应</div>
             </div>
           </div>
         </div>
