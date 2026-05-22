@@ -17,13 +17,13 @@ export function ok(data: unknown, msg = 'success') {
 
 /* ───── 安全：只允许合法表名 ───── */
 export const ALLOWED_TABLES = new Set([
-  'cameras', 'work_orders', 'maint_records', 'maint_contracts',
+  'fire_camera', 'work_orders', 'maint_records', 'maint_contracts',
   'patrol_plans', 'patrol_records', 'hazards', 'plans', 'drills',
   'inspections', 'documents', 'notifications', 'duty_schedules',
   'duty_shifts', 'duty_handovers', 'system_logs', 'floor_plans',
   'floor_devices', 'reports', 'alarm_snapshots', 'control_room_configs',
   'ai_decisions', 'smart_alerts',
-  'iot_protocols', 'iot_pipelines', 'todos',
+  'iot_protocols', 'iot_pipelines', 'sys_todo',
   'departments', 'sys_role', 'sys_permission',
   'gb28181_devices', 'fscn8001_device', 'fscn8001_alarm', 'fscn8001_raw_log',
   'gb26875_device', 'gb26875_alarm', 'gb26875_raw_log',
@@ -219,11 +219,11 @@ export function makeDelete(table: string) {
 /* ═══════════════════════════════════════════════════════════
    1. 摄像头 (cameras)
    ═══════════════════════════════════════════════════════════ */
-export const cameraList = makeList('cameras');
-export const cameraById = makeById('cameras');
-export const cameraCreate = makeCreate('cameras');
-export const cameraUpdate = makeUpdate('cameras');
-export const cameraDelete = makeDelete('cameras');
+export const cameraList = makeList('fire_camera');
+export const cameraById = makeById('fire_camera');
+export const cameraCreate = makeCreate('fire_camera');
+export const cameraUpdate = makeUpdate('fire_camera');
+export const cameraDelete = makeDelete('fire_camera');
 
 /* ═══════════════════════════════════════════════════════════
    2. IoT 设备统计
@@ -453,11 +453,11 @@ export async function dbStats(_req: Request, res: Response) {
 /* ═══════════════════════════════════════════════════════════
    24. 待办 /todos/*
    ═══════════════════════════════════════════════════════════ */
-export const todoList = makeList('todos');
-export const todoById = makeById('todos');
-export const todoCreate = makeCreate('todos');
-export const todoUpdate = makeUpdate('todos');
-export const todoDelete = makeDelete('todos');
+export const todoList = makeList('sys_todo');
+export const todoById = makeById('sys_todo');
+export const todoCreate = makeCreate('sys_todo');
+export const todoUpdate = makeUpdate('sys_todo');
+export const todoDelete = makeDelete('sys_todo');
 
 /* ═══════════════════════════════════════════════════════════
    25. IoT 协议配置旧兼容 /iot-protocols/*
@@ -473,10 +473,11 @@ export const iotProtocolDeleteOld = makeDelete('iot_protocols');
    ═══════════════════════════════════════════════════════════ */
 export async function maintenanceStatsOld(_req: Request, res: Response) {
   try {
-    const [[r]] = await sequelize.query(`SELECT 
+    const [rRows] = await sequelize.query(`SELECT 
       COUNT(*) as total,
       SUM(CASE WHEN status=2 THEN 1 ELSE 0 END) as done
     FROM work_orders`) as any;
+    const r = rRows?.[0];
     res.json(ok(r || { total: 0, done: 0 }));
   } catch { res.json(ok({ total: 0, done: 0 })); }
 }
@@ -516,10 +517,14 @@ export const dutyLogCompat = makeList('duty_logs');
    ═══════════════════════════════════════════════════════════ */
 export async function bigScreenOld(_req: Request, res: Response) {
   try {
-    const [[units]] = await sequelize.query('SELECT COUNT(*) as c FROM units') as any;
-    const [[devices]] = await sequelize.query('SELECT COUNT(*) as c FROM device_archive') as any;
-    const [[online]] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive WHERE status='normal'`) as any;
-    const [[alarms]] = await sequelize.query(`SELECT COUNT(*) as c FROM fire_alarm WHERE DATE(trigger_time) = CURDATE()`) as any;
+    const [unitsRows] = await sequelize.query('SELECT COUNT(*) as c FROM units') as any;
+    const units = unitsRows?.[0];
+    const [devicesRows] = await sequelize.query('SELECT COUNT(*) as c FROM device_archive') as any;
+    const devices = devicesRows?.[0];
+    const [onlineRows] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive WHERE status='normal'`) as any;
+    const online = onlineRows?.[0];
+    const [alarmsRows] = await sequelize.query(`SELECT COUNT(*) as c FROM fire_alarm WHERE DATE(trigger_time) = CURDATE()`) as any;
+    const alarms = alarmsRows?.[0];
     res.json(ok({
       summary: {
         unitCount: units?.c || 0,
@@ -547,16 +552,18 @@ export async function bigScreenOld(_req: Request, res: Response) {
    ═══════════════════════════════════════════════════════════ */
 export async function monitorOverviewOld(_req: Request, res: Response) {
   try {
-    const [[dev]] = await sequelize.query(`SELECT 
+    const [devRows] = await sequelize.query(`SELECT 
       COUNT(*) as total,
       SUM(CASE WHEN status='normal' THEN 1 ELSE 0 END) as online,
       SUM(CASE WHEN status='fault' THEN 1 ELSE 0 END) as fault,
       SUM(CASE WHEN status='offline' THEN 1 ELSE 0 END) as offline
     FROM device_archive`) as any;
-    const [[alm]] = await sequelize.query(`SELECT 
+    const dev = devRows?.[0];
+    const [almRows] = await sequelize.query(`SELECT 
       SUM(CASE WHEN alarm_type=1 THEN 1 ELSE 0 END) as fire,
       SUM(CASE WHEN alarm_type=2 THEN 1 ELSE 0 END) as fault
     FROM fire_alarm`) as any;
+    const alm = almRows?.[0];
     res.json(ok({
       deviceStats: [
         { status: 1, count: dev?.online || 0 },
@@ -661,7 +668,8 @@ export async function analysisHazardOld(_req: Request, res: Response) {
 
 export async function analysisPatrolOld(_req: Request, res: Response) {
   try {
-    const [[r]] = await sequelize.query('SELECT COUNT(*) as total FROM patrol_records') as any;
+    const [rRows] = await sequelize.query('SELECT COUNT(*) as total FROM patrol_records') as any;
+    const r = rRows?.[0];
     res.json(ok({ total: r?.total || 0, normal: 0, abnormal: 0, rate: '0.0' }));
   } catch (err: any) {
     logger.warn('[Stub] catch error:', err?.message || err);

@@ -1,7 +1,7 @@
 /**
  * ═══════════════════════════════════════════════════════════════════
  * 新致远智慧消防云平台 - 后端服务入口
- * Node.js + Express + MySQL + WebSocket + IoT Gateway
+ * Node.js + Express + PostgreSQL + Redis + TDengine + WebSocket + IoT Gateway
  * ═══════════════════════════════════════════════════════════════════
  */
 import 'module-alias/register';
@@ -30,6 +30,7 @@ import { NotificationService } from '@/services/notification.service';
 import { gb26875Server } from '@/protocols/gb26875.server';
 import { fscn8001Server } from '@/protocols/fscn8001.server';
 import { DeviceHeartbeatService } from '@/services/deviceHeartbeat.service';
+import { initTDengine } from '@/services/tdengine.service';
 
 const app = express();
 
@@ -123,7 +124,7 @@ async function bootstrap() {
 
     // 连接数据库
     await sequelize.authenticate();
-    logger.info('[DB] MySQL connected');
+    logger.info('[DB] PostgreSQL connected');
 
     await ensureRefreshTokenTable();
     logger.info('[DB] sys_refresh_tokens 就绪');
@@ -133,6 +134,10 @@ async function bootstrap() {
     const isDev = process.env.NODE_ENV === 'development';
     await sequelize.sync({ alter: isDev, force: false });
     logger.info(`[DB] Tables synchronized (alter=${isDev})`);
+
+    // 初始化 TDengine 时序数据库
+    await initTDengine();
+    logger.info('[TDengine] 时序数据库已就绪');
 
     // 初始化设备心跳服务
     const deviceHeartbeatService = DeviceHeartbeatService.getInstance(sequelize);
@@ -176,7 +181,8 @@ async function bootstrap() {
       }
     });
   } catch (err: any) {
-    logger.error('[Bootstrap] Failed:', err.message);
+    logger.error('[Bootstrap] Failed:', err.message || err);
+    console.error('[Bootstrap] RAW ERROR:', err);
     process.exit(1);
   }
 }

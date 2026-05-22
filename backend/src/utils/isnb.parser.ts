@@ -294,7 +294,8 @@ export function extractIsnbHexFromCtwing(body: Record<string, unknown>): string 
         ?? (cand as Record<string, unknown>).rawHex
         ?? (cand as Record<string, unknown>).raw_hex
         ?? (cand as Record<string, unknown>).payload
-        ?? (cand as Record<string, unknown>).data;
+        ?? (cand as Record<string, unknown>).data
+        ?? (cand as Record<string, unknown>).msg;
       if (typeof sub === 'string' && isIsnbHexFrame(sub)) {
         return sub.replace(/\s/g, '');
       }
@@ -321,16 +322,18 @@ export function extractIsnbHexFromCtwing(body: Record<string, unknown>): string 
               const svcRaw = (svcDataObj as Record<string, unknown>).rawData
                 ?? (svcDataObj as Record<string, unknown>).raw_data
                 ?? (svcDataObj as Record<string, unknown>).rawHex
-                ?? (svcDataObj as Record<string, unknown>).raw_hex;
+                ?? (svcDataObj as Record<string, unknown>).raw_hex
+                ?? (svcDataObj as Record<string, unknown>).msg;
               if (typeof svcRaw === 'string' && isIsnbHexFrame(svcRaw)) {
                 return svcRaw.replace(/\s/g, '');
               }
             }
-            // 直接尝试 svc.rawData
+            // 直接尝试 svc.rawData / svc.msg
             const directRaw = (svc as Record<string, unknown>).rawData
               ?? (svc as Record<string, unknown>).raw_data
               ?? (svc as Record<string, unknown>).rawHex
-              ?? (svc as Record<string, unknown>).raw_hex;
+              ?? (svc as Record<string, unknown>).raw_hex
+              ?? (svc as Record<string, unknown>).msg;
             if (typeof directRaw === 'string' && isIsnbHexFrame(directRaw)) {
               return directRaw.replace(/\s/g, '');
             }

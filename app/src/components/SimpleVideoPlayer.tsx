@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { X, Play, Pause, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { logger } from '@/lib/logger';
+
+/* ── 心跳/保活常量 ── */
+const HEARTBEAT_INTERVAL = 30000;
+const STALL_THRESHOLD = 60000;
+const RECOVERY_TIMEOUT = 15000;
 
 export function HlsVideoPlayer({
   src,
@@ -13,6 +19,26 @@ export function HlsVideoPlayer({
 }) {
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState(false);
+  const lastFragTimeRef = useRef<number>(Date.now());
+  const stalledTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryCountRef = useRef(0);
+  const isRecoveringRef = useRef(false);
+
+  const clearAllTimers = useCallback(() => {
+    if (stalledTimerRef.current) clearTimeout(stalledTimerRef.current);
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    stalledTimerRef.current = null;
+    heartbeatRef.current = null;
+  }, []);
+
+  const reportError = useCallback(() => {
+    if (isRecoveringRef.current) return;
+    isRecoveringRef.current = true;
+    setError(true);
+    onError?.();
+    setTimeout(() => { isRecoveringRef.current = false; }, 2000);
+  }, [onError]);
 
   useEffect(() => {
     if (!src || !src.trim()) {
@@ -21,6 +47,8 @@ export function HlsVideoPlayer({
       return;
     }
     setError(false);
+    retryCountRef.current = 0;
+    lastFragTimeRef.current = Date.now();
 
     const video = videoRef.current;
     if (!video) {
@@ -33,6 +61,7 @@ export function HlsVideoPlayer({
 
     const cleanup = () => {
       destroyed = true;
+      clearAllTimers();
       try {
         if (hlsRef.current) {
           hlsRef.current.destroy();
@@ -46,6 +75,51 @@ export function HlsVideoPlayer({
       }
     };
 
+    const handleStalled = () => {
+      if (destroyed) return;
+      if (stalledTimerRef.current) clearTimeout(stalledTimerRef.current);
+      stalledTimerRef.current = setTimeout(() => {
+        if (!destroyed && (video.paused || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)) {
+          logger.warn('[SimpleVideo] recovery timeout after stalled');
+          reportError();
+        }
+      }, RECOVERY_TIMEOUT);
+    };
+
+    const handlePlaying = () => {
+      if (destroyed) return;
+      if (stalledTimerRef.current) {
+        clearTimeout(stalledTimerRef.current);
+        stalledTimerRef.current = null;
+      }
+      lastFragTimeRef.current = Date.now();
+      retryCountRef.current = 0;
+    };
+
+    const handleError = () => {
+      if (destroyed) return;
+      logger.warn('[SimpleVideo] native error:', video.error);
+      reportError();
+    };
+
+    video.addEventListener('stalled', handleStalled);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('error', handleError);
+
+    heartbeatRef.current = setInterval(() => {
+      if (destroyed) return;
+      const idle = Date.now() - lastFragTimeRef.current;
+      if (idle > STALL_THRESHOLD) {
+        logger.warn(`[SimpleVideo] heartbeat stall, idle=${idle}ms`);
+        reportError();
+        return;
+      }
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA && !video.paused && !video.ended) {
+        logger.warn(`[SimpleVideo] heartbeat low readyState=${video.readyState}`);
+        video.play().catch(() => {});
+      }
+    }, HEARTBEAT_INTERVAL);
+
     try {
       const looksLikeHls =
         src.includes('.m3u8') || src.includes('/hls.') || /\.m3u8(\?|$)/i.test(src);
@@ -58,21 +132,31 @@ export function HlsVideoPlayer({
           manifestLoadingMaxRetry: 2,
           levelLoadingTimeOut: 10000,
           levelLoadingMaxRetry: 2,
+          fragLoadingTimeOut: 10000,
+          fragLoadingMaxRetry: 2,
         });
         hlsRef.current = hls;
         hls.loadSource(src);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (!destroyed) {
-            video.play().catch((err) => console.warn('[HLS] autoplay blocked:', err));
+            video.play().catch((err) => logger.warn('[SimpleVideo] autoplay blocked:', err));
           }
+        });
+        hls.on(Hls.Events.FRAG_LOADED, () => {
+          if (!destroyed) lastFragTimeRef.current = Date.now();
         });
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (destroyed) return;
           if (data.fatal) {
-            console.warn('[HLS] fatal error:', data.type, data.details);
-            setError(true);
-            onError?.();
+            logger.warn('[SimpleVideo] fatal error:', data.type, data.details);
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && retryCountRef.current < 3) {
+              retryCountRef.current++;
+              logger.info(`[SimpleVideo] auto-recovery ${retryCountRef.current}/3`);
+              hls.startLoad();
+              return;
+            }
+            reportError();
             cleanup();
           }
         });
@@ -80,21 +164,22 @@ export function HlsVideoPlayer({
         video.src = src;
         const onLoaded = () => {
           if (!destroyed) {
-            video.play().catch((err) => console.warn('[Video] autoplay blocked:', err));
+            video.play().catch((err) => logger.warn('[SimpleVideo] autoplay blocked:', err));
           }
         };
         const onErr = () => {
-          if (!destroyed) {
-            setError(true);
-            onError?.();
-          }
+          if (!destroyed) reportError();
         };
         video.addEventListener('loadedmetadata', onLoaded);
         video.addEventListener('error', onErr);
         return () => {
           destroyed = true;
+          clearAllTimers();
           video.removeEventListener('loadedmetadata', onLoaded);
           video.removeEventListener('error', onErr);
+          video.removeEventListener('stalled', handleStalled);
+          video.removeEventListener('playing', handlePlaying);
+          video.removeEventListener('error', handleError);
           video.pause();
           video.removeAttribute('src');
           video.load();
@@ -104,13 +189,13 @@ export function HlsVideoPlayer({
         video.play().catch(() => {});
       }
     } catch (e) {
-      console.warn('[HLS] init error:', e);
+      logger.warn('[SimpleVideo] init error:', e);
       setError(true);
       onError?.();
     }
 
     return cleanup;
-  }, [src, videoRef, onError]);
+  }, [src, videoRef, onError, clearAllTimers, reportError]);
 
   if (error) {
     return (

@@ -37,7 +37,7 @@ export const SubsystemController = {
       let alarm = 0;
 
       if (likeConditions) {
-        const [[stats]] = await sequelize.query(`
+        const [statsRows] = await sequelize.query(`
           SELECT
             COUNT(*) AS total,
             COUNT(CASE WHEN d.online_status = 1 OR d.status = 1 THEN 1 END) AS online,
@@ -45,6 +45,7 @@ export const SubsystemController = {
           FROM fire_device d
           WHERE (${likeConditions}) AND d.device_type IS NOT NULL
         `) as any;
+        const stats = statsRows?.[0];
         total = Number(stats?.total) || 0;
         online = Number(stats?.online) || 0;
         alarm = Number(stats?.alarm) || 0;

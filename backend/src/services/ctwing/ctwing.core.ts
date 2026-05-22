@@ -1,5 +1,6 @@
 import sequelize from '@/config/database';
 import logger from '@/config/logger';
+import redis from '@/config/redis';
 import { IoTDevice, Alarm, Device, Unit } from '@/models';
 import { Op } from 'sequelize';
 import { generateAlarmNo } from '@/utils/alarmNo';
@@ -248,16 +249,15 @@ export function resolveIsnbDeviceType(devType?: number): string {
 
 /** 异步处理 CTWing 消息（设备查找、告警检测、遥测保存） */
 export async function processCtwingMessage(parsed: ReturnType<typeof parseCtwingBody>) {
-  const lockName = `ctwing_process:${parsed.deviceId}`;
+  const lockKey = `ctwing_process:${parsed.deviceId}`;
+  const lockValue = Date.now().toString();
   let transaction: any = null;
 
   try {
-    const [[lockRes]] = await sequelize.query(
-      `SELECT GET_LOCK(?, 10) AS acquired`,
-      { replacements: [lockName], type: 'SELECT' }
-    ) as any[];
-    if (!lockRes?.acquired) {
-      logger.warn(`[CTWing] 获取处理锁失败: ${lockName}`);
+    // 使用 Redis 分布式锁（15 秒自动过期，避免死锁）
+    const acquired = await redis.set(lockKey, lockValue, 'EX', 15, 'NX');
+    if (!acquired) {
+      logger.warn(`[CTWing] 获取处理锁失败: ${lockKey}`);
       return;
     }
 
@@ -365,36 +365,36 @@ export async function processCtwingMessage(parsed: ReturnType<typeof parseCtwing
         );
         logger.info(`[CTWing] 设备${isOnline ? '上线' : '离线'}: deviceId=${parsed.deviceId}`);
       }
-      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      await redis.del(lockKey);
       return;
     }
 
     if (msgTypeLower.includes('event') || msgTypeLower.includes('alarm')) {
       if (iotDevice) await createCtwingAlarm(parsed, iotDevice);
-      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      await redis.del(lockKey);
       return;
     }
 
     if (msgTypeLower.includes('upload') || msgTypeLower.includes('data') || msgTypeLower.includes('changed')) {
       if (iotDevice) await createCtwingAlarm(parsed, iotDevice);
       if (parsed.isnbFrame && iotDevice) await saveIsnbTelemetry(iotDevice.id, parsed.isnbFrame);
-      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      await redis.del(lockKey);
       return;
     }
 
     if (msgTypeLower.includes('command') || msgTypeLower.includes('response')) {
       logger.info(`[CTWing] 指令响应: deviceId=${parsed.deviceId}`);
-      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      await redis.del(lockKey);
       return;
     }
 
     if (iotDevice) await createCtwingAlarm(parsed, iotDevice);
-    await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+    await redis.del(lockKey);
   } catch (err: any) {
     if (transaction) {
       try { await transaction.rollback(); } catch {}
     }
-    try { await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {}); } catch {}
-    logger.error(`[CTWing] processCtwingMessage 失败: ${err.message}`);
+    try { await redis.del(lockKey); } catch {}
+    logger.error(`[CTWing] processCtwingMessage 失败: ${err.message}\n${err.stack || ''}`);
   }
 }

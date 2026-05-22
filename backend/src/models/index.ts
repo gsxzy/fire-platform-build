@@ -9,6 +9,7 @@ export * from './duty.model';
 export * from './dutyHandover.model';
 export * from './dutyShift.model';
 export * from './controlRoom.model';
+export * from './controlRoomVideo.model';
 export * from './plan.model';
 export * from './knowledge.model';
 export * from './iot.model';

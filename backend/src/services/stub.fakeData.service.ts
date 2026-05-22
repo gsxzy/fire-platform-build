@@ -33,7 +33,7 @@ export async function sipServerStop(_req: Request, res: Response) {
    ═══════════════════════════════════════════════════════════ */
 export async function subsystems(_req: Request, res: Response) {
   try {
-    const [[stats]] = await sequelize.query(`
+    const [statsRows] = await sequelize.query(`
       SELECT
         COUNT(*) AS total,
         COUNT(CASE WHEN status = 1 THEN 1 END) AS online,
@@ -41,6 +41,7 @@ export async function subsystems(_req: Request, res: Response) {
       FROM fire_device
       WHERE device_type IS NOT NULL AND device_type != ''
     `) as any;
+    const stats = statsRows?.[0];
 
     const total = Number(stats?.total) || 0;
     const online = Number(stats?.online) || 0;

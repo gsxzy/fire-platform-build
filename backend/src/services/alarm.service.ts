@@ -4,6 +4,7 @@ import { Alarm } from '@/models';
 import redis from '@/config/redis';
 import { generateAlarmNo } from '@/utils/alarmNo';
 import logger from '@/config/logger';
+import { addAlarmWindow } from './redisCache.service';
 
 export class AlarmService {
   // 创建告警并触发推送
@@ -106,6 +107,7 @@ export class AlarmService {
       code: data.code || data.device_type_name || raw.device_type_name || undefined,
     };
     await redis.publish('fire:alarm', JSON.stringify({ type: 'new_alarm', data: payload }));
+    await addAlarmWindow((alarm as any).id);
     return alarm;
   }
 

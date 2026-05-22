@@ -14,6 +14,10 @@ class IoTGateway {
   private mqttClient: mqtt.MqttClient | null = null;
 
   async start() {
+    if (process.env.MQTT_ENABLED === 'false') {
+      logger.info('[IoT] MQTT disabled via MQTT_ENABLED=false');
+      return;
+    }
     const mqttHost = process.env.MQTT_BROKER_HOST || 'localhost';
     const mqttPort = process.env.MQTT_BROKER_PORT || '1883';
     const brokerUrl = process.env.MQTT_BROKER_URL || `mqtt://${mqttHost}:${mqttPort}`;
@@ -63,6 +67,13 @@ class IoTGateway {
 
       // 缓存设备数据
       await redis.setex(`device:data:${deviceSn}`, 3600, JSON.stringify(data));
+
+      // 缓存传感器最新值（水压/温度/电量等）
+      await redis.setex(`sensor:latest:${deviceSn}`, 3600, JSON.stringify({
+        ...data,
+        ts: Date.now(),
+        topic,
+      }));
 
       // 按管道维度计数
       await this.incrementPipelineStats('mqtt');

@@ -13,6 +13,13 @@ if (!process.env.ZLM_SECRET) {
 }
 const ZLM_SECRET = process.env.ZLM_SECRET;
 const ZLM_PLAY_HOST = process.env.ZLM_PLAY_HOST || '127.0.0.1';
+const ZLM_PUBLIC_URL = process.env.ZLM_PUBLIC_URL;
+
+function normalizeZlmUrl(url: string): string {
+  if (!url || !ZLM_PUBLIC_URL) return url;
+  const base = ZLM_PUBLIC_URL.replace(/\/$/, '');
+  return url.replace(/^https?:\/\/[^/]+(?::\d+)?\//, `${base}/`);
+}
 
 interface CameraConfig {
   name: string;
@@ -166,10 +173,10 @@ export class ZLMService {
         name: config.name,
         streamKey: config.streamKey,
         isAlive: true,
-        flv: `http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`,
-        hls: `http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}/hls.m3u8`,
-        rtmp: `rtmp://${ZLM_PLAY_HOST}/live/${config.streamKey}`,
-        wsFlv: `ws://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`,
+        flv: normalizeZlmUrl(`http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`),
+        hls: normalizeZlmUrl(`http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}/hls.m3u8`),
+        rtmp: normalizeZlmUrl(`rtmp://${ZLM_PLAY_HOST}/live/${config.streamKey}`),
+        wsFlv: normalizeZlmUrl(`ws://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`),
       };
     } catch (err: any) {
       logger.warn(`[ZLM] 获取流状态失败 ${cameraId}: ${err.message}`);
@@ -237,10 +244,10 @@ export class ZLMService {
     const config = CAMERA_CONFIGS[cameraId];
     if (!config) return null;
     return {
-      flv: `http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`,
-      hls: `http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}/hls.m3u8`,
-      rtmp: `rtmp://${ZLM_PLAY_HOST}/live/${config.streamKey}`,
-      wsFlv: `ws://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`,
+      flv: normalizeZlmUrl(`http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`),
+      hls: normalizeZlmUrl(`http://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}/hls.m3u8`),
+      rtmp: normalizeZlmUrl(`rtmp://${ZLM_PLAY_HOST}/live/${config.streamKey}`),
+      wsFlv: normalizeZlmUrl(`ws://${ZLM_PLAY_HOST}:8081/live/${config.streamKey}.live.flv`),
     };
   }
 

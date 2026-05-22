@@ -2,7 +2,7 @@ import { Sequelize } from 'sequelize';
 
 const socketPath = process.env.DB_SOCKET_PATH;
 const host = process.env.DB_HOST || '127.0.0.1';
-const port = parseInt(process.env.DB_PORT || '3306');
+const port = parseInt(process.env.DB_PORT || '5432');
 
 if (!process.env.DB_PASSWORD) {
   console.error('[DB] 错误：未设置 DB_PASSWORD 环境变量，系统无法启动');
@@ -17,7 +17,7 @@ const sequelize = new Sequelize(
     ...(socketPath
       ? { dialectOptions: { socketPath } }
       : { host, port }),
-    dialect: 'mysql',
+    dialect: 'postgres',
     pool: {
       min: parseInt(process.env.DB_POOL_MIN || '5'),
       max: parseInt(process.env.DB_POOL_MAX || '20'),
@@ -26,8 +26,6 @@ const sequelize = new Sequelize(
     },
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     define: {
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_unicode_ci',
       timestamps: true,
       underscored: true,
       freezeTableName: true,

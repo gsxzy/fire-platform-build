@@ -5,7 +5,7 @@ import { DataTypes } from 'sequelize';
 import sequelize from '@/config/database';
 
 export const Notice = sequelize.define('notice', {
-  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
   title: { type: DataTypes.STRING(256), allowNull: true, comment: '公告标题' },
   content: { type: DataTypes.TEXT, allowNull: true, comment: '公告内容' },
   type: { type: DataTypes.STRING(32), defaultValue: 'system', comment: '类型 system/emergency/maintenance/training' },
@@ -13,11 +13,11 @@ export const Notice = sequelize.define('notice', {
   status: { type: DataTypes.INTEGER, defaultValue: 1, comment: '状态 0未发布 1已发布' },
   created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, {
-  tableName: 'notices',
+  tableName: 'sys_notice',
   timestamps: false,
   indexes: [
-    { name: 'idx_notice_type', fields: ['type'] },
-    { name: 'idx_notice_status', fields: ['status'] },
-    { name: 'idx_notice_priority', fields: ['priority'] },
+    { fields: ['type'] },
+    { fields: ['status'] },
+    { fields: ['priority'] },
   ],
 });

@@ -14,6 +14,7 @@ import net, { Socket } from 'net';
 import { gb26875Protocol, type ProtocolEvent } from './gb26875.service';
 import logger from '@/config/logger';
 import sequelize from '@/config/database';
+import { insertRawLog } from '@/services/tdengine.service';
 import { BaseProtocolServer } from './baseProtocol.server';
 
 interface GB26875Connection {
@@ -353,58 +354,46 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
   /* ───── 数据库操作 ───── */
   protected async ensureTables() {
     try {
-      await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS gb26875_raw_log (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-          device_id VARCHAR(32) DEFAULT NULL COMMENT '传输装置编号',
-          direction TINYINT DEFAULT 1 COMMENT '1=上行 2=下行',
-          cmd_type VARCHAR(8) DEFAULT NULL COMMENT '命令字',
-          raw_data BLOB COMMENT '原始报文',
-          hex_data TEXT COMMENT '报文HEX',
-          parsed_json JSON DEFAULT NULL COMMENT '解析后的JSON',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_device_id (device_id),
-          INDEX idx_created_at (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='GB26875原始报文日志'
-      `);
+      // gb26875_raw_log 已迁移至 TDengine 时序库
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS gb26875_device (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-          device_id VARCHAR(32) NOT NULL COMMENT '传输装置编号',
-          device_name VARCHAR(128) DEFAULT NULL COMMENT '装置名称',
-          ip VARCHAR(32) DEFAULT NULL COMMENT 'IP地址',
-          port INT DEFAULT 5200 COMMENT '端口',
-          building_id VARCHAR(32) DEFAULT NULL COMMENT '建筑物编号',
-          status TINYINT DEFAULT 1 COMMENT '0=离线 1=在线 2=故障',
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          device_id VARCHAR(32) NOT NULL,
+          device_name VARCHAR(128) DEFAULT NULL,
+          ip VARCHAR(32) DEFAULT NULL,
+          port INT DEFAULT 5200,
+          building_id VARCHAR(32) DEFAULT NULL,
+          status SMALLINT DEFAULT 1,
           last_heartbeat TIMESTAMP DEFAULT NULL,
           login_time TIMESTAMP DEFAULT NULL,
           version VARCHAR(32) DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY uk_device_id (device_id),
-          INDEX idx_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='GB26875传输装置表'
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT uk_gb_device_id UNIQUE(device_id)
+        )
       `);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_gb_device_status ON gb26875_device(status)`);
+
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS gb26875_alarm (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-          device_id VARCHAR(32) NOT NULL COMMENT '传输装置编号',
-          host_code VARCHAR(32) DEFAULT NULL COMMENT '主机编号',
-          loop_no INT DEFAULT NULL COMMENT '回路号',
-          address INT DEFAULT NULL COMMENT '设备地址',
-          device_type VARCHAR(64) DEFAULT NULL COMMENT '设备类型',
-          alarm_type VARCHAR(64) DEFAULT NULL COMMENT '报警类型',
-          alarm_level TINYINT DEFAULT 1 COMMENT '报警等级',
-          location VARCHAR(128) DEFAULT NULL COMMENT '位置',
-          status TINYINT DEFAULT 1 COMMENT '1=报警中 2=已恢复',
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+          device_id VARCHAR(32) NOT NULL,
+          host_code VARCHAR(32) DEFAULT NULL,
+          loop_no INT DEFAULT NULL,
+          address INT DEFAULT NULL,
+          device_type VARCHAR(64) DEFAULT NULL,
+          alarm_type VARCHAR(64) DEFAULT NULL,
+          alarm_level SMALLINT DEFAULT 1,
+          location VARCHAR(128) DEFAULT NULL,
+          status SMALLINT DEFAULT 1,
           alarm_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           recover_time TIMESTAMP DEFAULT NULL,
-          raw_data TEXT DEFAULT NULL,
-          INDEX idx_device_id (device_id),
-          INDEX idx_alarm_time (alarm_time),
-          INDEX idx_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='GB26875报警记录表'
+          raw_data TEXT DEFAULT NULL
+        )
       `);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_gb_alm_device ON gb26875_alarm(device_id)`);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_gb_alm_time ON gb26875_alarm(alarm_time)`);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_gb_alm_status ON gb26875_alarm(status)`);
       logger.info('[GB26875] 数据表检查/创建完成');
     } catch (err: any) {
       logger.error(`[GB26875] 建表失败: ${err.message}`);
@@ -413,11 +402,12 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
 
   private async saveRawLog(deviceId: string, direction: number, cmdType: string, rawBuf: Buffer, parsed: any) {
     try {
-      await sequelize.query(
-        `INSERT INTO gb26875_raw_log (device_id, direction, cmd_type, raw_data, hex_data, parsed_json)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        { replacements: [deviceId, direction, cmdType, rawBuf, rawBuf.toString('hex').toUpperCase(), JSON.stringify(parsed)] }
-      );
+      await insertRawLog('gb26875', deviceId, {
+        direction: direction === 1 ? 'RX' : 'TX',
+        cmd_type: cmdType,
+        hex_data: rawBuf.toString('hex').toUpperCase(),
+        raw_json: JSON.stringify(parsed),
+      });
     } catch (err: any) {
       logger.error(`[GB26875] 保存报文失败: ${err.message}`);
     }
@@ -428,7 +418,7 @@ export class GB26875Server extends BaseProtocolServer<GB26875Connection> {
       await sequelize.query(
         `INSERT INTO gb26875_device (device_id, ip, status, last_heartbeat, updated_at)
          VALUES (?, ?, 1, NOW(), NOW())
-         ON DUPLICATE KEY UPDATE ip=VALUES(ip), status=VALUES(status), last_heartbeat=VALUES(last_heartbeat), updated_at=NOW()`,
+         ON CONFLICT (device_id) DO UPDATE SET ip=EXCLUDED.ip, status=EXCLUDED.status, last_heartbeat=EXCLUDED.last_heartbeat, updated_at=NOW()`,
         { replacements: [deviceId, ip] }
       );
       // 同步更新统一设备模型

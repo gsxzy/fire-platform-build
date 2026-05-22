@@ -8,16 +8,16 @@ const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export async function ensureRefreshTokenTable(): Promise<void> {
   await sequelize.query(`
     CREATE TABLE IF NOT EXISTS sys_refresh_tokens (
-      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
       token VARCHAR(128) NOT NULL UNIQUE,
       user_id VARCHAR(64) NOT NULL,
       username VARCHAR(64) NOT NULL,
-      roles JSON,
+      roles JSONB,
       expires_at BIGINT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_user_id (user_id),
-      INDEX idx_expires_at (expires_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_refresh_user_id ON sys_refresh_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_refresh_expires_at ON sys_refresh_tokens(expires_at)
   `);
 }
 
@@ -36,7 +36,7 @@ export async function storeRefreshToken(
     await sequelize.query(
       `INSERT INTO sys_refresh_tokens (token, user_id, username, roles, expires_at)
        VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE user_id=VALUES(user_id), username=VALUES(username), roles=VALUES(roles), expires_at=VALUES(expires_at)`,
+       ON CONFLICT (token) DO UPDATE SET user_id=EXCLUDED.user_id, username=EXCLUDED.username, roles=EXCLUDED.roles, expires_at=EXCLUDED.expires_at`,
       { replacements: [token, String(userId), username, JSON.stringify(roles ?? []), expiresAt] }
     );
   } catch (e: unknown) {

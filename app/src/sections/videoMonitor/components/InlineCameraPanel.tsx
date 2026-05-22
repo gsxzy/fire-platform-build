@@ -31,6 +31,11 @@ function InfoRow({ label, value, valueColor = 'text-slate-300' }: { label: strin
   );
 }
 
+/** 流 URL 刷新心跳间隔：45 秒 */
+const STREAM_REFRESH_INTERVAL = 45000;
+/** 错误后刷新延迟：3 秒 */
+const ERROR_REFRESH_DELAY = 3000;
+
 export default function InlineCameraPanel({ camera }: { camera: CameraType }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,47 +47,104 @@ export default function InlineCameraPanel({ camera }: { camera: CameraType }) {
   const [streamUrl, setStreamUrl] = useState<string>(camera.streamUrl || '');
   const [streamLoading, setStreamLoading] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
+  /* ── 初始加载 + 心跳刷新 ── */
   useEffect(() => {
-    const devId = camera.deviceId;
-    const chId = camera.channelId;
-    if (!streamUrl && devId && chId) {
+    isMountedRef.current = true;
+
+    const loadStream = async (isRefresh = false) => {
+      const devId = camera.deviceId;
+      const chId = camera.channelId;
+      if (!devId || !chId) return;
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) {
+        setStreamLoading(true);
+        setStreamError(null);
+      }
+      try {
+        const res = await gb28181Service.getStreamUrl(devId, chId);
+        if (isMountedRef.current && res.data?.streamUrl) {
+          setStreamUrl(res.data.streamUrl);
+        } else if (isMountedRef.current) {
+          const s = await videoApi.getStream(devId, chId);
+          if (s.streamUrl) {
+            setStreamUrl(s.streamUrl);
+          } else if (!isRefresh) {
+            setStreamError('取流返回空地址');
+          }
+        }
+      } catch {
+        if (isMountedRef.current) {
+          try {
+            const s = await videoApi.getStream(devId, chId);
+            if (s.streamUrl) {
+              setStreamUrl(s.streamUrl);
+            } else if (!isRefresh) {
+              setStreamError('取流返回空地址');
+            }
+          } catch (err: any) {
+            if (!isRefresh) setStreamError(err?.message || '取流失败');
+          }
+        }
+      } finally {
+        if (isMountedRef.current && !isRefresh) setStreamLoading(false);
+      }
+    };
+
+    if (!streamUrl) {
+      loadStream(false);
+    }
+
+    if (camera.deviceId && camera.channelId) {
+      heartbeatRef.current = setInterval(() => {
+        logger.info(`[InlineCameraPanel] heartbeat refresh: ${camera.name}`);
+        loadStream(true);
+      }, STREAM_REFRESH_INTERVAL);
+    }
+
+    return () => {
+      isMountedRef.current = false;
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    };
+  }, [camera.deviceId, camera.channelId, camera.name, streamUrl]);
+
+  /* ── 播放器错误回调 ── */
+  const handlePlayerError = () => {
+    logger.warn(`[InlineCameraPanel] player error, will refresh: ${camera.name}`);
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    refreshTimeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      const devId = camera.deviceId;
+      const chId = camera.channelId;
+      if (!devId || !chId) return;
+      logger.info(`[InlineCameraPanel] refreshing stream after error: ${camera.name}`);
       setStreamLoading(true);
-      setStreamError(null);
       gb28181Service.getStreamUrl(devId, chId)
         .then(res => {
-          if (res.data?.streamUrl) {
+          if (isMountedRef.current && res.data?.streamUrl) {
             setStreamUrl(res.data.streamUrl);
-          } else {
+          } else if (isMountedRef.current) {
             videoApi.getStream(devId, chId)
-              .then(s => {
-                if (s.streamUrl) {
-                  setStreamUrl(s.streamUrl);
-                } else {
-                  setStreamError('取流返回空地址');
-                }
-              })
-              .catch(err => {
-                setStreamError(err?.message || '取流失败');
-              });
+              .then(s => { if (s.streamUrl) setStreamUrl(s.streamUrl); })
+              .catch(() => {})
+              .finally(() => { if (isMountedRef.current) setStreamLoading(false); });
+            return;
           }
+          if (isMountedRef.current) setStreamLoading(false);
         })
         .catch(() => {
           videoApi.getStream(devId, chId)
-            .then(s => {
-              if (s.streamUrl) {
-                setStreamUrl(s.streamUrl);
-              } else {
-                setStreamError('取流返回空地址');
-              }
-            })
-            .catch(err => {
-              setStreamError(err?.message || '取流失败');
-            });
-        })
-        .finally(() => setStreamLoading(false));
-    }
-  }, [camera.deviceId, camera.channelId, streamUrl]);
+            .then(s => { if (isMountedRef.current && s.streamUrl) setStreamUrl(s.streamUrl); })
+            .catch(() => {})
+            .finally(() => { if (isMountedRef.current) setStreamLoading(false); });
+        });
+    }, ERROR_REFRESH_DELAY);
+  };
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -172,7 +234,13 @@ export default function InlineCameraPanel({ camera }: { camera: CameraType }) {
                   <span className="text-xs text-slate-400">正在获取视频流...</span>
                 </div>
               ) : streamUrl ? (
-                <HlsVideoPlayer src={streamUrl} label={camera.name} videoRef={videoRef} />
+                <HlsVideoPlayer
+                  src={streamUrl}
+                  label={camera.name}
+                  videoRef={videoRef}
+                  onError={handlePlayerError}
+                  keepalive
+                />
               ) : (
                 <>
                   <SimulatedVideo label={camera.name} />

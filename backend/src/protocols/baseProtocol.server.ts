@@ -108,12 +108,12 @@ export abstract class BaseProtocolServer<T extends BaseConnection> extends Event
       await sequelize.query(
         `INSERT INTO fire_device (device_no, device_sn, device_name, device_type, unit_id, status, lifecycle_status, last_online, protocol_type, created_at, updated_at)
          VALUES (?, ?, ?, '传输装置', NULL, ?, 2, NOW(), ?, NOW(), NOW())
-         ON DUPLICATE KEY UPDATE
-           device_sn = VALUES(device_sn),
-           status = VALUES(status),
-           lifecycle_status = VALUES(lifecycle_status),
-           last_online = VALUES(last_online),
-           protocol_type = VALUES(protocol_type),
+         ON CONFLICT (device_no) DO UPDATE SET
+           device_sn = EXCLUDED.device_sn,
+           status = EXCLUDED.status,
+           lifecycle_status = EXCLUDED.lifecycle_status,
+           last_online = EXCLUDED.last_online,
+           protocol_type = EXCLUDED.protocol_type,
            updated_at = NOW()`,
         { replacements: [deviceSn, deviceSn, deviceSn, status, this.protocolName] }
       );

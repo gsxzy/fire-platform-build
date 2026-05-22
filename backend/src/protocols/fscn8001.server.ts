@@ -10,6 +10,7 @@ import sequelize from '@/config/database';
 import { Device, Unit } from '@/models';
 import logger from '@/config/logger';
 import { AlarmService } from '@/services/alarm.service';
+import { insertRawLog } from '@/services/tdengine.service';
 import { generateAlarmNo } from '@/utils/alarmNo';
 import { BaseProtocolServer } from './baseProtocol.server';
 import {
@@ -310,38 +311,27 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
   /* ───── 数据库操作 ───── */
   protected async ensureTables() {
     try {
-      await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS fscn8001_raw_log (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
-          device_sn VARCHAR(32) DEFAULT NULL,
-          direction VARCHAR(8) DEFAULT 'RX',
-          cmd_type VARCHAR(8) DEFAULT NULL,
-          hex_data TEXT,
-          parsed_json JSON DEFAULT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_device_sn (device_sn),
-          INDEX idx_created_at (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-      `);
+      // fscn8001_raw_log 已迁移至 TDengine 时序库
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS fscn8001_device (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           device_sn VARCHAR(32) NOT NULL,
           device_name VARCHAR(128) DEFAULT NULL,
           ip VARCHAR(32) DEFAULT NULL,
           port INT DEFAULT 5201,
-          status TINYINT DEFAULT 1,
+          status SMALLINT DEFAULT 1,
           last_heartbeat TIMESTAMP DEFAULT NULL,
           login_time TIMESTAMP DEFAULT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          UNIQUE KEY uk_sn (device_sn),
-          INDEX idx_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT uk_fscn_sn UNIQUE(device_sn)
+        )
       `);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_fscn_device_status ON fscn8001_device(status)`);
+
       await sequelize.query(`
         CREATE TABLE IF NOT EXISTS fscn8001_alarm (
-          id BIGINT PRIMARY KEY AUTO_INCREMENT,
+          id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
           device_sn VARCHAR(32) NOT NULL,
           alarm_type VARCHAR(32) DEFAULT NULL,
           alarm_level VARCHAR(16) DEFAULT NULL,
@@ -350,13 +340,13 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
           address INT DEFAULT NULL,
           host_code VARCHAR(32) DEFAULT NULL,
           device_type VARCHAR(32) DEFAULT NULL,
-          status TINYINT DEFAULT 0,
+          status SMALLINT DEFAULT 0,
           alarm_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          raw_data TEXT,
-          INDEX idx_device_sn (device_sn),
-          INDEX idx_alarm_time (alarm_time)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+          raw_data TEXT
+        )
       `);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_fscn_alm_sn ON fscn8001_alarm(device_sn)`);
+      await sequelize.query(`CREATE INDEX IF NOT EXISTS idx_fscn_alm_time ON fscn8001_alarm(alarm_time)`);
       logger.info('[FSCN8001] 数据表检查/创建完成');
     } catch (err: any) {
       logger.error(`[FSCN8001] 建表失败: ${err.message}`);
@@ -369,13 +359,13 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
       await sequelize.query(
         `INSERT INTO fscn8001_device (device_sn, device_name, ip, port, status, last_heartbeat, login_time, updated_at)
          VALUES (?, ?, ?, ?, 1, NOW(), NOW(), NOW())
-         ON DUPLICATE KEY UPDATE
-           device_name = VALUES(device_name),
-           ip = VALUES(ip),
-           port = VALUES(port),
+         ON CONFLICT (device_sn) DO UPDATE SET
+           device_name = EXCLUDED.device_name,
+           ip = EXCLUDED.ip,
+           port = EXCLUDED.port,
            status = 1,
-           last_heartbeat = VALUES(last_heartbeat),
-           login_time = VALUES(login_time),
+           last_heartbeat = EXCLUDED.last_heartbeat,
+           login_time = EXCLUDED.login_time,
            updated_at = NOW()`,
         { replacements: [deviceId, deviceName, ip || null, port || null] }
       );
@@ -402,11 +392,12 @@ export class FSCN8001Server extends BaseProtocolServer<FSCN8001Connection> {
 
   private async saveRawLog(deviceId: string, direction: string, cmdType: string, hexData: string, parsed: Record<string, unknown> | null) {
     try {
-      await sequelize.query(
-        `INSERT INTO fscn8001_raw_log (device_sn, direction, cmd_type, hex_data, parsed_json)
-         VALUES (?, ?, ?, ?, ?)`,
-        { replacements: [deviceId, direction, cmdType, hexData, parsed ? JSON.stringify(parsed) : null] }
-      );
+      await insertRawLog('fscn8001', deviceId, {
+        direction,
+        cmd_type: cmdType,
+        hex_data: hexData,
+        raw_json: parsed ? JSON.stringify(parsed) : undefined,
+      });
     } catch (err: any) {
       logger.error(`[FSCN8001] raw_log 写入失败: ${err.message}`);
     }

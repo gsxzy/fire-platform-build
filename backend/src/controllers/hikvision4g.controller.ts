@@ -15,6 +15,7 @@ import sequelize from '@/config/database';
 import redis from '@/config/redis';
 import { generateAlarmNo } from '@/utils/alarmNo';
 import { WebSocketService } from '@/websocket/websocket.service';
+import { insertRawLog } from '@/services/tdengine.service';
 
 if (!process.env.HIKVISION_4G_API_KEY) {
   logger.error('[Hik4G] 错误：未设置 HIKVISION_4G_API_KEY 环境变量');
@@ -42,41 +43,18 @@ function checkIotWhitelist(req: Request, res: Response): boolean {
   return true;
 }
 
-/** 原始数据落库（调试用，也用于后续逆向分析真实格式） */
+/** 原始数据落库 → TDengine 时序库 */
 async function saveRawLog(deviceSn: string, eventType: string, rawBody: unknown) {
   try {
-    await sequelize.query(
-      `INSERT INTO hikvision4g_raw_log (device_sn, event_type, raw_json, created_at)
-       VALUES (?, ?, ?, NOW())`,
-      { replacements: [deviceSn, eventType, JSON.stringify(rawBody)] }
-    );
+    await insertRawLog('hikvision4g', deviceSn, {
+      direction: 'RX',
+      cmd_type: eventType,
+      raw_json: JSON.stringify(rawBody),
+    });
   } catch (err: any) {
-    // 表可能不存在，静默忽略
-    if (!err.message?.includes('ER_NO_SUCH_TABLE')) {
-      logger.error(`[Hik4G] 保存原始日志失败: ${err.message}`);
-    }
+    logger.error(`[Hik4G] 保存原始日志失败: ${err.message}`);
   }
 }
-
-/** 确保原始日志表存在 */
-async function ensureRawLogTable() {
-  try {
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS hikvision4g_raw_log (
-        id BIGINT PRIMARY KEY AUTO_INCREMENT,
-        device_sn VARCHAR(100) NOT NULL,
-        event_type VARCHAR(32) DEFAULT NULL,
-        raw_json JSON DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_device_sn (device_sn),
-        INDEX idx_created_at (created_at)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='海康4G设备原始上报日志'
-    `);
-  } catch (err: any) {
-    logger.error(`[Hik4G] 建表失败: ${err.message}`);
-  }
-}
-ensureRawLogTable();
 
 /** 解析多种可能的海康字段格式 */
 function resolveDeviceSn(body: Record<string, unknown>): string {
@@ -308,11 +286,9 @@ async function syncUnifiedDevice(deviceSn: string, _ip: string | null, deviceTyp
       : '4G物联网设备';
 
     // ── 获取分布式锁，防止并发注册同一设备产生重复档案 ──
-    const [[lockRes]] = await sequelize.query(
-      `SELECT GET_LOCK(?, 10) AS acquired`,
-      { replacements: [lockName], type: 'SELECT' }
-    ) as any[];
-    if (!lockRes?.acquired) {
+    const lockValue = Date.now().toString();
+    const acquired = await redis.set(lockName, lockValue, 'EX', 15, 'NX');
+    if (!acquired) {
       logger.warn(`[Hik4G] 获取锁失败: ${lockName}`);
       return null;
     }
@@ -334,7 +310,7 @@ async function syncUnifiedDevice(deviceSn: string, _ip: string | null, deviceTyp
       if (state === 'offline') {
         await heartbeatService.markOffline(deviceId);
       }
-      await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+      await redis.del(lockName);
       return deviceId;
     }
 
@@ -370,10 +346,10 @@ async function syncUnifiedDevice(deviceSn: string, _ip: string | null, deviceTyp
         await heartbeatService.markOffline(deviceId);
       }
     }
-    await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {});
+    await redis.del(lockName);
     return deviceId;
   } catch (err: any) {
-    try { await sequelize.query(`SELECT RELEASE_LOCK(?)`, { replacements: [lockName] }).catch(() => {}); } catch {}
+    try { await redis.del(lockName); } catch {}
     logger.error(`[Hik4G] 同步统一设备失败: ${err.message}`);
     return null;
   }

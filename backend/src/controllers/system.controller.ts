@@ -233,8 +233,10 @@ export const SystemController = {
     const loadAvg = os.loadavg();
     const cpuPercent = cpus.length > 0 ? Math.min(100, Math.round((loadAvg[0] / cpus.length) * 100)) : 0;
 
-    const [[dev]] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive`) as any;
-    const [[online]] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive WHERE status='normal'`) as any;
+    const [devRows] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive`) as any;
+    const dev = devRows?.[0];
+    const [onlineRows] = await sequelize.query(`SELECT COUNT(*) as c FROM device_archive WHERE status='normal'`) as any;
+    const online = onlineRows?.[0];
 
     const metrics = [
       { name: 'CPU使用率', value: cpuPercent, unit: '%', status: cpuPercent > 80 ? 'critical' : cpuPercent > 60 ? 'warning' : 'normal', trend: 'stable', history: [cpuPercent] },

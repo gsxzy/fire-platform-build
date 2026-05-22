@@ -10,6 +10,9 @@ export const ControlRoomController = {
   delete: room.remove,
   detail: room.detail,
   videoList: room.videoList,
+  videoCandidates: room.videoCandidates,
+  videoLink: room.videoLink,
+  videoUnlink: room.videoUnlink,
 
   hostList: host.hostList,
   hostCreate: host.hostCreate,

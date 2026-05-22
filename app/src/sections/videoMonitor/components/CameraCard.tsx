@@ -3,6 +3,7 @@ import { VideoOff, MonitorPlay } from 'lucide-react';
 import type { Camera as CameraType } from '@/types/db';
 import { gb28181Service } from '@/api/services';
 import * as videoApi from '@/api/videoService';
+import { logger } from '@/lib/logger';
 import HlsVideoPlayer from './HlsVideoPlayer';
 import SimulatedVideo from './SimulatedVideo';
 
@@ -13,35 +14,106 @@ interface CameraCardProps {
   isSingle?: boolean;
 }
 
+/** 流 URL 刷新心跳间隔：45 秒 */
+const STREAM_REFRESH_INTERVAL = 45000;
+/** 错误后刷新延迟：3 秒 */
+const ERROR_REFRESH_DELAY = 3000;
+
 export default function CameraCard({ camera, onClick, onDoubleClick, isSingle }: CameraCardProps) {
   const isOnline = camera.onlineStatus === 'online';
   const clickTimer = useRef<number | null>(null);
   const [streamUrl, setStreamUrl] = useState<string>(camera.streamUrl || '');
   const [streamLoading, setStreamLoading] = useState(false);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
+  /* ── 初始加载 + 心跳刷新 ── */
   useEffect(() => {
-    const devId = camera.deviceId;
-    const chId = camera.channelId;
-    if (!streamUrl && devId && chId && isOnline) {
+    isMountedRef.current = true;
+
+    const loadStream = async (isRefresh = false) => {
+      const devId = camera.deviceId;
+      const chId = camera.channelId;
+      if (!devId || !chId || !isOnline) return;
+      if (!isMountedRef.current) return;
+
+      if (!isRefresh) setStreamLoading(true);
+      try {
+        const res = await gb28181Service.getStreamUrl(devId, chId);
+        if (isMountedRef.current && res.data?.streamUrl) {
+          setStreamUrl(res.data.streamUrl);
+        } else if (isMountedRef.current) {
+          const s = await videoApi.getStream(devId, chId);
+          if (s.streamUrl) setStreamUrl(s.streamUrl);
+        }
+      } catch {
+        if (isMountedRef.current) {
+          try {
+            const s = await videoApi.getStream(devId, chId);
+            if (s.streamUrl) setStreamUrl(s.streamUrl);
+          } catch {
+            /* ignore */
+          }
+        }
+      } finally {
+        if (isMountedRef.current && !isRefresh) setStreamLoading(false);
+      }
+    };
+
+    // 首次加载
+    if (!streamUrl) {
+      loadStream(false);
+    }
+
+    // 心跳保活：定时刷新流 URL，保持后端 WVP 会话活跃
+    if (isOnline && camera.deviceId && camera.channelId) {
+      heartbeatRef.current = setInterval(() => {
+        logger.info(`[CameraCard] heartbeat refresh: ${camera.name}`);
+        loadStream(true);
+      }, STREAM_REFRESH_INTERVAL);
+    }
+
+    return () => {
+      isMountedRef.current = false;
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    };
+  }, [camera.deviceId, camera.channelId, camera.onlineStatus, camera.name, isOnline, streamUrl]);
+
+  /* ── 播放器错误回调：延迟后刷新流 URL ── */
+  const handlePlayerError = () => {
+    logger.warn(`[CameraCard] player error, will refresh: ${camera.name}`);
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+    refreshTimeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      const devId = camera.deviceId;
+      const chId = camera.channelId;
+      if (!devId || !chId || !isOnline) return;
+      logger.info(`[CameraCard] refreshing stream after error: ${camera.name}`);
       setStreamLoading(true);
       gb28181Service.getStreamUrl(devId, chId)
         .then(res => {
-          if (res.data?.streamUrl) {
+          if (isMountedRef.current && res.data?.streamUrl) {
             setStreamUrl(res.data.streamUrl);
-          } else {
+          } else if (isMountedRef.current) {
             videoApi.getStream(devId, chId)
               .then(s => { if (s.streamUrl) setStreamUrl(s.streamUrl); })
-              .catch(() => {});
+              .catch(() => {})
+              .finally(() => { if (isMountedRef.current) setStreamLoading(false); });
+            return;
           }
+          if (isMountedRef.current) setStreamLoading(false);
         })
         .catch(() => {
           videoApi.getStream(devId, chId)
-            .then(s => { if (s.streamUrl) setStreamUrl(s.streamUrl); })
-            .catch(() => {});
-        })
-        .finally(() => setStreamLoading(false));
-    }
-  }, [camera.deviceId, camera.channelId, streamUrl, isOnline]);
+            .then(s => { if (isMountedRef.current && s.streamUrl) setStreamUrl(s.streamUrl); })
+            .catch(() => {})
+            .finally(() => { if (isMountedRef.current) setStreamLoading(false); });
+        });
+    }, ERROR_REFRESH_DELAY);
+  };
 
   const handleClick = () => {
     if (clickTimer.current) {
@@ -69,7 +141,12 @@ export default function CameraCard({ camera, onClick, onDoubleClick, isSingle }:
         {isOnline ? (
           <div className="absolute inset-0">
             {streamUrl ? (
-              <HlsVideoPlayer src={streamUrl} label={camera.name} />
+              <HlsVideoPlayer
+                src={streamUrl}
+                label={camera.name}
+                onError={handlePlayerError}
+                keepalive
+              />
             ) : streamLoading ? (
               <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center gap-2">
                 <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />

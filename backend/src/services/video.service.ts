@@ -16,6 +16,7 @@ if (!process.env.ZLM_PLAY_HOST) {
   throw new Error('[Video] 错误：未设置 ZLM_PLAY_HOST 环境变量');
 }
 const ZLM_PLAY_HOST = process.env.ZLM_PLAY_HOST;
+const ZLM_PUBLIC_URL = process.env.ZLM_PUBLIC_URL;
 
 /* ═════ 设备ID → ZLM摄像头ID 映射（集中定义，消除重复）═════ */
 const CAMERA_ID_MAP: Record<string, string> = {
@@ -35,6 +36,12 @@ function replaceLocalhost(url: string): string {
     .replace(/127\.0\.0\.1:8081/g, `${ZLM_PLAY_HOST}:8081`)
     .replace(/127\.0\.0\.1:443/g, `${ZLM_PLAY_HOST}:443`)
     .replace(/127\.0\.0\.1:10001/g, `${ZLM_PLAY_HOST}:10001`);
+}
+
+function normalizeZlmUrl(url: string): string {
+  if (!url || !ZLM_PUBLIC_URL) return url;
+  const base = ZLM_PUBLIC_URL.replace(/\/$/, '');
+  return url.replace(/^https?:\/\/[^/]+(?::\d+)?\//, `${base}/`);
 }
 
 export interface UnifiedStreamInfo {
@@ -402,8 +409,8 @@ export class VideoService {
      ══════════════════════════════════════════════════════════════ */
 
   private static wvpPlayToPayload(s: WVP.WVPStreamInfo, deviceId: string, channelId: string): UnifiedStreamInfo {
-    const rawFlv = replaceLocalhost((s.flv || s.wsFlv || '').trim());
-    const rawHls = replaceLocalhost((s.httpsHls || s.hls || s.wsHls || '').trim());
+    const rawFlv = normalizeZlmUrl(replaceLocalhost((s.flv || s.wsFlv || '').trim()));
+    const rawHls = normalizeZlmUrl(replaceLocalhost((s.httpsHls || s.hls || s.wsHls || '').trim()));
     let hls = rawHls;
     if (!hls && rawFlv) {
       hls = rawFlv.replace(/\.live\.flv(?:\?.*)?$/, '/hls.m3u8');
@@ -415,12 +422,12 @@ export class VideoService {
       channelId,
       flv,
       hls,
-      rtmp: replaceLocalhost((s.rtmp || '').trim()),
-      rtsps: replaceLocalhost((s.rtsps || '').trim()),
-      rtc: replaceLocalhost((s.rtc || '').trim()),
-      wsFlv: replaceLocalhost((s.wsFlv || '').trim()),
-      httpsFlv: replaceLocalhost((s.httpsFlv || '').trim()),
-      httpsHls: replaceLocalhost((s.httpsHls || '').trim()),
+      rtmp: normalizeZlmUrl(replaceLocalhost((s.rtmp || '').trim())),
+      rtsps: normalizeZlmUrl(replaceLocalhost((s.rtsps || '').trim())),
+      rtc: normalizeZlmUrl(replaceLocalhost((s.rtc || '').trim())),
+      wsFlv: normalizeZlmUrl(replaceLocalhost((s.wsFlv || '').trim())),
+      httpsFlv: normalizeZlmUrl(replaceLocalhost((s.httpsFlv || '').trim())),
+      httpsHls: normalizeZlmUrl(replaceLocalhost((s.httpsHls || '').trim())),
       streamId: (s.streamId || '').trim(),
       mediaServerId: (s.mediaServerId || '').trim(),
       startTime: s.startTime || new Date().toISOString(),

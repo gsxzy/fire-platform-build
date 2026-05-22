@@ -3,10 +3,10 @@ import sequelize from '@/config/database';
 
 /* ── 2. 单位管理 ── */
 export const Unit = sequelize.define('unit', {
-  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
+  id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
   unit_name: { type: DataTypes.STRING(200), allowNull: false },
   unit_code: { type: DataTypes.STRING(50), unique: true },
-  unit_type: { type: DataTypes.TINYINT, defaultValue: 1, comment: '1一般单位 2重点单位 3九小场所' },
+  unit_type: { type: DataTypes.SMALLINT, defaultValue: 1, comment: '1一般单位 2重点单位 3九小场所' },
   address: DataTypes.STRING(300),
   lng: DataTypes.DECIMAL(10, 7),
   lat: DataTypes.DECIMAL(10, 7),
@@ -17,16 +17,16 @@ export const Unit = sequelize.define('unit', {
   license_no: DataTypes.STRING(64),
   building_area: DataTypes.DECIMAL(10, 2),
   floor_count: DataTypes.INTEGER,
-  fire_level: { type: DataTypes.TINYINT, defaultValue: 1, comment: '消防等级 1-5' },
-  status: { type: DataTypes.TINYINT, defaultValue: 1 },
+  fire_level: { type: DataTypes.SMALLINT, defaultValue: 1, comment: '消防等级 1-5' },
+  status: { type: DataTypes.SMALLINT, defaultValue: 1 },
   remark: DataTypes.TEXT,
 }, {
   tableName: 'fire_unit',
   comment: '消防单位表',
   indexes: [
-    { name: 'idx_unit_code', fields: ['unit_code'] },
-    { name: 'idx_unit_type', fields: ['unit_type'] },
-    { name: 'idx_status', fields: ['status'] },
-    { name: 'idx_fire_level', fields: ['fire_level'] },
+    { fields: ['unit_code'] },
+    { fields: ['unit_type'] },
+    { fields: ['status'] },
+    { fields: ['fire_level'] },
   ],
 });

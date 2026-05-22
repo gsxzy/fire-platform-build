@@ -1,6 +1,6 @@
 /**
  * GB28181 国标设备正式控制器
- * 数据源：MySQL `gb28181_devices` 表（WVP 关闭时的 fallback）
+ * 数据源：PostgreSQL `fire_camera` 表（WVP 关闭时的 fallback）
  * 注释：生产环境 WVP 开启时，前端优先从 WVP API + IndexedDB 获取数据；
  *       此控制器仅作为非 WVP 模式的后端数据源。
  */

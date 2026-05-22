@@ -34,6 +34,9 @@ router.put('/bus-points/:id', control, h('busPointUpdate'));
 
 router.get('/command-logs', view, h('commandLogs'));
 router.get('/videos', view, h('videoList'));
+router.get('/video-candidates', view, h('videoCandidates'));
+router.post('/video-link', control, h('videoLink'));
+router.post('/video-unlink', control, h('videoUnlink'));
 
 router.get('/host-device-codes', view, h('hostDeviceCodeList'));
 router.post('/host-device-codes', control, h('hostDeviceCodeCreate'));

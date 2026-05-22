@@ -2,9 +2,13 @@ import { Op, Sequelize } from 'sequelize';
 import { User, Unit, Device, Alarm, MaintenanceWorkOrder, PatrolRecord, Hazard, FireInspection, Subsystem, ScreenConfig, ScreenWidget } from '@/models';
 import { AlarmService } from './alarm.service';
 import { DutyService } from './duty.service';
+import { getDashboardStats, setDashboardStats } from './redisCache.service';
 
 export class DashboardService {
   static async getWorkbenchData(_userId: number) {
+    const cached = await getDashboardStats<any>('workbench');
+    if (cached) return cached;
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -179,7 +183,7 @@ export class DashboardService {
       { label: '知识库', path: '/knowledge/base', icon: 'BookOpen', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', badge: '' },
     ];
 
-    return {
+    const result = {
       alarm: {
         pending: alarmPending,
         today: alarmToday,
@@ -229,6 +233,8 @@ export class DashboardService {
       duty,
       summaryMonth: { alarmTotal: alarmMonth, handled: alarmMonthHandled, handleRate: monthHandledRate },
     };
+    await setDashboardStats('workbench', result);
+    return result;
   }
 
   private static async buildWeeklyAlarmStats(now: Date) {
@@ -269,6 +275,9 @@ export class DashboardService {
   }
 
   static async getBigScreenData() {
+    const cached = await getDashboardStats<any>('bigscreen');
+    if (cached) return cached;
+
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -332,7 +341,7 @@ export class DashboardService {
       color: s.type === 'water' ? '#3b82f6' : s.type === 'elec' ? '#f59e0b' : s.type === 'vent' ? '#10b981' : '#64748b',
     }));
 
-    return {
+    const result = {
       summary: { unitCount, deviceCount, onlineCount, onlineRate: deviceCount ? ((onlineCount / deviceCount) * 100).toFixed(1) : 0, alarmTotal, alarmToday },
       workOrder: { total: workOrderTotal, done: workOrderDone },
       patrol: { month: patrolMonth }, hazard: { total: hazardTotal },
@@ -350,6 +359,8 @@ export class DashboardService {
         { name: '防火门', status: '正常', color: '#ec4899' },
       ],
     };
+    await setDashboardStats('bigscreen', result);
+    return result;
   }
 
   private static async buildHourlyAlarmStats(now: Date) {

@@ -17,17 +17,17 @@ export const KnowledgeController = {
     let count: number;
 
     if (keyword && String(keyword).trim()) {
-      // 优先使用 FULLTEXT 全文检索（MySQL 5.6+）
+      // 优先使用 PostgreSQL 全文检索（GIN 索引）
       const kw = String(keyword).trim();
       try {
         const [results, total] = await Promise.all([
           KnowledgeDoc.sequelize!.query(
-            `SELECT * FROM fire_knowledge_doc WHERE MATCH(title, content) AGAINST(:kw IN BOOLEAN MODE) ${category ? 'AND category = :cat' : ''} ORDER BY id DESC LIMIT :limit OFFSET :offset`,
-            { replacements: { kw: `${kw}*`, cat: category, limit: +pageSize, offset: (+pageNum - 1) * +pageSize }, type: 'SELECT' }
+            `SELECT * FROM fire_knowledge_doc WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', :kw) ${category ? 'AND category = :cat' : ''} ORDER BY id DESC LIMIT :limit OFFSET :offset`,
+            { replacements: { kw, cat: category, limit: +pageSize, offset: (+pageNum - 1) * +pageSize }, type: 'SELECT' }
           ),
           KnowledgeDoc.sequelize!.query(
-            `SELECT COUNT(*) as total FROM fire_knowledge_doc WHERE MATCH(title, content) AGAINST(:kw IN BOOLEAN MODE) ${category ? 'AND category = :cat' : ''}`,
-            { replacements: { kw: `${kw}*`, cat: category }, type: 'SELECT' }
+            `SELECT COUNT(*) as total FROM fire_knowledge_doc WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', :kw) ${category ? 'AND category = :cat' : ''}`,
+            { replacements: { kw, cat: category }, type: 'SELECT' }
           ),
         ]);
         rows = results as any[];

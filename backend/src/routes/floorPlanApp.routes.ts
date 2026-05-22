@@ -1,6 +1,6 @@
 /**
  * 平面图 API — 与 app/backend/routes/floorPlan.js 同路径、同库表（fire_* / units / device_archive 等），
- * 便于根目录 TypeScript 后端与现有前端、现网 MySQL 共用一套数据。
+ * 便于根目录 TypeScript 后端与现有前端、现网 PostgreSQL 共用一套数据。
  */
 import { Router } from 'express';
 import path from 'path';
@@ -365,7 +365,7 @@ router.post('/floors/:id/devices', async (req, res) => {
       return res.status(400).json(fail('device_id, x, y 不能为空', 400));
     }
     const [meta] = await sequelize.query(
-      'INSERT INTO fire_floor_device_position (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE x = ?, y = ?',
+      'INSERT INTO floor_device_positions (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON CONFLICT (floor_id, device_id) DO UPDATE SET x = EXCLUDED.x, y = EXCLUDED.y',
       { replacements: [floorId, device_id, x, y, x, y] }
     );
     const m = meta as { insertId?: number };
@@ -385,7 +385,7 @@ router.post('/floors/:id/devices/batch', async (req, res) => {
     await sequelize.transaction(async (t) => {
       for (const p of positions as { device_id: string; x: number; y: number }[]) {
         await sequelize.query(
-          'INSERT INTO fire_floor_device_position (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE x = ?, y = ?',
+          'INSERT INTO floor_device_positions (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON CONFLICT (floor_id, device_id) DO UPDATE SET x = EXCLUDED.x, y = EXCLUDED.y',
           { replacements: [floorId, p.device_id, p.x, p.y, p.x, p.y], transaction: t }
         );
       }
@@ -481,7 +481,7 @@ router.post('/floors/:id/devices/import', importUpload.single('file'), async (re
     await sequelize.transaction(async (t) => {
       for (const p of matched) {
         await sequelize.query(
-          'INSERT INTO fire_floor_device_position (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE x = ?, y = ?',
+          'INSERT INTO floor_device_positions (floor_id, device_id, x, y) VALUES (?, ?, ?, ?) ON CONFLICT (floor_id, device_id) DO UPDATE SET x = EXCLUDED.x, y = EXCLUDED.y',
           { replacements: [floorId, p.device_id, p.x, p.y, p.x, p.y], transaction: t }
         );
       }
@@ -563,7 +563,7 @@ router.get('/floors/:id/cameras', async (req, res) => {
         c.name AS camera_name,
         c.stream_url
       FROM fire_floor_camera_binding b
-      LEFT JOIN cameras c ON b.camera_device_id = c.id
+      LEFT JOIN fire_camera c ON b.camera_device_id = c.id
       WHERE b.floor_id = ?`,
       { replacements: [req.params.id], type: QueryTypes.SELECT }
     )) as Record<string, unknown>[];
@@ -586,15 +586,11 @@ router.post('/floors/:id/cameras', async (req, res) => {
     const [meta] = await sequelize.query(
       `INSERT INTO fire_floor_camera_binding (floor_id, camera_device_id, bound_device_ids, x, y, preset_no)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE bound_device_ids = ?, x = ?, y = ?, preset_no = ?`,
+       ON CONFLICT (floor_id, camera_device_id) DO UPDATE SET bound_device_ids = EXCLUDED.bound_device_ids, x = EXCLUDED.x, y = EXCLUDED.y, preset_no = EXCLUDED.preset_no`,
       {
         replacements: [
           floorId,
           camera_device_id,
-          bound,
-          x || 0,
-          y || 0,
-          preset_no || 0,
           bound,
           x || 0,
           y || 0,

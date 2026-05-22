@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import sequelize from '@/config/database';
 import { sendSuccess, sendDeleted, sendPage } from '@/utils/response';
 import { fail } from '@/utils/response';
-import { ControlRoom, ControlRoomHost, Device } from '@/models';
+import { ControlRoom, ControlRoomHost, Device, ControlRoomVideo } from '@/models';
 import logger from '@/config/logger';
 
 export async function list(req: Request, res: Response) {
@@ -141,12 +141,62 @@ export async function videoList(req: Request, res: Response) {
     const roomId = req.query.roomId ? String(req.query.roomId) : undefined;
     const room = roomId ? await ControlRoom.findByPk(roomId) : null;
     if (!room) return res.json(fail('消控室不存在'));
-    const devices = await Device.findAll({
-      where: { unit_id: (room as any).unit_id, device_type: '摄像头' },
-      attributes: ['id', 'device_name', 'install_location', 'device_sn', 'iot_id', 'protocol_config', 'status'],
-      limit: 20,
+
+    const rows = await ControlRoomVideo.findAll({
+      where: { room_id: roomId },
+      order: [['sort_order', 'ASC'], ['id', 'ASC']],
     });
-    const cameras = devices.map((d: any) => {
+
+    const cameraList = rows.map((r: any) => ({
+      id: Number(r.id),
+      roomId: Number(r.room_id),
+      cameraName: r.camera_name || '',
+      cameraNo: r.camera_no || '',
+      position: r.position || '',
+      streamUrl: r.stream_url || '',
+      protocol: r.protocol || 'HLS',
+      status: r.status === 1 ? 1 : 0,
+    }));
+
+    sendSuccess(res, req, cameraList);
+  } catch (err: any) {
+    logger.error(`[ControlRoom] videoList 失败: ${err?.message || err}`);
+    return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+  }
+}
+
+export async function videoCandidates(req: Request, res: Response) {
+  try {
+    const roomId = req.query.roomId ? String(req.query.roomId) : undefined;
+    const room = roomId ? await ControlRoom.findByPk(roomId) : null;
+    if (!room) return res.json(fail('消控室不存在'));
+
+    const unitId = (room as any).unit_id;
+    if (!unitId) {
+      sendSuccess(res, req, []);
+      return;
+    }
+
+    // 已关联的摄像头编号
+    const linked = await ControlRoomVideo.findAll({
+      where: { room_id: roomId },
+      attributes: ['camera_no'],
+      raw: true,
+    }) as any[];
+    const linkedNos = new Set(linked.map((l) => l.camera_no).filter(Boolean));
+
+    // 单位下所有摄像头设备，排除已关联的
+    const devices = await Device.findAll({
+      where: {
+        unit_id: unitId,
+        device_type: { [Op.in]: ['摄像头', 'gb28181-camera'] },
+        ...(linkedNos.size > 0 ? { device_sn: { [Op.notIn]: Array.from(linkedNos) } } : {}),
+      },
+      attributes: ['id', 'device_name', 'install_location', 'device_sn', 'iot_id', 'protocol_config', 'status'],
+      limit: 100,
+    });
+
+    const candidates = devices.map((d: any) => {
       let cfg: Record<string, any> = {};
       try { cfg = d.protocol_config ? JSON.parse(d.protocol_config) : {}; } catch { /* ignore */ }
       const deviceId = d.device_sn || d.iot_id || String(d.id);
@@ -158,12 +208,74 @@ export async function videoList(req: Request, res: Response) {
         deviceId,
         channelId: cfg.channelId || deviceId,
         status: d.status === 1 ? 1 : 0,
-        streamUrl: '',
       };
     });
-    sendSuccess(res, req, cameras);
+
+    sendSuccess(res, req, candidates);
   } catch (err: any) {
-    logger.error(`[ControlRoom] videoList 失败: ${err?.message || err}`);
+    logger.error(`[ControlRoom] videoCandidates 失败: ${err?.message || err}`);
+    return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+  }
+}
+
+export async function videoLink(req: Request, res: Response) {
+  try {
+    const { roomId, cameraNo, cameraName, streamUrl, protocol, position } = req.body || {};
+    if (!roomId || !cameraNo) {
+      return res.status(400).json(fail('缺少 roomId 或 cameraNo'));
+    }
+
+    const room = await ControlRoom.findByPk(roomId);
+    if (!room) return res.json(fail('消控室不存在'));
+
+    const [record, created] = await ControlRoomVideo.findOrCreate({
+      where: { room_id: roomId, camera_no: cameraNo },
+      defaults: {
+        room_id: roomId,
+        camera_no: cameraNo,
+        camera_name: cameraName || cameraNo,
+        stream_url: streamUrl || '',
+        protocol: protocol || 'HLS',
+        position: position || '',
+        status: 1,
+        sort_order: 0,
+      } as any,
+    });
+
+    if (!created) {
+      await (record as any).update({
+        camera_name: cameraName || (record as any).camera_name,
+        stream_url: streamUrl || (record as any).stream_url,
+        protocol: protocol || (record as any).protocol,
+        position: position || (record as any).position,
+      });
+    }
+
+    sendSuccess(res, req, { id: (record as any).id }, '关联成功');
+  } catch (err: any) {
+    logger.error(`[ControlRoom] videoLink 失败: ${err?.message || err}`);
+    return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
+  }
+}
+
+export async function videoUnlink(req: Request, res: Response) {
+  try {
+    const { roomId, cameraNo } = req.body || {};
+    if (!roomId || !cameraNo) {
+      return res.status(400).json(fail('缺少 roomId 或 cameraNo'));
+    }
+
+    const deleted = await ControlRoomVideo.destroy({
+      where: { room_id: roomId, camera_no: cameraNo },
+    });
+
+    if (deleted === 0) {
+      return res.json(fail('未找到关联记录'));
+    }
+
+    sendDeleted(res, req, '取消关联成功');
+  } catch (err: any) {
+    logger.error(`[ControlRoom] videoUnlink 失败: ${err?.message || err}`);
     return res.status(500).json(fail(`操作失败: ${err?.message || '未知错误'}`, 500));
   }
 }

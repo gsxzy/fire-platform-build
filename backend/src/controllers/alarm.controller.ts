@@ -79,7 +79,7 @@ export const AlarmController = {
           sequelize.query(`SELECT * FROM fire_control_room WHERE unit_id = ? LIMIT 1`, { replacements: [unitId] })
             .then(([rows]: any) => { controlRoom = rows?.[0] || null; }).catch(() => {}),
           sequelize.query(
-            `SELECT id, name, location, rtsp_url, stream_url, device_id, channel_id, online_status FROM cameras WHERE unit_id = ? LIMIT 10`,
+            `SELECT id, name, location, rtsp_url, stream_url, device_id, channel_id, online_status FROM fire_camera WHERE unit_id = ? LIMIT 10`,
             { replacements: [String(unitId)] }
           ).then(([rows]: any) => { cameras = rows || []; }).catch(() => {})
         );
