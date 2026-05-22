@@ -20,6 +20,21 @@ const tdRest = axios.create({
   headers: { 'Content-Type': 'text/plain' },
 });
 
+/** TDengine 参数化查询占位符替换 */
+function escapeIdentifier(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+function escapeString(value: string | null | undefined): string {
+  if (value == null) return 'NULL';
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function escapeNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return 'NULL';
+  return String(value);
+}
+
 /** 执行 TDengine SQL */
 async function execSql(sql: string): Promise<any> {
   try {
@@ -30,7 +45,7 @@ async function execSql(sql: string): Promise<any> {
     return res.data;
   } catch (err: any) {
     logger.error(`[TDengine] SQL执行失败: ${err.message}, SQL: ${sql.slice(0, 200)}`);
-    // throw err; // 生产环境中TDengine可能未安装，不阻断启动
+    throw err;
   }
 }
 
@@ -115,28 +130,28 @@ export async function insertTelemetry(
     raw_hex?: string | null;
   }
 ): Promise<void> {
-  const tbName = `ctb_telemetry_${iotDeviceId}`;
+  const tbName = `ctb_telemetry_${escapeIdentifier(String(iotDeviceId))}`;
   const sql = `
-    INSERT INTO ${tbName} USING stb_telemetry TAGS (${iotDeviceId}, '${deviceSn.replace(/'/g, "''")}')
+    INSERT INTO ${tbName} USING stb_telemetry TAGS (${escapeNumber(iotDeviceId)}, ${escapeString(deviceSn)})
     VALUES (
       NOW(),
-      ${data.message_id ?? 'NULL'},
-      ${data.message_type ? `'${data.message_type.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.dev_type ?? 'NULL'},
-      ${data.dev_type_name ? `'${data.dev_type_name.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.imei ? `'${data.imei.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.device_model ? `'${data.device_model.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.rsrp ?? 'NULL'},
-      ${data.snr ?? 'NULL'},
-      ${data.shield ?? 'NULL'},
-      ${data.channel_count ?? 'NULL'},
-      ${data.pressure_kpa ?? 'NULL'},
-      ${data.level_m ?? 'NULL'},
-      ${data.temperature ?? 'NULL'},
-      ${data.battery_pct ?? 'NULL'},
+      ${escapeNumber(data.message_id)},
+      ${escapeString(data.message_type)},
+      ${escapeNumber(data.dev_type)},
+      ${escapeString(data.dev_type_name)},
+      ${escapeString(data.imei)},
+      ${escapeString(data.device_model)},
+      ${escapeNumber(data.rsrp)},
+      ${escapeNumber(data.snr)},
+      ${escapeNumber(data.shield)},
+      ${escapeNumber(data.channel_count)},
+      ${escapeNumber(data.pressure_kpa)},
+      ${escapeNumber(data.level_m)},
+      ${escapeNumber(data.temperature)},
+      ${escapeNumber(data.battery_pct)},
       ${data.has_alarm ? 'true' : 'false'},
       ${data.has_fault ? 'true' : 'false'},
-      ${data.raw_hex ? `'${data.raw_hex.slice(0, 4000).replace(/'/g, "''")}'` : 'NULL'}
+      ${escapeString(data.raw_hex ? data.raw_hex.slice(0, 4000) : null)}
     )
   `;
   await execSql(sql);
@@ -153,16 +168,16 @@ export async function insertRawLog(
     raw_json?: string;
   }
 ): Promise<void> {
-  const safeDeviceId = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
-  const tbName = `ctb_raw_${protocolType}_${safeDeviceId}`;
+  const safeDeviceId = escapeIdentifier(deviceId).slice(0, 80);
+  const tbName = `ctb_raw_${escapeIdentifier(protocolType)}_${safeDeviceId}`;
   const sql = `
-    INSERT INTO ${tbName} USING stb_raw_log TAGS ('${protocolType.replace(/'/g, "''")}', '${deviceId.replace(/'/g, "''")}')
+    INSERT INTO ${tbName} USING stb_raw_log TAGS (${escapeString(protocolType)}, ${escapeString(deviceId)})
     VALUES (
       NOW(),
-      ${data.direction ? `'${data.direction.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.cmd_type ? `'${data.cmd_type.replace(/'/g, "''")}'` : 'NULL'},
-      ${data.hex_data ? `'${data.hex_data.slice(0, 8000).replace(/'/g, "''")}'` : 'NULL'},
-      ${data.raw_json ? `'${data.raw_json.slice(0, 4000).replace(/'/g, "''")}'` : 'NULL'}
+      ${escapeString(data.direction)},
+      ${escapeString(data.cmd_type)},
+      ${escapeString(data.hex_data ? data.hex_data.slice(0, 8000) : null)},
+      ${escapeString(data.raw_json ? data.raw_json.slice(0, 4000) : null)}
     )
   `;
   await execSql(sql);
@@ -174,11 +189,11 @@ export async function queryTelemetryHistory(
   startTime: string,
   endTime: string
 ): Promise<any[]> {
-  const tbName = `ctb_telemetry_${iotDeviceId}`;
+  const tbName = `ctb_telemetry_${escapeIdentifier(String(iotDeviceId))}`;
   const sql = `
     SELECT ts, pressure_kpa, level_m, temperature, battery_pct, has_alarm, has_fault
     FROM ${tbName}
-    WHERE ts >= '${startTime}' AND ts <= '${endTime}'
+    WHERE ts >= ${escapeString(startTime)} AND ts <= ${escapeString(endTime)}
     ORDER BY ts DESC
   `;
   const res = await execSql(sql);
@@ -194,14 +209,14 @@ export async function queryRawLog(
   endTime: string,
   limit = 100
 ): Promise<any[]> {
-  const safeDeviceId = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
-  const tbName = `ctb_raw_${protocolType}_${safeDeviceId}`;
+  const safeDeviceId = escapeIdentifier(deviceId).slice(0, 80);
+  const tbName = `ctb_raw_${escapeIdentifier(protocolType)}_${safeDeviceId}`;
   const sql = `
     SELECT ts, direction, cmd_type, hex_data, raw_json
     FROM ${tbName}
-    WHERE ts >= '${startTime}' AND ts <= '${endTime}'
+    WHERE ts >= ${escapeString(startTime)} AND ts <= ${escapeString(endTime)}
     ORDER BY ts DESC
-    LIMIT ${limit}
+    LIMIT ${escapeNumber(limit)}
   `;
   const res = await execSql(sql);
   return res.data || [];

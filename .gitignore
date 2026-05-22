@@ -98,3 +98,7 @@ flyway.user.conf
 # 临时文件
 tmp_*.*
 *.tmp
+
+# Agent sensitive config
+AGENTS.md
+

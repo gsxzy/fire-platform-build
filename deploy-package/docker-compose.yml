@@ -1,7 +1,7 @@
 # ============================================================================
 # 新致远智慧消防平台 - Docker Compose 编排配置
 # 版本: 2.0.0
-# 功能: 一键启动完整平台（前端 + 后端 + MySQL + Redis + Nginx）
+# 功能: 一键启动完整平台（前端 + 后端 + PostgreSQL + Redis + Nginx + TDengine）
 # 适用环境: 开发 / 测试 / 生产（通过环境变量区分）
 # ============================================================================
 
@@ -30,7 +30,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:80/health"]
+      test: ["CMD", "sh", "-c", "test -f /usr/share/nginx/html/index.html || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -68,8 +68,8 @@ services:
       - APP_VERSION=${VERSION:-2.0.0}
 
       # ── 数据库连接（使用服务名作为主机名）──
-      - DB_HOST=mysql
-      - DB_PORT=3306
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_NAME=${DB_NAME:-fire_platform}
       - DB_USER=${DB_USER:-fire_user}
       - DB_PASSWORD=${DB_PASSWORD:-Fire_Pass_2024!}
@@ -137,9 +137,11 @@ services:
     networks:
       - fire-platform-net
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      tdengine:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:5003/api/health"]
@@ -162,32 +164,31 @@ services:
         max-file: "5"
         labels: "service,environment"
 
-  # ── MySQL 数据库 ──
-  mysql:
-    image: mysql:8.0
-    container_name: fire-platform-mysql
+  # ── PostgreSQL 数据库 ──
+  postgres:
+    image: postgres:15-alpine
+    container_name: fire-platform-postgres
     restart: unless-stopped
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-Root_Pass_2024!}
-      - MYSQL_DATABASE=${DB_NAME:-fire_platform}
-      - MYSQL_USER=${DB_USER:-fire_user}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-Fire_Pass_2024!}
+      - POSTGRES_USER=${DB_USER:-fire_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-Fire_Pass_2024!}
+      - POSTGRES_DB=${DB_NAME:-fire_platform}
       - TZ=Asia/Shanghai
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
-      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
-      - mysql-backup:/backup
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     networks:
       - fire-platform-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-Root_Pass_2024!}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-fire_user} -d ${DB_NAME:-fire_platform}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 30s
     deploy:
       resources:
         limits:
@@ -202,16 +203,45 @@ services:
         max-size: "100m"
         max-file: "5"
         labels: "service,environment"
-    command: >
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --default-time-zone=+08:00
-      --max_connections=500
-      --innodb_buffer_pool_size=1G
-      --innodb_log_file_size=256M
-      --slow_query_log=1
-      --slow_query_log_file=/var/lib/mysql/slow.log
-      --long_query_time=2
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+
+  # ── TDengine 时序数据库 ──
+  tdengine:
+    image: tdengine/tdengine:3.3.2.0
+    container_name: fire-platform-tdengine
+    restart: unless-stopped
+    ports:
+      - "${TDENGINE_PORT:-6041}:6041"
+      - "${TDENGINE_DNODE_PORT:-6030}:6030"
+    environment:
+      - TAOS_FQDN=tdengine
+      - TAOS_FIRST_EP=tdengine
+      - TZ=Asia/Shanghai
+    volumes:
+      - tdengine-data:/var/lib/taos
+      - tdengine-log:/var/log/taos
+    networks:
+      - fire-platform-net
+    healthcheck:
+      test: ["CMD", "taos", "-s", "show databases;"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service,environment"
 
   # ── Redis 缓存 ──
   redis:
@@ -290,9 +320,11 @@ services:
 # 数据卷定义（持久化存储）
 # ────────────────────────────────────────────────────────────────────────────
 volumes:
-  mysql-data:
+  postgres-data:
     driver: local
-  mysql-backup:
+  tdengine-data:
+    driver: local
+  tdengine-log:
     driver: local
   redis-data:
     driver: local

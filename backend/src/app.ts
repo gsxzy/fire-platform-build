@@ -22,6 +22,7 @@ import { requestLogger, errorLogger } from '@/middleware/logger';
 import { globalRateLimiter } from '@/middleware/rateLimit';
 import { slowRequestWarning } from '@/middleware/slowRequest';
 import { requestTracer } from '@/middleware/requestTracer';
+import { sqlInjectionDetector, securityHeaders } from '@/middleware/security';
 import routes from '@/routes';
 import { initWebSocket } from '@/websocket';
 import { iotGateway } from '@/iot';
@@ -48,8 +49,10 @@ const PORT = parseInt(process.env.PORT || '3000');
 /* ── 中间件 ── */
 app.use(cors(getCorsOptions()));
 app.use(helmet());
+app.use(securityHeaders);
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(sqlInjectionDetector);
 app.use(requestTracer);
 app.use(requestLogger);
 app.use(slowRequestWarning);
